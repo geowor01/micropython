@@ -30,12 +30,10 @@
 extern "C" {
 #endif
 
-#include "nrf51.h"
-#include "nrf_nvmc.h"
 #include "py/lexer.h"
 
 static inline uint32_t persistent_page_size(void) {
-    return NRF_FICR->CODEPAGESIZE;
+    return MBED_CONF_APP_MICROBIT_PAGE_SIZE;
 }
 
 bool is_persistent_page_aligned(const void *ptr);

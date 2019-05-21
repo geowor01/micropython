@@ -45,6 +45,7 @@ STATIC const mp_obj_type_t mp_type_code = {
 };
 
 STATIC mp_obj_t code_execute(mp_obj_code_t *self, mp_obj_dict_t *globals, mp_obj_dict_t *locals) {
+    mp_hal_delay_ms(1);
     // save context and set new context
     mp_obj_dict_t *old_globals = mp_globals_get();
     mp_obj_dict_t *old_locals = mp_locals_get();

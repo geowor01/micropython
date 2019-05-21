@@ -29,9 +29,6 @@
 
 #include "microbit/filesystem.h"
 
-extern uint32_t __data_end__;
-extern uint32_t __data_start__;
-extern uint32_t __etext;
 
 static inline char *rounddown(char *addr, uint32_t align) {
     return (char *)(((uint32_t)addr)&(-align));
@@ -41,17 +38,19 @@ static inline char *roundup(char *addr, uint32_t align) {
     return (char *)((((uint32_t)addr)+align-1)&(-align));
 }
 
+char rom[0x40000];
+
 /** The end of the code area in flash ROM (text plus read-only copy of data area) */
 static inline char *microbit_end_of_code() {
-    return (char *)(&__etext + (&__data_end__ - &__data_start__));
+    return  &rom[0];
 }
 
 static inline char *microbit_end_of_rom() {
-    return (char *)0x40000;
+    return &rom[0x40000];
 }
 
 static inline char *microbit_mp_appended_script() {
-    return (char *)0x3e000;
+    return  &rom[0x3e000];
 }
 
 static inline void *microbit_compass_calibration_page(void) {

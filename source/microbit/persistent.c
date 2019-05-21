@@ -30,7 +30,6 @@
 #include "py/obj.h"
 #include "py/gc.h"
 #include "microbit/filesystem.h"
-#include "lib/ticker.h"
 
 #define DEBUG_PERSISTENT 0
 #if DEBUG_PERSISTENT
@@ -49,10 +48,7 @@ void persistent_write_byte_unchecked(const uint8_t *dest, const uint8_t val) {
     }
 #endif
     DEBUG(("PERSISTENCE DEBUG: Write unchecked byte %u to %lx, previous value %u\r\n", val, (uint32_t)dest, *dest));
-    // Writing to flash will stop the CPU, so we stop the ticker to minimise odd behaviour.
-    ticker_stop();
-    nrf_nvmc_write_byte((uint32_t)dest, val);
-    ticker_start();
+    *((uint8_t *)dest) = val;
 }
 
 void persistent_write_unchecked(const void *dest, const void *src, uint32_t len) {
@@ -67,20 +63,7 @@ void persistent_write_unchecked(const void *dest, const void *src, uint32_t len)
         }
     }
 #endif
-    // Writing to flash will stop the CPU, so we stop the ticker to minimise odd behaviour.
-    ticker_stop();
-    // Aligned word writes are over 4 times as fast per byte, so use those if we can.
-    if ((((uint32_t)address) & 3) == 0 && (((uint32_t)data) & 3) == 0 && len >= 4) {
-        nrf_nvmc_write_words((uint32_t)address, (const uint32_t *)data, len>>2);
-        address += (len>>2)<<2;
-        data += (len>>2)<<2;
-        len &= 3;
-    }
-    if (len) {
-        nrf_nvmc_write_bytes((uint32_t)address, (const uint8_t *)data, len);
-    }
-    while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
-    ticker_start();
+    memcpy(dest, src, len);
 }
 
 static inline bool can_write(const int8_t *dest, const int8_t *src, uint32_t len) {
@@ -99,10 +82,10 @@ static inline bool can_write(const int8_t *dest, const int8_t *src, uint32_t len
 
 void persistent_erase_page(const void *page) {
     DEBUG(("PERSISTENCE DEBUG: Erasing page %lx\r\n", (uint32_t)page));
-    // Writing to flash will stop the CPU, so we stop the ticker to minimise odd behaviour.
-    ticker_stop();
-    nrf_nvmc_page_erase((uint32_t)page);
-    ticker_start();
+    uint32_t *address = (uint32_t *)page;
+    for(uint32_t i = 0; i < persistent_page_size() / sizeof(uint32_t); i++) {
+        address[i] = ~((uint32_t)0);
+    }
 }
 
 bool is_persistent_page_aligned(const void *ptr) {
@@ -146,10 +129,7 @@ int persistent_write(const void *dst, const void *src, uint32_t len) {
 int persistent_write_byte(const uint8_t *dest, const uint8_t val) {
     DEBUG(("PERSISTENCE DEBUG: Write persistent byte %u to %lx\r\n", val, (uint32_t)dest));
     if (((~(*dest)) & val) == 0) {
-        // Writing to flash will stop the CPU, so we stop the ticker to minimise odd behaviour.
-        ticker_stop();
-        nrf_nvmc_write_byte((uint32_t)dest, val);
-        ticker_start();
+        *((uint8_t *)dest) = val;
         return 0;
     } else {
         return persistent_write(dest, &val, 1);

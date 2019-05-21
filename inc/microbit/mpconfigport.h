@@ -39,7 +39,7 @@
 #define MICROPY_QSTR_BYTES_IN_HASH  (1)
 
 // emitters
-#define MICROPY_EMIT_INLINE_THUMB   (1)
+#define MICROPY_EMIT_INLINE_THUMB   (0)
 #define MICROPY_EMIT_INLINE_THUMB_ARMV7M (0)
 #define MICROPY_EMIT_INLINE_THUMB_FLOAT (0)
 
@@ -105,34 +105,16 @@
     { MP_OBJ_NEW_QSTR(MP_QSTR_open), (mp_obj_t)&mp_builtin_open_obj }, \
 
 // extra builtin modules to add to the list of known ones
-extern const struct _mp_obj_module_t microbit_module;
-extern const struct _mp_obj_module_t music_module;
 extern const struct _mp_obj_module_t this_module;
-extern const struct _mp_obj_module_t antigravity_module;
-extern const struct _mp_obj_module_t love_module;
-extern const struct _mp_obj_module_t neopixel_module;
 extern const struct _mp_obj_module_t random_module;
 extern const struct _mp_obj_module_t os_module;
-extern const struct _mp_obj_module_t radio_module;
-extern const struct _mp_obj_module_t audio_module;
-extern const struct _mp_obj_module_t speech_module;
 extern const struct _mp_obj_module_t utime_module;
-extern const struct _mp_obj_module_t machine_module;
 
 #define MICROPY_PORT_BUILTIN_MODULES \
-    { MP_ROM_QSTR(MP_QSTR_microbit), MP_ROM_PTR(&microbit_module) }, \
-    { MP_ROM_QSTR(MP_QSTR_music), MP_ROM_PTR(&music_module) }, \
     { MP_ROM_QSTR(MP_QSTR_this), MP_ROM_PTR(&this_module) }, \
-    { MP_ROM_QSTR(MP_QSTR_antigravity), MP_ROM_PTR(&antigravity_module) }, \
-    { MP_ROM_QSTR(MP_QSTR_love), MP_ROM_PTR(&love_module) }, \
-    { MP_ROM_QSTR(MP_QSTR_neopixel), MP_ROM_PTR(&neopixel_module) }, \
     { MP_ROM_QSTR(MP_QSTR_random), MP_ROM_PTR(&random_module) }, \
     { MP_ROM_QSTR(MP_QSTR_os), MP_ROM_PTR(&os_module) }, \
-    { MP_ROM_QSTR(MP_QSTR_radio), MP_ROM_PTR(&radio_module) }, \
-    { MP_ROM_QSTR(MP_QSTR_audio), MP_ROM_PTR(&audio_module) }, \
-    { MP_ROM_QSTR(MP_QSTR_speech), MP_ROM_PTR(&speech_module) }, \
     { MP_ROM_QSTR(MP_QSTR_utime), MP_ROM_PTR(&utime_module) }, \
-    { MP_ROM_QSTR(MP_QSTR_machine), MP_ROM_PTR(&machine_module) }, \
     \
     /* the following provide aliases for existing modules */ \
     { MP_ROM_QSTR(MP_QSTR_collections), MP_ROM_PTR(&mp_module_collections) }, \

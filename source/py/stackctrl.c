@@ -40,9 +40,11 @@ void mp_stack_set_top(void *top) {
 }
 
 mp_uint_t mp_stack_usage(void) {
-    // Assumes descending stack
     volatile int stack_dummy;
-    return MP_STATE_THREAD(stack_top) - (char*)&stack_dummy;
+    mp_uint_t stack_top = MP_STATE_THREAD(stack_top);
+    mp_uint_t dummy_address = (char*)&stack_dummy;
+    return stack_top > dummy_address ? stack_top - dummy_address
+                                     : dummy_address - stack_top;
 }
 
 #if MICROPY_STACK_CHECK

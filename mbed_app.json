@@ -1,0 +1,8 @@
+{
+    "target_overrides": {
+        "SIMULATOR": {
+            "MICROBIT_STARTING_STACK_USAGE": 44,
+            "MICROBIT_PAGE_SIZE": 1024
+        }
+    }
+}

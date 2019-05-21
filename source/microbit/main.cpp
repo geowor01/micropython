@@ -1,20 +1,20 @@
-#include "lib/ticker.h"
-#include "lib/pwm.h"
+// #include "lib/pwm.h"
 #include "microbit/memory.h"
 #include "microbit/filesystem.h"
-#include "microbit/microbitdal.h"
-#include "MicroBitButton.h"
+// #include "microbit/microbitdal.h"
+// #include "MicroBitButton.h"
+#include "ManagedString.h"
 
-// Global instances of the mbed/DAL components that we use
-gpio_t reset_button_gpio;
-gpio_irq_t reset_button_gpio_irq;
-MicroBitDisplay ubit_display;
-MicroPythonI2C ubit_i2c(I2C_SDA0, I2C_SCL0);
+// // Global instances of the mbed/DAL components that we use
+// gpio_t reset_button_gpio;
+// gpio_irq_t reset_button_gpio_irq;
+// MicroBitDisplay ubit_display;
+// MicroPythonI2C ubit_i2c(I2C_SDA0, I2C_SCL0);
 
-// Global pointers to instances of DAL components that are created dynamically
-MicroBitAccelerometer *ubit_accelerometer;
-MicroBitCompass *ubit_compass;
-MicroBitCompassCalibrator *ubit_compass_calibrator;
+// // Global pointers to instances of DAL components that are created dynamically
+// MicroBitAccelerometer *ubit_accelerometer;
+// MicroBitCompass *ubit_compass;
+// MicroBitCompassCalibrator *ubit_compass_calibrator;
 
 extern "C" {
 
@@ -25,69 +25,69 @@ extern "C" {
 #include "py/mphal.h"
 #include "lib/mp-readline/readline.h"
 #include "lib/utils/pyexec.h"
-#include "microbit/modmicrobit.h"
-#include "microbit/modmusic.h"
+// #include "microbit/modmicrobit.h"
+// #include "microbit/modmusic.h"
 
-void reset_button_handler(uint32_t data, gpio_irq_event event) {
-    (void)data;
-    if (event == IRQ_FALL) {
-        microbit_reset();
-    }
-}
+// void reset_button_handler(uint32_t data, gpio_irq_event event) {
+//     (void)data;
+//     if (event == IRQ_FALL) {
+//         microbit_reset();
+//     }
+// }
 
-void microbit_ticker(void) {
-    // Update compass if it is calibrating, but not if it is still
-    // updating as compass.idleTick() is not reentrant.
-    if (ubit_compass->isCalibrating() && !compass_updating) {
-        ubit_compass->idleTick();
-    }
+// void microbit_ticker(void) {
+//     // Update compass if it is calibrating, but not if it is still
+//     // updating as compass.idleTick() is not reentrant.
+//     if (ubit_compass->isCalibrating() && !compass_updating) {
+//         ubit_compass->idleTick();
+//     }
 
-    compass_up_to_date = false;
-    accelerometer_up_to_date = false;
+//     compass_up_to_date = false;
+//     accelerometer_up_to_date = false;
 
-    // Update buttons and pins with touch.
-    microbit_button_tick();
+//     // Update buttons and pins with touch.
+//     microbit_button_tick();
 
-    // Update the display.
-    microbit_display_tick();
+//     // Update the display.
+//     microbit_display_tick();
 
-    // Update the music
-    microbit_music_tick();
-}
+//     // Update the music
+//     microbit_music_tick();
+// }
 
-static void microbit_display_exception(mp_obj_t exc_in) {
-    mp_uint_t n, *values;
-    mp_obj_exception_get_traceback(exc_in, &n, &values);
-    if (1) {
-        vstr_t vstr;
-        mp_print_t print;
-        vstr_init_print(&vstr, 50, &print);
-        #if MICROPY_ENABLE_SOURCE_LINE
-        if (n >= 3) {
-            mp_printf(&print, "line %u ", values[1]);
-        }
-        #endif
-        if (mp_obj_is_native_exception_instance(exc_in)) {
-            mp_obj_exception_t *exc = (mp_obj_exception_t*)MP_OBJ_TO_PTR(exc_in);
-            mp_printf(&print, "%q ", exc->base.type->name);
-            if (exc->args != NULL && exc->args->len != 0) {
-                mp_obj_print_helper(&print, exc->args->items[0], PRINT_STR);
-            }
-        }
-        // Allow ctrl-C to stop the scrolling message
-        mp_hal_set_interrupt_char(CHAR_CTRL_C);
-        mp_hal_display_string(vstr_null_terminated_str(&vstr));
-        vstr_clear(&vstr);
-        mp_hal_set_interrupt_char(-1);
-        // This is a variant of mp_handle_pending that swallows exceptions
-        #if MICROPY_ENABLE_SCHEDULER
-        #error Scheduler currently unsupported
-        #endif
-        if (MP_STATE_VM(mp_pending_exception) != MP_OBJ_NULL) {
-            MP_STATE_VM(mp_pending_exception) = MP_OBJ_NULL;
-        }
-    }
-}
+// static void microbit_display_exception(mp_obj_t exc_in) {
+//     mp_uint_t n, *values;
+//     mp_obj_exception_get_traceback(exc_in, &n, &values);
+//     if (1) {
+//         vstr_t vstr;
+//         mp_print_t print;
+//         vstr_init_print(&vstr, 50, &print);
+//         #if MICROPY_ENABLE_SOURCE_LINE
+//         if (n >= 3) {
+//             mp_printf(&print, "line %u ", values[1]);
+//         }
+//         #endif
+//         if (mp_obj_is_native_exception_instance(exc_in)) {
+//             mp_obj_exception_t *exc = (mp_obj_exception_t*)MP_OBJ_TO_PTR(exc_in);
+//             mp_printf(&print, "%q ", exc->base.type->name);
+//             if (exc->args != NULL && exc->args->len != 0) {
+//                 mp_obj_print_helper(&print, exc->args->items[0], PRINT_STR);
+//             }
+//         }
+//         // Allow ctrl-C to stop the scrolling message
+//         mp_hal_set_interrupt_char(CHAR_CTRL_C);
+//         mp_hal_display_string(vstr_null_terminated_str(&vstr));
+//         vstr_clear(&vstr);
+//         mp_hal_set_interrupt_char(-1);
+//         // This is a variant of mp_handle_pending that swallows exceptions
+//         #if MICROPY_ENABLE_SCHEDULER
+//         #error Scheduler currently unsupported
+//         #endif
+//         if (MP_STATE_VM(mp_pending_exception) != MP_OBJ_NULL) {
+//             MP_STATE_VM(mp_pending_exception) = MP_OBJ_NULL;
+//         }
+//     }
+// }
 
 static void do_lexer(mp_lexer_t *lex) {
     if (lex == NULL) {
@@ -111,12 +111,12 @@ static void do_lexer(mp_lexer_t *lex) {
         // print exception to stdout
         mp_obj_print_exception(&mp_plat_print, (mp_obj_t)nlr.ret_val);
 
-        // print exception to the display, but not if it's SystemExit or KeyboardInterrupt
-        mp_obj_type_t *exc_type = mp_obj_get_type((mp_obj_t)nlr.ret_val);
-        if (!mp_obj_is_subclass_fast(exc_type, &mp_type_SystemExit)
-            && !mp_obj_is_subclass_fast(exc_type, &mp_type_KeyboardInterrupt)) {
-            microbit_display_exception(nlr.ret_val);
-        }
+        // // print exception to the display, but not if it's SystemExit or KeyboardInterrupt
+        // mp_obj_type_t *exc_type = mp_obj_get_type((mp_obj_t)nlr.ret_val);
+        // if (!mp_obj_is_subclass_fast(exc_type, &mp_type_SystemExit)
+        //     && !mp_obj_is_subclass_fast(exc_type, &mp_type_KeyboardInterrupt)) {
+        //     microbit_display_exception(nlr.ret_val);
+        // }
     }
 }
 
@@ -136,27 +136,41 @@ typedef struct _appended_script_t {
     char str[]; // data of script
 } appended_script_t;
 
-#define APPENDED_SCRIPT ((const appended_script_t*)microbit_mp_appended_script())
+#define APPENDED_SCRIPT ((appended_script_t*)microbit_mp_appended_script())
+
+EMSCRIPTEN_KEEPALIVE
+extern void set_script(char *str)
+{
+    strcpy(APPENDED_SCRIPT->str, str);
+    APPENDED_SCRIPT->len = strlen(str);
+}
 
 int main(void) {
-    // Configure the soft reset button
-    gpio_init_in(&reset_button_gpio, MICROBIT_PIN_BUTTON_RESET);
-    gpio_mode(&reset_button_gpio, PullUp);
-    gpio_irq_init(&reset_button_gpio_irq, MICROBIT_PIN_BUTTON_RESET, &reset_button_handler, 1 /* dummy, must be non-zero */);
-    gpio_irq_set(&reset_button_gpio_irq, IRQ_FALL, 1);
+    // // Configure the soft reset button
+    // gpio_init_in(&reset_button_gpio, MICROBIT_PIN_BUTTON_RESET);
+    // gpio_mode(&reset_button_gpio, PullUp);
+    // gpio_irq_init(&reset_button_gpio_irq, MICROBIT_PIN_BUTTON_RESET, &reset_button_handler, 1 /* dummy, must be non-zero */);
+    // gpio_irq_set(&reset_button_gpio_irq, IRQ_FALL, 1);
 
     // Create dynamically-allocated DAL components
-    ubit_accelerometer = &MicroBitAccelerometer::autoDetect(ubit_i2c);
-    ubit_compass = &MicroBitCompass::autoDetect(ubit_i2c);
-    ubit_compass_calibrator = new MicroBitCompassCalibrator(*ubit_compass, *ubit_accelerometer, ubit_display);
+    // ubit_accelerometer = &MicroBitAccelerometer::autoDetect(ubit_i2c);
+    // ubit_compass = &MicroBitCompass::autoDetect(ubit_i2c);
+    // ubit_compass_calibrator = new MicroBitCompassCalibrator(*ubit_compass, *ubit_accelerometer, ubit_display);
 
     for (;;) {
-        extern uint32_t __StackTop;
+
+        APPENDED_SCRIPT->header[0] = 'M';
+        APPENDED_SCRIPT->header[1] = 'P';
+        EM_ASM({ ccall('set_script', 'null',['string'], [window.document.getElementById("script").value]);});
+
         static uint32_t mp_heap[10240 / sizeof(uint32_t)];
 
         // Initialise memory regions: stack and MicroPython heap
-        mp_stack_set_top(&__StackTop);
-        mp_stack_set_limit(1800); // stack is 2k
+        mp_stack_ctrl_init();
+        // Simulate the stack space already taken up
+        mp_stack_set_top(MP_STATE_THREAD(stack_top) - MBED_CONF_APP_MICROBIT_STARTING_STACK_USAGE);
+        mp_stack_set_limit((1800 / sizeof(uint32_t)) * sizeof(uint32_t)); // stack is 2k
+
         gc_init(mp_heap, (uint8_t*)mp_heap + sizeof(mp_heap));
 
         // Initialise the MicroPython runtime
@@ -166,19 +180,19 @@ int main(void) {
 
         // Initialise the micro:bit peripherals
         microbit_seed_random();
-        ubit_display.disable();
-        microbit_display_init();
+        // ubit_display.disable();
+        // microbit_display_init();
         microbit_filesystem_init();
-        microbit_pin_init();
-        microbit_compass_init();
-        pwm_init();
-        MP_STATE_PORT(radio_buf) = NULL;
+        // microbit_pin_init();
+        // microbit_compass_init();
+        // pwm_init();
+        // MP_STATE_PORT(radio_buf) = NULL;
 
         // Start our ticker
         // Note that the DAL has a separate ticker which is also running
-        ticker_init(microbit_ticker);
-        ticker_start();
-        pwm_start();
+        // ticker_init(microbit_ticker);
+        // ticker_start();
+        // pwm_start();
 
         // Only run initial script (or import from microbit) if we are in "friendly REPL"
         // mode.  If we are in "raw REPL" mode then this will be skipped.
@@ -191,7 +205,7 @@ int main(void) {
                 do_strn(APPENDED_SCRIPT->str, APPENDED_SCRIPT->len);
             } else {
                 // from microbit import *
-                mp_import_all(mp_import_name(MP_QSTR_microbit, mp_const_empty_tuple, MP_OBJ_NEW_SMALL_INT(0)));
+                // mp_import_all(mp_import_name(MP_QSTR_microbit, mp_const_empty_tuple, MP_OBJ_NEW_SMALL_INT(0)));
             }
         }
 
@@ -210,9 +224,10 @@ int main(void) {
 
         // Print the special string for pyboard.py to detect the soft reset
         mp_hal_stdout_tx_str("soft reboot\r\n");
+        wait_ms(1);
 
         // Stop the ticker to prevent any background tasks from running
-        ticker_stop();
+        // ticker_stop();
 
         // Reset state associated with background tasks
         memset(&MP_STATE_PORT(async_data)[0], 0, sizeof(MP_STATE_PORT(async_data)));
@@ -240,4 +255,18 @@ NORETURN void nlr_jump_fail(void *val) {
 void __register_exitproc() {
 }
 
+}
+
+void gc_collect(void) {
+    void *stack_top = MP_STATE_THREAD(stack_top) + MBED_CONF_APP_MICROBIT_STARTING_STACK_USAGE;
+
+    // WARNING: This gc_collect implementation doesn't try to get root
+    // pointers from CPU registers, and thus may function incorrectly.
+    jmp_buf dummy;
+    if (setjmp(dummy) == 0) {
+        longjmp(dummy, 1);
+    }
+    gc_collect_start();
+    gc_collect_root((void **)stack_top, ((mp_uint_t)(void*)(&dummy + 1) - (mp_uint_t)stack_top) / sizeof(mp_uint_t));
+    gc_collect_end();
 }

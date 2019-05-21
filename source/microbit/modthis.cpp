@@ -29,7 +29,6 @@
 extern "C" {
 
 #include "py/obj.h"
-#include "microbit/modmicrobit.h"
 
 STATIC mp_obj_t this__init__(void) {
     STATIC const char *this_text =

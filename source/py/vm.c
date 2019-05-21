@@ -30,6 +30,7 @@
 #include <assert.h>
 
 #include "py/mpstate.h"
+#include "py/mphal.h"
 #include "py/nlr.h"
 #include "py/emitglue.h"
 #include "py/objtype.h"
@@ -180,6 +181,9 @@ run_code_state: ;
     volatile int gil_divisor = MICROPY_PY_THREAD_GIL_VM_DIVISOR;
     #endif
 
+    long int counter = 0;
+    long int timer = mp_hal_ticks_ms();
+
     // outer exception handling loop
     for (;;) {
         nlr_buf_t nlr;
@@ -206,6 +210,15 @@ outer_dispatch_loop:
             // loop to execute byte code
             for (;;) {
 dispatch_loop:
+                counter++;
+                if (counter == 100) {
+                    counter = 0;
+                    if (mp_hal_ticks_ms() - timer > 100)
+                    {
+                        timer = mp_hal_ticks_ms();
+                        mp_hal_delay_ms(1);
+                    }
+                }
 #if MICROPY_OPT_COMPUTED_GOTO
                 DISPATCH();
 #else

@@ -34,7 +34,7 @@ extern "C" {
 #include "py/runtime.h"
 #include "py/mphal.h"
 #include "lib/utils/interrupt_char.h"
-#include "microbit/modmicrobit.h"
+// #include "microbit/modmicrobit.h"
 
 #define UART_RX_BUF_SIZE (64) // it's large so we can paste example code
 
@@ -72,7 +72,7 @@ int mp_hal_stdin_rx_any(void) {
 
 int mp_hal_stdin_rx_chr(void) {
     while (uart_rx_buf_tail == uart_rx_buf_head) {
-        __WFI();
+        wait_ms(10);
     }
     int c = uart_rx_buf[uart_rx_buf_tail];
     uart_rx_buf_tail = (uart_rx_buf_tail + 1) % UART_RX_BUF_SIZE;
@@ -118,26 +118,16 @@ void mp_hal_erase_line_from_cursor(unsigned int n_chars) {
     mp_hal_move_cursor_back(n_chars);
 }
 
-void mp_hal_display_string(const char *str) {
-    microbit_display_scroll(&microbit_display_obj, str);
-}
+// void mp_hal_display_string(const char *str) {
+//     microbit_display_scroll(&microbit_display_obj, str);
+// }
 
 void mp_hal_delay_us(mp_uint_t us) {
     wait_us(us);
 }
 
 void mp_hal_delay_ms(mp_uint_t ms) {
-    if (ms <= 0) {
-        return;
-    }
-    // Wraparound of tick is taken care of by 2's complement arithmetic
-    uint64_t start = system_timer_current_time();
-    while (system_timer_current_time() - start < (uint64_t)ms) {
-        // Check for any pending events, like a KeyboardInterrupt
-        mp_handle_pending();
-        // Enter sleep mode, waiting for (at least) the SysTick interrupt
-        __WFI();
-    }
+    wait_ms(ms);
 }
 
 mp_uint_t mp_hal_ticks_us(void) {

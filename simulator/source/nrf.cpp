@@ -50,6 +50,11 @@ void ticker_handler(const ticker_data_t *data) {
         last_slow_tick = time;
         SWI3_IRQHandler();
         SWI4_IRQHandler();
+        if (NRF_TEMP->TASKS_START && NRF_TEMP->EVENTS_DATARDY == 0) {
+            NRF_TEMP->TEMP = EM_ASM_INT({ return MbedJSUI.TemperatureSensor.read(); }) * 4;
+            NRF_TEMP->EVENTS_DATARDY = 1;
+            NRF_TEMP->TASKS_START = 0;
+        }
     }
     us_ticker_set_interrupt(time + 1000);
 }

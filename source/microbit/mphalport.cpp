@@ -34,7 +34,7 @@ extern "C" {
 #include "py/runtime.h"
 #include "py/mphal.h"
 #include "lib/utils/interrupt_char.h"
-// #include "microbit/modmicrobit.h"
+#include "microbit/modmicrobit.h"
 
 #define UART_RX_BUF_SIZE (64) // it's large so we can paste example code
 
@@ -118,9 +118,9 @@ void mp_hal_erase_line_from_cursor(unsigned int n_chars) {
     mp_hal_move_cursor_back(n_chars);
 }
 
-// void mp_hal_display_string(const char *str) {
-//     microbit_display_scroll(&microbit_display_obj, str);
-// }
+void mp_hal_display_string(const char *str) {
+    microbit_display_scroll(&microbit_display_obj, str);
+}
 
 void mp_hal_delay_us(mp_uint_t us) {
     wait_us(us);
@@ -135,7 +135,7 @@ mp_uint_t mp_hal_ticks_us(void) {
 }
 
 mp_uint_t mp_hal_ticks_ms(void) {
-    return system_timer_current_time();
+    return mp_hal_ticks_us() * 1000;
 }
 
 }

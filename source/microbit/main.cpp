@@ -1,4 +1,5 @@
-// #include "lib/pwm.h"
+#include "lib/ticker.h"
+#include "lib/pwm.h"
 #include "microbit/memory.h"
 #include "microbit/filesystem.h"
 // #include "microbit/microbitdal.h"
@@ -25,7 +26,7 @@ extern "C" {
 #include "py/mphal.h"
 #include "lib/mp-readline/readline.h"
 #include "lib/utils/pyexec.h"
-// #include "microbit/modmicrobit.h"
+#include "microbit/modmicrobit.h"
 // #include "microbit/modmusic.h"
 
 // void reset_button_handler(uint32_t data, gpio_irq_event event) {
@@ -35,59 +36,59 @@ extern "C" {
 //     }
 // }
 
-// void microbit_ticker(void) {
-//     // Update compass if it is calibrating, but not if it is still
-//     // updating as compass.idleTick() is not reentrant.
-//     if (ubit_compass->isCalibrating() && !compass_updating) {
-//         ubit_compass->idleTick();
-//     }
+void microbit_ticker(void) {
+    // // Update compass if it is calibrating, but not if it is still
+    // // updating as compass.idleTick() is not reentrant.
+    // if (ubit_compass->isCalibrating() && !compass_updating) {
+    //     ubit_compass->idleTick();
+    // }
 
-//     compass_up_to_date = false;
-//     accelerometer_up_to_date = false;
+    // compass_up_to_date = false;
+    // accelerometer_up_to_date = false;
 
-//     // Update buttons and pins with touch.
-//     microbit_button_tick();
+    // // Update buttons and pins with touch.
+    // microbit_button_tick();
 
-//     // Update the display.
-//     microbit_display_tick();
+    // Update the display.
+    microbit_display_tick();
 
-//     // Update the music
-//     microbit_music_tick();
-// }
+    // // Update the music
+    // microbit_music_tick();
+}
 
-// static void microbit_display_exception(mp_obj_t exc_in) {
-//     mp_uint_t n, *values;
-//     mp_obj_exception_get_traceback(exc_in, &n, &values);
-//     if (1) {
-//         vstr_t vstr;
-//         mp_print_t print;
-//         vstr_init_print(&vstr, 50, &print);
-//         #if MICROPY_ENABLE_SOURCE_LINE
-//         if (n >= 3) {
-//             mp_printf(&print, "line %u ", values[1]);
-//         }
-//         #endif
-//         if (mp_obj_is_native_exception_instance(exc_in)) {
-//             mp_obj_exception_t *exc = (mp_obj_exception_t*)MP_OBJ_TO_PTR(exc_in);
-//             mp_printf(&print, "%q ", exc->base.type->name);
-//             if (exc->args != NULL && exc->args->len != 0) {
-//                 mp_obj_print_helper(&print, exc->args->items[0], PRINT_STR);
-//             }
-//         }
-//         // Allow ctrl-C to stop the scrolling message
-//         mp_hal_set_interrupt_char(CHAR_CTRL_C);
-//         mp_hal_display_string(vstr_null_terminated_str(&vstr));
-//         vstr_clear(&vstr);
-//         mp_hal_set_interrupt_char(-1);
-//         // This is a variant of mp_handle_pending that swallows exceptions
-//         #if MICROPY_ENABLE_SCHEDULER
-//         #error Scheduler currently unsupported
-//         #endif
-//         if (MP_STATE_VM(mp_pending_exception) != MP_OBJ_NULL) {
-//             MP_STATE_VM(mp_pending_exception) = MP_OBJ_NULL;
-//         }
-//     }
-// }
+static void microbit_display_exception(mp_obj_t exc_in) {
+    mp_uint_t n, *values;
+    mp_obj_exception_get_traceback(exc_in, &n, &values);
+    if (1) {
+        vstr_t vstr;
+        mp_print_t print;
+        vstr_init_print(&vstr, 50, &print);
+        #if MICROPY_ENABLE_SOURCE_LINE
+        if (n >= 3) {
+            mp_printf(&print, "line %u ", values[1]);
+        }
+        #endif
+        if (mp_obj_is_native_exception_instance(exc_in)) {
+            mp_obj_exception_t *exc = (mp_obj_exception_t*)MP_OBJ_TO_PTR(exc_in);
+            mp_printf(&print, "%q ", exc->base.type->name);
+            if (exc->args != NULL && exc->args->len != 0) {
+                mp_obj_print_helper(&print, exc->args->items[0], PRINT_STR);
+            }
+        }
+        // Allow ctrl-C to stop the scrolling message
+        mp_hal_set_interrupt_char(CHAR_CTRL_C);
+        mp_hal_display_string(vstr_null_terminated_str(&vstr));
+        vstr_clear(&vstr);
+        mp_hal_set_interrupt_char(-1);
+        // This is a variant of mp_handle_pending that swallows exceptions
+        #if MICROPY_ENABLE_SCHEDULER
+        #error Scheduler currently unsupported
+        #endif
+        if (MP_STATE_VM(mp_pending_exception) != MP_OBJ_NULL) {
+            MP_STATE_VM(mp_pending_exception) = MP_OBJ_NULL;
+        }
+    }
+}
 
 static void do_lexer(mp_lexer_t *lex) {
     if (lex == NULL) {
@@ -111,12 +112,12 @@ static void do_lexer(mp_lexer_t *lex) {
         // print exception to stdout
         mp_obj_print_exception(&mp_plat_print, (mp_obj_t)nlr.ret_val);
 
-        // // print exception to the display, but not if it's SystemExit or KeyboardInterrupt
-        // mp_obj_type_t *exc_type = mp_obj_get_type((mp_obj_t)nlr.ret_val);
-        // if (!mp_obj_is_subclass_fast(exc_type, &mp_type_SystemExit)
-        //     && !mp_obj_is_subclass_fast(exc_type, &mp_type_KeyboardInterrupt)) {
-        //     microbit_display_exception(nlr.ret_val);
-        // }
+        // print exception to the display, but not if it's SystemExit or KeyboardInterrupt
+        mp_obj_type_t *exc_type = mp_obj_get_type((mp_obj_t)nlr.ret_val);
+        if (!mp_obj_is_subclass_fast(exc_type, &mp_type_SystemExit)
+            && !mp_obj_is_subclass_fast(exc_type, &mp_type_KeyboardInterrupt)) {
+            microbit_display_exception(nlr.ret_val);
+        }
     }
 }
 
@@ -159,9 +160,12 @@ int main(void) {
 
     for (;;) {
 
+#ifdef TARGET_SIMULATOR
         APPENDED_SCRIPT->header[0] = 'M';
         APPENDED_SCRIPT->header[1] = 'P';
         EM_ASM({ ccall('set_script', 'null',['string'], [window.document.getElementById("script").value]);});
+        EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode(); });
+#endif // TARGET_SIMULATOR
 
         static uint32_t mp_heap[10240 / sizeof(uint32_t)];
 
@@ -181,18 +185,18 @@ int main(void) {
         // Initialise the micro:bit peripherals
         microbit_seed_random();
         // ubit_display.disable();
-        // microbit_display_init();
+        microbit_display_init();
         microbit_filesystem_init();
-        // microbit_pin_init();
+        microbit_pin_init();
         // microbit_compass_init();
-        // pwm_init();
+        pwm_init();
         // MP_STATE_PORT(radio_buf) = NULL;
 
         // Start our ticker
         // Note that the DAL has a separate ticker which is also running
-        // ticker_init(microbit_ticker);
-        // ticker_start();
-        // pwm_start();
+        ticker_init(microbit_ticker);
+        ticker_start();
+        pwm_start();
 
         // Only run initial script (or import from microbit) if we are in "friendly REPL"
         // mode.  If we are in "raw REPL" mode then this will be skipped.
@@ -227,7 +231,7 @@ int main(void) {
         wait_ms(1);
 
         // Stop the ticker to prevent any background tasks from running
-        // ticker_stop();
+        ticker_stop();
 
         // Reset state associated with background tasks
         memset(&MP_STATE_PORT(async_data)[0], 0, sizeof(MP_STATE_PORT(async_data)));

@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2015 Damien P. George
+ * Copyright (c) 2015/6 Mark Shannon
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,33 +23,44 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef __MICROPY_INCLUDED_MICROBIT_MPHALPORT_H__
-#define __MICROPY_INCLUDED_MICROBIT_MPHALPORT_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "py/runtime.h"
+#include "lib/iters.h"
 
-void mp_hal_init(void);
 
-void mp_hal_set_interrupt_char(int c);
-int mp_hal_stdin_rx_any(void);
+typedef struct _repeat_iterator_t {
+    mp_obj_base_t base;
+    mp_obj_t iterable;
+    mp_int_t index;
+} repeat_iterator_t;
 
-// provide these since we don't assume VT100 support
-void mp_hal_move_cursor_back(unsigned int pos);
-void mp_hal_erase_line_from_cursor(unsigned int n_chars);
-
-void mp_hal_display_string(const char*);
-
-// MicroPython low-level C API for pins
-#include "nrf_gpio.h"
-#include "microbit/modmicrobit.h"
-#define mp_hal_pin_obj_t uint8_t
-#define mp_hal_get_pin_obj(o) microbit_obj_get_pin_name(o)
-#define mp_hal_pin_read(p) (int)nrf_gpio_pin_read(p)
-
-#ifdef __cplusplus
+static mp_obj_t microbit_repeat_iter_next(mp_obj_t iter_in) {
+    repeat_iterator_t *iter = (repeat_iterator_t *)iter_in;
+    iter->index++;
+    if (iter->index >= mp_obj_get_int(mp_obj_len(iter->iterable))) {
+        iter->index = 0;
+    }
+    return mp_obj_subscr(iter->iterable, MP_OBJ_NEW_SMALL_INT(iter->index), MP_OBJ_SENTINEL);
 }
-#endif
 
-#endif // __MICROPY_INCLUDED_MICROBIT_MPHALPORT_H__
+const mp_obj_type_t microbit_repeat_iterator_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_iterator,
+    .print = NULL,
+    .make_new = NULL,
+    .call = NULL,
+    .unary_op = NULL,
+    .binary_op = NULL,
+    .attr = NULL,
+    .subscr = NULL,
+    .getiter = mp_identity_getiter,
+    .iternext = microbit_repeat_iter_next,
+};
+
+mp_obj_t microbit_repeat_iterator(mp_obj_t iterable) {
+    repeat_iterator_t *result = m_new_obj(repeat_iterator_t);
+    result->base.type = &microbit_repeat_iterator_type;
+    result->iterable = iterable;
+    result->index = -1;
+    return result;
+}

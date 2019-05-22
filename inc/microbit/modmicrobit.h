@@ -229,13 +229,13 @@ void microbit_compass_init(void);
 
 // //void microbit_accelerometer_event_handler(const MicroBitEvent *evt);
 
-// /****************************************************************/
-// // microbit.button objects
+/****************************************************************/
+// microbit.button objects
 
-// extern const struct _microbit_button_obj_t microbit_button_a_obj;
-// extern const struct _microbit_button_obj_t microbit_button_b_obj;
+extern const struct _microbit_button_obj_t microbit_button_a_obj;
+extern const struct _microbit_button_obj_t microbit_button_b_obj;
 
-// void microbit_button_tick(void);
+void microbit_button_tick(void);
 
 // /****************************************************************/
 // // microbit.i2c, microbit.uart and microbit.spi objects

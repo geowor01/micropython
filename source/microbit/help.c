@@ -81,11 +81,11 @@ STATIC const mp_doc_t help_table_instances[] = {
     // {&microbit_accelerometer_get_y_obj, "Return micro:bit's tilt (Y acceleration) in milli-g's.\n"},
     // {&microbit_accelerometer_get_z_obj, "Return micro:bit's up-down motion (Z acceleration) in milli-g's.\nZ is a positive number when moving up. Moving down, Z is a negative number.\n"},
     // Pushbutton
-    // {&microbit_button_a_obj, "micro:bit's 'A' button. When button is pressed down, is_pressed() is True.\n"},
-    // {&microbit_button_b_obj, "micro:bit's 'B' button. When button is pressed down, is_pressed() is True.\n"},
-    // {&microbit_button_is_pressed_obj, "If the button is pressed down, is_pressed() is True, else False.\n"},
-    // {&microbit_button_was_pressed_obj, "Use was_pressed() to learn if the button was pressed since the last time\nwas_pressed() was called. Returns True or False.\n"},
-    // {&microbit_button_get_presses_obj, "Use get_presses() to get the running total of button presses, and also\nreset this counter to zero.\n"},
+    {&microbit_button_a_obj, "micro:bit's 'A' button. When button is pressed down, is_pressed() is True.\n"},
+    {&microbit_button_b_obj, "micro:bit's 'B' button. When button is pressed down, is_pressed() is True.\n"},
+    {&microbit_button_is_pressed_obj, "If the button is pressed down, is_pressed() is True, else False.\n"},
+    {&microbit_button_was_pressed_obj, "Use was_pressed() to learn if the button was pressed since the last time\nwas_pressed() was called. Returns True or False.\n"},
+    {&microbit_button_get_presses_obj, "Use get_presses() to get the running total of button presses, and also\nreset this counter to zero.\n"},
     // // Compass 3D direction heading
     // {&microbit_compass_heading_obj, "Gives a compass heading between 0-360 with 0 as north.\n"},
     // {&microbit_compass_obj, "Use micro:bit's compass to detect the direction it is heading in.\nThe compass can detect magnetic fields.\nIt uses the Earth's magnetic field to detect direction.\n"},

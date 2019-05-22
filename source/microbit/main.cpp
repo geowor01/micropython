@@ -46,8 +46,8 @@ void microbit_ticker(void) {
     // compass_up_to_date = false;
     // accelerometer_up_to_date = false;
 
-    // // Update buttons and pins with touch.
-    // microbit_button_tick();
+    // Update buttons and pins with touch.
+    microbit_button_tick();
 
     // Update the display.
     microbit_display_tick();

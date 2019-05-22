@@ -302,6 +302,9 @@ static inline bool mp_obj_is_integer(mp_const_obj_t o) { return MP_OBJ_IS_INT(o)
 #define MP_DEFINE_CONST_FUN_OBJ_KW(obj_name, n_args_min, fun_name) \
     const mp_obj_fun_builtin_kw_t obj_name = \
         {{&mp_type_fun_builtin_var}, true, n_args_min, MP_OBJ_FUN_ARGS_MAX, fun_name}
+#define MP_DEFINE_CONST_FUN_OBJ_JS(obj_name, fun_name, fun_call_name) \
+    const mp_obj_fun_js_call_t obj_name = \
+        {{&mp_type_fun_js_call}, fun_name, fun_call_name}
 
 // These macros are used to define constant map/dict objects
 // You can put "static" in front of the definition to make it local
@@ -407,6 +410,7 @@ typedef mp_obj_t (*mp_fun_1_t)(mp_obj_t);
 typedef mp_obj_t (*mp_fun_2_t)(mp_obj_t, mp_obj_t);
 typedef mp_obj_t (*mp_fun_3_t)(mp_obj_t, mp_obj_t, mp_obj_t);
 typedef mp_obj_t (*mp_fun_var_t)(size_t n, const mp_obj_t *);
+typedef mp_obj_t (*mp_fun_js_t)(const char *);
 // mp_fun_kw_t takes mp_map_t* (and not const mp_map_t*) to ease passing
 // this arg to mp_map_lookup().
 typedef mp_obj_t (*mp_fun_kw_t)(size_t n, const mp_obj_t *, mp_map_t *);
@@ -570,6 +574,7 @@ extern const mp_obj_type_t mp_type_fun_builtin_1;
 extern const mp_obj_type_t mp_type_fun_builtin_2;
 extern const mp_obj_type_t mp_type_fun_builtin_3;
 extern const mp_obj_type_t mp_type_fun_builtin_var;
+extern const mp_obj_type_t mp_type_fun_js_call;
 extern const mp_obj_type_t mp_type_fun_bc;
 extern const mp_obj_type_t mp_type_module;
 extern const mp_obj_type_t mp_type_staticmethod;
@@ -818,6 +823,12 @@ typedef struct _mp_obj_fun_builtin_kw_t {
     mp_uint_t n_args_max : 16; // inclusive
     mp_fun_kw_t fun;
 } mp_obj_fun_builtin_kw_t;
+
+typedef struct _mp_obj_fun_js_call_t {
+    mp_obj_base_t base;
+    mp_fun_js_t fun;
+    const char *fun_call_name;
+} mp_obj_fun_js_call_t;
 
 qstr mp_obj_fun_get_name(mp_const_obj_t fun);
 qstr mp_obj_code_get_name(const byte *code_info);

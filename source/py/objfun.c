@@ -151,6 +151,24 @@ const mp_obj_type_t mp_type_fun_builtin_var = {
 };
 
 /******************************************************************************/
+/* javascript calling functions                                               */
+
+STATIC mp_obj_t fun_js_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    (void)args;
+    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_js_call));
+    mp_obj_fun_js_call_t *self = MP_OBJ_TO_PTR(self_in);
+    mp_arg_check_num(n_args, n_kw, 0, 0, false);
+    return self->fun(self->fun_call_name);
+}
+
+const mp_obj_type_t mp_type_fun_js_call = {
+    { &mp_type_type },
+    .name = MP_QSTR_function,
+    .call = fun_js_call,
+    .unary_op = mp_generic_unary_op,
+};
+
+/******************************************************************************/
 /* byte code functions                                                        */
 
 qstr mp_obj_code_get_name(const byte *code_info) {

@@ -30,6 +30,7 @@
 
 #include "py/mpstate.h"
 #include "py/qstr.h"
+#include "py/rootstack.h"
 #include "py/gc.h"
 
 // NOTE: we are using linear arrays to store and search for qstr's (unique strings, interned strings)
@@ -123,6 +124,19 @@ void qstr_init(void) {
     #if MICROPY_PY_THREAD
     mp_thread_mutex_init(&MP_STATE_VM(qstr_mutex));
     #endif
+}
+
+void qstr_deinit(void) {
+    qstr_pool_t *pool = MP_STATE_VM(last_pool);
+    while (pool != &CONST_POOL) {
+        qstr_pool_t *prev = pool->prev;
+        m_del_obj(qstr_pool_t, pool);
+        pool = prev;
+    }
+    if (MP_STATE_VM(qstr_last_chunk) != NULL) {
+        m_del(byte, MP_STATE_VM(qstr_last_chunk), MP_STATE_VM(qstr_last_alloc));
+    }
+    // TODO still previous chunks to free but hard to find them!
 }
 
 STATIC const byte *find_qstr(qstr q) {
@@ -237,7 +251,9 @@ qstr qstr_from_strn(const char *str, size_t len) {
         Q_SET_LENGTH(q_ptr, len);
         memcpy(q_ptr + MICROPY_QSTR_BYTES_IN_HASH + MICROPY_QSTR_BYTES_IN_LEN, str, len);
         q_ptr[MICROPY_QSTR_BYTES_IN_HASH + MICROPY_QSTR_BYTES_IN_LEN + len] = '\0';
+        m_rs_push_ptr(MP_STATE_VM(qstr_last_chunk)); // in case qstr_add allocates before it uses q_ptr if q_ptr==MP_STATE_VM(qstr_last_chunk) is newly allocated
         q = qstr_add(q_ptr);
+        m_rs_pop_ptr(MP_STATE_VM(qstr_last_chunk));
     }
     QSTR_EXIT();
     return q;
@@ -258,7 +274,9 @@ qstr qstr_build_end(byte *q_ptr) {
         mp_uint_t hash = qstr_compute_hash(Q_GET_DATA(q_ptr), len);
         Q_SET_HASH(q_ptr, hash);
         q_ptr[MICROPY_QSTR_BYTES_IN_HASH + MICROPY_QSTR_BYTES_IN_LEN + len] = '\0';
+        m_rs_push_ptr(MP_STATE_VM(qstr_last_chunk)); // in case qstr_add allocates before it uses q_ptr if q_ptr==MP_STATE_VM(qstr_last_chunk) is newly allocated
         q = qstr_add(q_ptr);
+        m_rs_pop_ptr(MP_STATE_VM(qstr_last_chunk));
     } else {
         m_del(byte, q_ptr, Q_GET_ALLOC(q_ptr));
     }

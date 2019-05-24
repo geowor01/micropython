@@ -178,4 +178,14 @@ void mp_warning(const char *msg, ...);
 #define mp_warning(msg, ...)
 #endif
 
+#include "py/rootstack.h"
+
+void m_rs_push_obj(mp_obj_t o);
+void m_rs_pop_obj(mp_obj_t o);
+void mp_obj_list_append_rs(mp_obj_t self, mp_obj_t arg);
+
+static inline void m_rs_push_obj_ptr(mp_obj_t o) { m_rs_push_ptr(MP_OBJ_TO_PTR(o)); }
+static inline void m_rs_pop_obj_ptr(mp_obj_t o) { m_rs_pop_ptr(MP_OBJ_TO_PTR(o)); }
+
+
 #endif // MICROPY_INCLUDED_PY_RUNTIME_H

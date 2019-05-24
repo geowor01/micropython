@@ -32,6 +32,7 @@
 #include "py/mpconfig.h"
 #include "py/misc.h"
 #include "py/mpprint.h"
+#include "py/runtime.h"
 
 // returned value is always at least 1 greater than argument
 #define ROUND_ALLOC(a) (((a) & ((~0U) - 7)) + 8)
@@ -76,7 +77,9 @@ void vstr_clear(vstr_t *vstr) {
 
 vstr_t *vstr_new(size_t alloc) {
     vstr_t *vstr = m_new_obj(vstr_t);
+    m_rs_push_ptr(vstr);
     vstr_init(vstr, alloc);
+    m_rs_pop_ptr(vstr);
     return vstr;
 }
 

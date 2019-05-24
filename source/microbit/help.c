@@ -173,13 +173,13 @@ STATIC const mp_doc_t help_table_instances[] = {
     // {&microbit_music_stop_obj, "Use to stop() the music that is playing.\n"},
     // {&microbit_music_reset_obj, "If things go wrong, reset() the music to its default settings.\n"},
     // // Antigravity
-    // {&antigravity_module, "See: http://xkcd.com/353/\n"},
+    {&antigravity_module, "See: http://xkcd.com/353/\n"},
     // // This module
-    // {&this_module, "The Zen of Python defines what it is to be Pythonic. It wouldn't fit on this\ndevice so we've written a Zen of MicroPython instead.\n"},
-    // {&this_authors_obj, "Use authors() to reveal the names of the people who created this software.\n"},
+    {&this_module, "The Zen of Python defines what it is to be Pythonic. It wouldn't fit on this\ndevice so we've written a Zen of MicroPython instead.\n"},
+    {&this_authors_obj, "Use authors() to reveal the names of the people who created this software.\n"},
     // // Love module
-    // {&love_module, "All you need. Use love.badaboom() to repeat the effect.\n"},
-    // {&love_badaboom_obj, "Hear my soul speak:\nThe very instant that I saw you, did\nMy heart fly to your service.\n"},
+    {&love_module, "All you need. Use love.badaboom() to repeat the effect.\n"},
+    {&love_badaboom_obj, "Hear my soul speak:\nThe very instant that I saw you, did\nMy heart fly to your service.\n"},
 };
 
 bool mp_plat_specific_help(mp_obj_t args0) {

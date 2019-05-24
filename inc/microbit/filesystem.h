@@ -123,8 +123,6 @@ int microbit_filesystem_init(void);
 extern const mp_obj_type_t microbit_bytesio_type;
 extern const mp_obj_type_t microbit_textio_type;
 
-#define min(a,b) (((a)<(b))?(a):(b))
-
 #ifdef __cplusplus
 }
 #endif

@@ -6,7 +6,6 @@
         "./microbit-dal/inc/bluetooth/",
         "./microbit-dal/source/bluetooth/",
         "./microbit-dal/source/asm/",
-        "./microbit-dal/inc/core/MicroBitFiber.h",
         "./microbit-dal/inc/core/MicroBitHeapAllocator.h",
         "./microbit-dal/inc/drivers/DynamicPwm.h",
         "./microbit-dal/inc/drivers/FXOS8700.h",
@@ -23,7 +22,6 @@
         "./microbit-dal/inc/drivers/MicroBitI2C.h",
         "./microbit-dal/inc/drivers/MicroBitIO.h",
         "./microbit-dal/inc/drivers/MicroBitMemoryMap.h",
-        "./microbit-dal/inc/drivers/MicroBitMessageBus.h",
         "./microbit-dal/inc/drivers/MicroBitMultiButton.h",
         "./microbit-dal/inc/drivers/MicroBitPin.h",
         "./microbit-dal/inc/drivers/MicroBitQuadratureDecoder.h",
@@ -32,8 +30,6 @@
         "./microbit-dal/inc/drivers/MicroBitRadioEvent.h",
         "./microbit-dal/inc/drivers/MicroBitStorage.h",
         "./microbit-dal/inc/drivers/MicroBitThermometer.h",
-        "./microbit-dal/inc/drivers/TimedInterruptIn.h",
-        "./microbit-dal/source/core/MicroBitFiber.cpp",
         "./microbit-dal/source/core/MicroBitHeapAllocator.cpp",
         "./microbit-dal/source/drivers/DynamicPwm.cpp",
         "./microbit-dal/source/drivers/FXOS8700.cpp",
@@ -50,7 +46,6 @@
         "./microbit-dal/source/drivers/MicroBitI2C.cpp",
         "./microbit-dal/source/drivers/MicroBitIO.cpp",
         "./microbit-dal/source/drivers/MicroBitMemoryMap.cpp",
-        "./microbit-dal/source/drivers/MicroBitMessageBus.cpp",
         "./microbit-dal/source/drivers/MicroBitMultiButton.cpp",
         "./microbit-dal/source/drivers/MicroBitPin.cpp",
         "./microbit-dal/source/drivers/MicroBitQuadratureDecoder.cpp",
@@ -58,8 +53,7 @@
         "./microbit-dal/source/drivers/MicroBitRadioDatagram.cpp",
         "./microbit-dal/source/drivers/MicroBitRadioEvent.cpp",
         "./microbit-dal/source/drivers/MicroBitStorage.cpp",
-        "./microbit-dal/source/drivers/MicroBitThermometer.cpp",
-        "./microbit-dal/source/drivers/TimedInterruptIn.cpp"
+        "./microbit-dal/source/drivers/MicroBitThermometer.cpp"
     ],
     "disableTlsNullEntropy": true
 }

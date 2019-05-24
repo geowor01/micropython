@@ -109,7 +109,7 @@ int persistent_write(const void *dst, const void *src, uint32_t len) {
     int8_t *tmp_storage = NULL;
     while (addr < end_data) {
         int8_t *next_page = page + page_size;
-        uint32_t data_in_page = min(end_data-addr, next_page-dest);
+        uint32_t data_in_page = MIN(end_data-addr, next_page-dest);
         if (can_write(dest, addr, data_in_page)) {
             if (persistent_write_unchecked(dest, addr, data_in_page)) {
                 return -1;

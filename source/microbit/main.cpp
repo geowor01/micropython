@@ -4,12 +4,13 @@
 #include "microbit/filesystem.h"
 #include "microbit/microbitdal.h"
 // #include "MicroBitButton.h"
+#include "MicroBitDisplay.h"
 #include "ManagedString.h"
 
 // Global instances of the mbed/DAL components that we use
 gpio_t reset_button_gpio;
 gpio_irq_t reset_button_gpio_irq;
-// MicroBitDisplay ubit_display;
+MicroBitDisplay ubit_display;
 // MicroPythonI2C ubit_i2c(I2C_SDA0, I2C_SCL0);
 
 // // Global pointers to instances of DAL components that are created dynamically
@@ -340,7 +341,7 @@ reset:
 
         // Initialise the micro:bit peripherals
         microbit_seed_random();
-        // ubit_display.disable();
+        ubit_display.disable();
         microbit_display_init();
         assert(microbit_filesystem_init() == 0);
         microbit_pin_init();

@@ -75,11 +75,11 @@ STATIC const mp_doc_t help_table_instances[] = {
     {&microbit_sleep_obj, "Put micro:bit to sleep(time) for some milliseconds (1 second = 1000 ms) of time.\nsleep(2000) gives micro:bit a 2 second nap.\n"},
     {&microbit_running_time_obj, "Return running_time() in milliseconds since micro:bit's last reset.\n"},
     {&microbit_temperature_obj, "Return micro:bit's temperature in degrees Celcius.\n"},
-    // // Accelerometer 3D orientation
-    // {&microbit_accelerometer_obj, "Detect micro:bit's movement in 3D.\nIt measures tilt (X and Y) and up-down (Z) motion.\n"},
-    // {&microbit_accelerometer_get_x_obj, "Return micro:bit's tilt (X acceleration) in milli-g's.\n"},
-    // {&microbit_accelerometer_get_y_obj, "Return micro:bit's tilt (Y acceleration) in milli-g's.\n"},
-    // {&microbit_accelerometer_get_z_obj, "Return micro:bit's up-down motion (Z acceleration) in milli-g's.\nZ is a positive number when moving up. Moving down, Z is a negative number.\n"},
+    // Accelerometer 3D orientation
+    {&microbit_accelerometer_obj, "Detect micro:bit's movement in 3D.\nIt measures tilt (X and Y) and up-down (Z) motion.\n"},
+    {&microbit_accelerometer_get_x_obj, "Return micro:bit's tilt (X acceleration) in milli-g's.\n"},
+    {&microbit_accelerometer_get_y_obj, "Return micro:bit's tilt (Y acceleration) in milli-g's.\n"},
+    {&microbit_accelerometer_get_z_obj, "Return micro:bit's up-down motion (Z acceleration) in milli-g's.\nZ is a positive number when moving up. Moving down, Z is a negative number.\n"},
     // Pushbutton
     {&microbit_button_a_obj, "micro:bit's 'A' button. When button is pressed down, is_pressed() is True.\n"},
     {&microbit_button_b_obj, "micro:bit's 'B' button. When button is pressed down, is_pressed() is True.\n"},

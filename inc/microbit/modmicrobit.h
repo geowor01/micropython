@@ -218,16 +218,16 @@ extern const struct _microbit_compass_obj_t microbit_compass_obj;
 
 void microbit_compass_init(void);
 
-// /****************************************************************/
-// // microbit.accelerometer object
+/****************************************************************/
+// microbit.accelerometer object
 
-// extern volatile bool accelerometer_up_to_date;
-// extern volatile bool accelerometer_updating;
+extern volatile bool accelerometer_up_to_date;
+extern volatile bool accelerometer_updating;
 
-// extern const mp_obj_type_t microbit_accelerometer_type;
-// extern const struct _microbit_accelerometer_obj_t microbit_accelerometer_obj;
+extern const mp_obj_type_t microbit_accelerometer_type;
+extern const struct _microbit_accelerometer_obj_t microbit_accelerometer_obj;
 
-// //void microbit_accelerometer_event_handler(const MicroBitEvent *evt);
+// void microbit_accelerometer_event_handler(const MicroBitEvent *evt);
 
 /****************************************************************/
 // microbit.button objects

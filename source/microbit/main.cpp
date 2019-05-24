@@ -2,18 +2,18 @@
 #include "lib/pwm.h"
 #include "microbit/memory.h"
 #include "microbit/filesystem.h"
-// #include "microbit/microbitdal.h"
+#include "microbit/microbitdal.h"
 // #include "MicroBitButton.h"
 #include "ManagedString.h"
 
-// // Global instances of the mbed/DAL components that we use
-// gpio_t reset_button_gpio;
-// gpio_irq_t reset_button_gpio_irq;
+// Global instances of the mbed/DAL components that we use
+gpio_t reset_button_gpio;
+gpio_irq_t reset_button_gpio_irq;
 // MicroBitDisplay ubit_display;
 // MicroPythonI2C ubit_i2c(I2C_SDA0, I2C_SCL0);
 
 // // Global pointers to instances of DAL components that are created dynamically
-// MicroBitAccelerometer *ubit_accelerometer;
+MicroBitAccelerometer *ubit_accelerometer;
 // MicroBitCompass *ubit_compass;
 // MicroBitCompassCalibrator *ubit_compass_calibrator;
 
@@ -29,12 +29,12 @@ extern "C" {
 #include "microbit/modmicrobit.h"
 // #include "microbit/modmusic.h"
 
-// void reset_button_handler(uint32_t data, gpio_irq_event event) {
-//     (void)data;
-//     if (event == IRQ_FALL) {
-//         microbit_reset();
-//     }
-// }
+void reset_button_handler(uint32_t data, gpio_irq_event event) {
+    (void)data;
+    if (event == IRQ_FALL) {
+        microbit_reset();
+    }
+}
 
 void microbit_ticker(void) {
     // // Update compass if it is calibrating, but not if it is still
@@ -44,7 +44,7 @@ void microbit_ticker(void) {
     // }
 
     // compass_up_to_date = false;
-    // accelerometer_up_to_date = false;
+    accelerometer_up_to_date = false;
 
     // Update buttons and pins with touch.
     microbit_button_tick();
@@ -148,13 +148,13 @@ extern void set_script(char *str)
 
 int main(void) {
     // // Configure the soft reset button
-    // gpio_init_in(&reset_button_gpio, MICROBIT_PIN_BUTTON_RESET);
-    // gpio_mode(&reset_button_gpio, PullUp);
-    // gpio_irq_init(&reset_button_gpio_irq, MICROBIT_PIN_BUTTON_RESET, &reset_button_handler, 1 /* dummy, must be non-zero */);
-    // gpio_irq_set(&reset_button_gpio_irq, IRQ_FALL, 1);
+    gpio_init_in(&reset_button_gpio, MICROBIT_PIN_BUTTON_RESET);
+    gpio_mode(&reset_button_gpio, PullUp);
+    gpio_irq_init(&reset_button_gpio_irq, MICROBIT_PIN_BUTTON_RESET, &reset_button_handler, 1 /* dummy, must be non-zero */);
+    gpio_irq_set(&reset_button_gpio_irq, IRQ_FALL, 1);
 
     // Create dynamically-allocated DAL components
-    // ubit_accelerometer = &MicroBitAccelerometer::autoDetect(ubit_i2c);
+    ubit_accelerometer = &MicroBitAccelerometer::autoDetect();
     // ubit_compass = &MicroBitCompass::autoDetect(ubit_i2c);
     // ubit_compass_calibrator = new MicroBitCompassCalibrator(*ubit_compass, *ubit_accelerometer, ubit_display);
 
@@ -209,7 +209,7 @@ int main(void) {
                 do_strn(APPENDED_SCRIPT->str, APPENDED_SCRIPT->len);
             } else {
                 // from microbit import *
-                // mp_import_all(mp_import_name(MP_QSTR_microbit, mp_const_empty_tuple, MP_OBJ_NEW_SMALL_INT(0)));
+                mp_import_all(mp_import_name(MP_QSTR_microbit, mp_const_empty_tuple, MP_OBJ_NEW_SMALL_INT(0)));
             }
         }
 

@@ -35,6 +35,7 @@
 #include "py/parse.h"
 #include "py/parsenum.h"
 #include "py/smallint.h"
+#include "py/runtime.h"
 
 #if MICROPY_ENABLE_COMPILER && MICROPY_USE_SMALL_HEAP_COMPILER
 
@@ -880,6 +881,7 @@ folding_fail:;
 }
 
 STATIC void make_node_const_object(parser_t *parser, pt_t *pt, mp_obj_t obj) {
+    m_rs_push_obj(obj); // make obj reachable on behalf of the caller, for efficiency
     int nb = vuint_nbytes(parser->co_used);
     byte *buf = pt_raw_add_blank(pt, 1 + nb);
     buf[0] = MP_PT_CONST_OBJECT;
@@ -891,6 +893,7 @@ STATIC void make_node_const_object(parser_t *parser, pt_t *pt, mp_obj_t obj) {
         parser->co_alloc = alloc;
     }
     parser->co_data[parser->co_used++] = (mp_uint_t)obj;
+    m_rs_pop_obj(obj);
 }
 
 STATIC void make_node_string_bytes(parser_t *parser, pt_t *pt, mp_token_kind_t tok, const char *str, size_t len) {
@@ -992,6 +995,7 @@ bool pt_is_rule_empty(const byte *p) {
 }
 
 mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
+    m_rs_assert(lex);
 
     // initialise parser and allocate memory for its stacks
     parser_t parser;
@@ -1001,6 +1005,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
     parser.rule_stack_alloc = MICROPY_ALLOC_PARSE_RULE_INIT;
     parser.rule_stack_top = 0;
     parser.rule_stack = m_new_maybe(rule_stack_t, parser.rule_stack_alloc);
+    m_rs_push_ind(&parser.rule_stack);
 
     parser.cur_scope_id = 0;
 
@@ -1011,9 +1016,11 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
     parser.lexer = lex;
 
     parser.tree.chunk = NULL;
+    m_rs_push_ind(&parser.tree.chunk);
 
     #if MICROPY_COMP_CONST
     mp_map_init(&parser.consts, 0);
+    m_rs_push_ind(&parser.consts.table);
     #endif
 
     // check if we could allocate the stacks
@@ -1348,6 +1355,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
     }
 
     #if MICROPY_COMP_CONST
+    m_rs_pop_ind(&parser.consts.table);
     mp_map_deinit(&parser.consts);
     #endif
 
@@ -1362,6 +1370,10 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
             n_pool, n_qstr, n_str_data_bytes, n_total_bytes);
     }
     #endif
+
+    // root stack now contains:
+    //  rule_stack
+    //  tree.chunk
 
     mp_obj_t exc;
 
@@ -1424,11 +1436,25 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
         // had an error so raise the exception
         // add traceback to give info about file name and location
         // we don't have a 'block' name, so just pass the NULL qstr to indicate this
+        m_rs_push_obj_ptr(exc);
         mp_obj_exception_add_traceback(exc, lex->source_name, lex->tok_line, MP_QSTR_NULL);
+        m_rs_pop_obj_ptr(exc);
+        // note: mp_lexer_free() may call arbitrary Python code to close the stream
         mp_lexer_free(lex);
+        m_rs_pop_ind(&parser.tree.chunk);
+        m_rs_pop_ind(&parser.rule_stack);
+        m_rs_pop_ptr(lex);
+
+        m_rs_push_ptr(parser.tree.chunk);
         nlr_raise(exc);
     } else {
+        // note: mp_lexer_free() may call arbitrary Python code to close the stream
         mp_lexer_free(lex);
+        m_rs_pop_ind(&parser.tree.chunk);
+        m_rs_pop_ind(&parser.rule_stack);
+        m_rs_pop_ptr(lex);
+
+        m_rs_push_ptr(parser.tree.chunk);
         return parser.tree;
     }
 }

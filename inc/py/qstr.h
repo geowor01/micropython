@@ -58,6 +58,7 @@ typedef struct _qstr_pool_t {
 #define QSTR_FROM_STR_STATIC(s) (qstr_from_strn((s), strlen(s)))
 
 void qstr_init(void);
+void qstr_deinit(void);
 
 mp_uint_t qstr_compute_hash(const byte *data, size_t len);
 qstr qstr_find_strn(const char *str, size_t str_len); // returns MP_QSTR_NULL if not found

@@ -32,6 +32,7 @@
 #include "py/gc.h"
 #include "py/obj.h"
 #include "py/runtime.h"
+#include "py/rootstack.h"
 
 #if MICROPY_ENABLE_GC
 
@@ -41,6 +42,14 @@
 #else // don't print debugging info
 #define DEBUG_PRINT (0)
 #define DEBUG_printf(...) (void)0
+#endif
+
+#if 0
+#include <inttypes.h>
+#define RS_DEBUG (1)
+#define RS_DEBUG_printf printf
+#else
+#define RS_DEBUG_printf(...) (void)0
 #endif
 
 // make this 1 to dump the heap each time it changes
@@ -280,6 +289,14 @@ STATIC void gc_sweep(void) {
 #endif
                 free_tail = 1;
                 DEBUG_printf("gc_sweep(%x)\n", PTR_FROM_BLOCK(block));
+                #if RS_DEBUG
+                {
+                    #define F "%016lx"
+                    mp_uint_t *p = (void*)PTR_FROM_BLOCK(block);
+                    printf("gc_sweep(%p; " F ":" F ":" F ":" F ")\n", p, p[0], p[1], p[2], p[3]);
+                    #undef F
+                }
+                #endif
                 #if MICROPY_PY_GC_COLLECT_RETVAL
                 MP_STATE_MEM(gc_collected)++;
                 #endif
@@ -312,6 +329,7 @@ void gc_collect_start(void) {
     // dict_globals, then the root pointer section of mp_state_vm.
     void **ptrs = (void**)(void*)&mp_state_ctx;
     gc_collect_root(ptrs, offsetof(mp_state_ctx_t, vm.qstr_last_chunk) / sizeof(void*));
+    m_rs_mark();
 }
 
 void gc_collect_root(void **ptrs, size_t len) {
@@ -585,6 +603,20 @@ size_t gc_nbytes(const void *ptr) {
     // invalid pointer
     GC_EXIT();
     return 0;
+}
+
+void gc_rs_push_checked(void *ptr) {
+    if (VERIFY_PTR(ptr)) {
+        assert(ATB_GET_KIND(BLOCK_FROM_PTR(ptr)) == AT_HEAD);
+        gc_rs_push(0, ptr);
+    }
+}
+
+void gc_rs_pop_checked(void *ptr) {
+    if (VERIFY_PTR(ptr)) {
+        assert(ATB_GET_KIND(BLOCK_FROM_PTR(ptr)) == AT_HEAD);
+        gc_rs_pop(0, ptr);
+    }
 }
 
 #if 0

@@ -312,6 +312,7 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
 
     // make exception object
     mp_obj_exception_t *o = m_new_obj_var_maybe(mp_obj_exception_t, mp_obj_t, 0);
+    m_rs_push_ptr(o);
     if (o == NULL) {
         // Couldn't allocate heap memory; use local data instead.
         // Unfortunately, we won't be able to format the string...
@@ -337,6 +338,7 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
                          - str_data;
 
             vstr_t vstr;
+            m_rs_push_ind(&vstr.buf);
             vstr_init_fixed_buf(&vstr, max_len, (char *)str_data);
 
             va_list ap;
@@ -361,6 +363,7 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
                 o->traceback_alloc = ((byte*)MP_STATE_VM(mp_emergency_exception_buf) + mp_emergency_exception_buf_size - (byte *)o->traceback_data) / sizeof(o->traceback_data[0]);
                 o->traceback_len = 0;
             }
+            m_rs_pop_ind(&vstr.buf);
         }
 #endif // MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF
     } else {
@@ -386,6 +389,7 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
         }
     }
 
+    m_rs_pop_ptr(o);
     return MP_OBJ_FROM_PTR(o);
 }
 

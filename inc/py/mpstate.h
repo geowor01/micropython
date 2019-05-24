@@ -208,6 +208,9 @@ typedef struct _mp_state_vm_t {
 // This structure holds state that is specific to a given thread.
 // Everything in this structure is scanned for root pointers.
 typedef struct _mp_state_thread_t {
+
+    struct _root_stack_elem_t *root_stack_cur;
+
     mp_obj_dict_t *dict_locals;
     mp_obj_dict_t *dict_globals;
 

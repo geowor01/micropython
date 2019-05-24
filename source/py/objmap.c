@@ -63,6 +63,10 @@ STATIC mp_obj_t map_iternext(mp_obj_t self_in) {
             m_rs_pop_ptr(nextses);
             return MP_OBJ_STOP_ITERATION;
         }
+        if (next == MP_OBJ_NULL) {
+            // exception
+            return MP_OBJ_NULL;
+        }
         nextses[i] = next;
     }
     mp_obj_t o = mp_call_function_n_kw(self->fun, self->n_iters, 0, nextses);

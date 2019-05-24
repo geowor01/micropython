@@ -30,7 +30,10 @@
 #include <assert.h>
 #include <string.h>
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/lexer.h"
 #include "py/parse.h"
 #include "py/parsenum.h"
@@ -487,7 +490,7 @@ STATIC MP_DEFINE_CONST_MAP(mp_constants_map, mp_constants_table);
 #endif
 
 #if MICROPY_COMP_CONST_FOLDING
-STATIC bool fold_constants(parser_t *parser, pt_t *pt, size_t pt_off, const rule_t *rule) {
+STATIC int fold_constants(parser_t *parser, pt_t *pt, size_t pt_off, const rule_t *rule) {
     (void)parser;
 
     // this code does folding of arbitrary integer expressions, eg 1 + 2 * 3 + 4
@@ -1352,6 +1355,9 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                 break;
             }
         }
+        if (MP_STATE_THREAD(cur_exc) != NULL) {
+            return parser.tree;
+        }
     }
 
     #if MICROPY_COMP_CONST
@@ -1446,7 +1452,8 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
         m_rs_pop_ptr(lex);
 
         m_rs_push_ptr(parser.tree.chunk);
-        nlr_raise(exc);
+        mp_raise_o(exc);
+        return parser.tree;
     } else {
         // note: mp_lexer_free() may call arbitrary Python code to close the stream
         mp_lexer_free(lex);

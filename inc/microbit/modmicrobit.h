@@ -109,7 +109,7 @@ void microbit_obj_pin_free(const microbit_pin_obj_t *pin);
 // If pin is already in specified mode, this is a no-op and returns "false".
 // Otherwise if the acquisition succeeds then it returns "true".
 // Not safe to call in an interrupt as it may raise if pin can't be acquired.
-bool microbit_obj_pin_acquire(const microbit_pin_obj_t *pin, const microbit_pinmode_t *mode);
+int microbit_obj_pin_acquire(const microbit_pin_obj_t *pin, const microbit_pinmode_t *mode);
 
 const microbit_pinmode_t *microbit_pin_get_mode(const microbit_pin_obj_t *pin);
 bool microbit_obj_pin_can_be_acquired(const microbit_pin_obj_t *pin);
@@ -205,8 +205,8 @@ void microbit_display_clear(void);
 mp_int_t microbit_display_get_pixel(microbit_display_obj_t *display, mp_int_t x, mp_int_t y);
 void microbit_display_set_pixel(microbit_display_obj_t *display, mp_int_t x, mp_int_t y, mp_int_t val);
 void microbit_display_show(microbit_display_obj_t *display, microbit_image_obj_t *image);
-void microbit_display_animate(microbit_display_obj_t *display, mp_obj_t iterable, mp_int_t delay, bool clear, bool wait);
-void microbit_display_scroll(microbit_display_obj_t *display, const char* str);
+int microbit_display_animate(microbit_display_obj_t *display, mp_obj_t iterable, mp_int_t delay, bool clear, bool wait);
+int microbit_display_scroll(microbit_display_obj_t *display, const char* str);
 
 /****************************************************************/
 // microbit.compass object

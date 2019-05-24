@@ -103,7 +103,9 @@ mp_obj_t microbit_display_show_func(mp_uint_t n_args, const mp_obj_t *pos_args, 
     // Parse the args.
     microbit_display_obj_t *self = (microbit_display_obj_t*)pos_args[0];
     mp_arg_val_t args[MP_ARRAY_SIZE(show_allowed_args)];
-    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(show_allowed_args), show_allowed_args, args);
+    if (mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(show_allowed_args), show_allowed_args, args)) {
+        return MP_OBJ_NULL;
+    }
 
     mp_obj_t image = args[0].u_obj;
     mp_int_t delay = args[1].u_int;
@@ -120,7 +122,7 @@ mp_obj_t microbit_display_show_func(mp_uint_t n_args, const mp_obj_t *pos_args, 
         // arg is a string object
         mp_uint_t len;
         const char *str = mp_obj_str_get_data(image, &len);
-        if (len == 0) {
+        if (str == NULL || len == 0) {
             // There are no chars; do nothing.
             return mp_const_none;
         } else if (len == 1) {
@@ -142,7 +144,9 @@ mp_obj_t microbit_display_show_func(mp_uint_t n_args, const mp_obj_t *pos_args, 
     if (args[4].u_bool) { /*loop*/
         image = microbit_repeat_iterator(image);
     }
-    microbit_display_animate(self, image, delay, clear, wait);
+    if (microbit_display_animate(self, image, delay, clear, wait)) {
+        return MP_OBJ_NULL;
+    }
     return mp_const_none;
 
 single_image_immediate:
@@ -383,7 +387,7 @@ static void draw_object(mp_obj_t obj) {
     } else if (MP_OBJ_IS_STR(obj)) {
         mp_uint_t len;
         const char *str = mp_obj_str_get_data(obj, &len);
-        if (len == 1) {
+        if (str == NULL || len == 1) {
             microbit_display_show(display, microbit_image_for_char(str[0]));
         } else {
             async_stop();
@@ -410,24 +414,24 @@ static void microbit_display_update(void) {
             /* WARNING: We are executing in an interrupt handler.
              * If an exception is raised here then we must hand it to the VM. */
             mp_obj_t obj;
-            nlr_buf_t nlr;
             gc_lock();
-            if (nlr_push(&nlr) == 0) {
+            {
                 obj = mp_iternext_allow_raise(async_iterator);
-                nlr_pop();
                 gc_unlock();
-            } else {
-                gc_unlock();
-                if (!mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(((mp_obj_base_t*)nlr.ret_val)->type),
-                    MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
-                    // An exception other than StopIteration, so set it for the VM to raise later
-                    // If memory error, write an appropriate message.
-                    if (mp_obj_get_type(nlr.ret_val) == &mp_type_MemoryError) {
-                        mp_printf(&mp_plat_print, "Allocation in interrupt handler");
+                if (MP_STATE_THREAD(cur_exc) != NULL) {
+                    mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
+                    // uncaught exception
+                    if (!mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(the_exc->type),
+                        MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
+                        // An exception other than StopIteration, so set it for the VM to raise later
+                        // If memory error, write an appropriate message.
+                        if (mp_obj_get_type(the_exc) == &mp_type_MemoryError) {
+                            mp_printf(&mp_plat_print, "Allocation in interrupt handler");
+                        }
+                        MP_STATE_VM(mp_pending_exception) = MP_OBJ_FROM_PTR(the_exc);
                     }
-                    MP_STATE_VM(mp_pending_exception) = MP_OBJ_FROM_PTR(nlr.ret_val);
+                    obj = MP_OBJ_STOP_ITERATION;
                 }
-                obj = MP_OBJ_STOP_ITERATION;
             }
             draw_object(obj);
             break;
@@ -467,7 +471,7 @@ void microbit_display_tick(void) {
 }
 
 
-void microbit_display_animate(microbit_display_obj_t *self, mp_obj_t iterable, mp_int_t delay, bool clear, bool wait) {
+int microbit_display_animate(microbit_display_obj_t *self, mp_obj_t iterable, mp_int_t delay, bool clear, bool wait) {
     // Reset the repeat state.
     MP_STATE_PORT(async_data)[0] = NULL;
     MP_STATE_PORT(async_data)[1] = NULL;
@@ -478,21 +482,25 @@ void microbit_display_animate(microbit_display_obj_t *self, mp_obj_t iterable, m
     MP_STATE_PORT(async_data)[1] = async_iterator;
     wakeup_event = false;
     mp_obj_t obj = mp_iternext_allow_raise(async_iterator);
+    if (MP_STATE_THREAD(cur_exc) != NULL) {
+        return 1;
+    }
     draw_object(obj);
     async_tick = 0;
     async_mode = ASYNC_MODE_ANIMATION;
     if (wait) {
         wait_for_event();
     }
+    return 0;
 }
 
 
 // Delay in ms in between moving display one column to the left.
 #define DEFAULT_SCROLL_SPEED       150
 
-void microbit_display_scroll(microbit_display_obj_t *self, const char* str) {
+int microbit_display_scroll(microbit_display_obj_t *self, const char* str) {
     mp_obj_t iterable = scrolling_string_image_iterable(str, strlen(str), NULL, false, false);
-    microbit_display_animate(self, iterable, DEFAULT_SCROLL_SPEED, false, true);
+    return microbit_display_animate(self, iterable, DEFAULT_SCROLL_SPEED, false, true);
 }
 
 
@@ -507,15 +515,22 @@ mp_obj_t microbit_display_scroll_func(mp_uint_t n_args, const mp_obj_t *pos_args
     // Parse the args.
     microbit_display_obj_t *self = (microbit_display_obj_t*)pos_args[0];
     mp_arg_val_t args[MP_ARRAY_SIZE(scroll_allowed_args)];
-    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(scroll_allowed_args), scroll_allowed_args, args);
+    if (mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(scroll_allowed_args), scroll_allowed_args, args)) {
+        return MP_OBJ_NULL;
+    }
     mp_uint_t len;
     mp_obj_t object_string = args[0].u_obj;
     if (mp_obj_is_integer(object_string) || mp_obj_is_float(object_string)) {
         object_string = mp_obj_str_make_new(&mp_type_str, 1, 0, &object_string);
     }
     const char* str = mp_obj_str_get_data(object_string, &len);
+    if (str == NULL) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_t iterable = scrolling_string_image_iterable(str, len, args[0].u_obj, args[3].u_bool /*monospace?*/, args[4].u_bool /*loop*/);
-    microbit_display_animate(self, iterable, args[1].u_int /*delay*/, false/*clear*/, args[2].u_bool/*wait?*/);
+    if (microbit_display_animate(self, iterable, args[1].u_int /*delay*/, false/*clear*/, args[2].u_bool/*wait?*/)) {
+        return MP_OBJ_NULL;
+    }
     return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_KW(microbit_display_scroll_obj, 1, microbit_display_scroll_func);
@@ -593,10 +608,10 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_display_clear_obj, microbit_display_clear_fun
 
 void microbit_display_set_pixel(microbit_display_obj_t *display, mp_int_t x, mp_int_t y, mp_int_t bright) {
     if (x < 0 || y < 0 || x > 4 || y > 4) {
-        mp_raise_ValueError("index out of bounds");
+        mp_raise_ValueError_o("index out of bounds");
     }
     if (bright < 0 || bright > MAX_BRIGHTNESS) {
-        mp_raise_ValueError("brightness out of bounds");
+        mp_raise_ValueError_o("brightness out of bounds");
     }
     display->image_buffer[x][y] = bright;
     display->brightnesses |= (1 << bright);
@@ -612,7 +627,7 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(microbit_display_set_pixel_obj, 4, 4, microb
 
 mp_int_t microbit_display_get_pixel(microbit_display_obj_t *display, mp_int_t x, mp_int_t y) {
     if (x < 0 || y < 0 || x > 4 || y > 4) {
-        mp_raise_ValueError("index out of bounds");
+        mp_raise_ValueError_o("index out of bounds");
     }
     return display->image_buffer[x][y];
 }

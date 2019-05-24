@@ -128,7 +128,8 @@ STATIC uint32_t gesture_from_obj(mp_obj_t gesture_in) {
             return i;
         }
     }
-    mp_raise_ValueError("invalid gesture");
+    mp_raise_ValueError_o("invalid gesture");
+    return -1;
 }
 
 mp_obj_t microbit_accelerometer_current_gesture(mp_obj_t self_in) {

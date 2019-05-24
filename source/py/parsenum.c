@@ -36,7 +36,7 @@
 #include <math.h>
 #endif
 
-STATIC NORETURN void raise_exc(mp_obj_t exc, mp_lexer_t *lex) {
+STATIC mp_obj_t raise_exc(mp_obj_t exc, mp_lexer_t *lex) {
     // if lex!=NULL then the parser called us and we need to convert the
     // exception's type from ValueError to SyntaxError and add traceback info
     if (lex != NULL) {
@@ -45,7 +45,7 @@ STATIC NORETURN void raise_exc(mp_obj_t exc, mp_lexer_t *lex) {
         mp_obj_exception_add_traceback(exc, lex->source_name, lex->tok_line, MP_QSTR_NULL);
         m_rs_pop_obj_ptr(exc);
     }
-    nlr_raise(exc);
+     return mp_raise_o(exc);
 }
 
 mp_obj_t mp_parse_num_integer(const char *restrict str_, size_t len, int base, mp_lexer_t *lex) {
@@ -57,7 +57,7 @@ mp_obj_t mp_parse_num_integer(const char *restrict str_, size_t len, int base, m
     // check radix base
     if ((base != 0 && base < 2) || base > 36) {
         // this won't be reached if lex!=NULL
-        mp_raise_ValueError("int() arg 2 must be >= 2 and <= 36");
+        return mp_raise_ValueError_o("int() arg 2 must be >= 2 and <= 36");
     }
 
     // skip leading space
@@ -147,11 +147,11 @@ value_error:
     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
         mp_obj_t exc = mp_obj_new_exception_msg(&mp_type_ValueError,
             "invalid syntax for integer");
-        raise_exc(exc, lex);
+        return raise_exc(exc, lex);
     } else if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_NORMAL) {
         mp_obj_t exc = mp_obj_new_exception_msg_varg(&mp_type_ValueError,
             "invalid syntax for integer with base %d", base);
-        raise_exc(exc, lex);
+        return raise_exc(exc, lex);
     } else {
         vstr_t vstr;
         mp_print_t print;
@@ -164,7 +164,7 @@ value_error:
         m_rs_push_obj(msg);
         mp_obj_t exc = mp_obj_new_exception_arg1(&mp_type_ValueError, msg);
         m_rs_pop_obj(msg);
-        raise_exc(exc, lex);
+        return raise_exc(exc, lex);
     }
 }
 
@@ -297,16 +297,16 @@ mp_obj_t mp_parse_num_decimal(const char *str, size_t len, bool allow_imag, bool
         return mp_obj_new_complex(dec_val, 0);
 #else
     if (imag || force_complex) {
-        raise_exc(mp_obj_new_exception_msg(&mp_type_ValueError, "complex values not supported"), lex);
+        return raise_exc(mp_obj_new_exception_msg(&mp_type_ValueError, "complex values not supported"), lex);
 #endif
     } else {
         return mp_obj_new_float(dec_val);
     }
 
 value_error:
-    raise_exc(mp_obj_new_exception_msg(&mp_type_ValueError, "invalid syntax for number"), lex);
+    return raise_exc(mp_obj_new_exception_msg(&mp_type_ValueError, "invalid syntax for number"), lex);
 
 #else
-    raise_exc(mp_obj_new_exception_msg(&mp_type_ValueError, "decimal numbers not supported"), lex);
+    return raise_exc(mp_obj_new_exception_msg(&mp_type_ValueError, "decimal numbers not supported"), lex);
 #endif
 }

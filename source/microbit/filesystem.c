@@ -105,7 +105,7 @@ static void randomise_start_index(void) {
     start_index = EM_ASM_INT({ return Math.floor(Math.random() * $0); }, chunks_in_file_system) + 1;
 }
 
-void microbit_filesystem_init(void) {
+int microbit_filesystem_init(void) {
     init_limits();
     randomise_start_index();
     file_chunk *base = first_page();
@@ -114,12 +114,15 @@ void microbit_filesystem_init(void) {
     } else if (((file_chunk *)last_page())->marker == PERSISTENT_DATA_MARKER) {
         file_system_chunks = &base[-1];
     } else {
-        persistent_write_byte_unchecked(&((file_chunk *)last_page())->marker, PERSISTENT_DATA_MARKER);
+        if (persistent_write_byte_unchecked(&((file_chunk *)last_page())->marker, PERSISTENT_DATA_MARKER)) {
+            return 1;
+        }
         file_system_chunks = &base[-1];
     }
+    return 0;
 }
 
-static void copy_page(void *dest, void *src) {
+static int copy_page(void *dest, void *src) {
     DEBUG(("FILE DEBUG: Copying page from %lx to %lx.\r\n", (uint32_t)src, (uint32_t)dest));
     persistent_erase_page(dest);
     file_chunk *src_chunk = src;
@@ -127,9 +130,12 @@ static void copy_page(void *dest, void *src) {
     uint32_t chunks = persistent_page_size()>>LOG_CHUNK_SIZE;
     for (uint32_t i = 0; i < chunks; i++) {
         if (src_chunk[i].marker != FREED_CHUNK) {
-            persistent_write_unchecked(&dest_chunk[i], &src_chunk[i], CHUNK_SIZE);
+            if (persistent_write_unchecked(&dest_chunk[i], &src_chunk[i], CHUNK_SIZE)) {
+                return 1;
+            }
         }
     }
+    return 0;
 }
 
 /* Move entire file system up or down one page, copying all used chunks
@@ -142,7 +148,7 @@ static void copy_page(void *dest, void *src) {
  * Then all the pages are copied, one by one, into the adjacent newly unused page.
  * Finally, the persistent data is saved back to the opposite end of the filesystem from whence it came.
  */
-void filesystem_sweep(void) {
+int filesystem_sweep(void) {
     persistent_config_t config;
     uint8_t *page;
     uint8_t *end_page;
@@ -163,12 +169,19 @@ void filesystem_sweep(void) {
     while (page != end_page) {
         uint8_t *next_page = page+step;
         persistent_erase_page(page);
-        copy_page(page, next_page);
+        if (copy_page(page, next_page)) {
+            return 1;
+        }
         page = next_page;
     }
     persistent_erase_page(end_page);
-    persistent_write_unchecked(end_page, &config, sizeof(config));
-    microbit_filesystem_init();
+    if (persistent_write_unchecked(end_page, &config, sizeof(config))) {
+        return 1;
+    }
+    if (microbit_filesystem_init()) {
+        return 1;
+    }
+    return 0;
 }
 
 
@@ -243,7 +256,9 @@ static uint8_t find_chunk_and_erase(void) {
         return FILE_NOT_FOUND;
     }
     // No freed pages, so sweep file system.
-    filesystem_sweep();
+    if (filesystem_sweep()) {
+        return FILE_NOT_FOUND;
+    }
     // This is guaranteed to succeed.
     return find_chunk_and_erase();
 }
@@ -254,12 +269,15 @@ mp_obj_t microbit_file_name(file_descriptor_obj *fd) {
 
 static file_descriptor_obj *microbit_file_descriptor_new(uint8_t start_chunk, bool write, bool binary);
 
-static void clear_file(uint8_t chunk) {
+static int clear_file(uint8_t chunk) {
     do {
-        persistent_write_byte_unchecked(&(file_system_chunks[chunk].marker), FREED_CHUNK);
+        if (persistent_write_byte_unchecked(&(file_system_chunks[chunk].marker), FREED_CHUNK)) {
+            return 1;
+        }
         DEBUG(("FILE DEBUG: Freeing chunk %d.\n", chunk));
         chunk = file_system_chunks[chunk].next_chunk;
     } while (chunk <= chunks_in_file_system);
+    return 0;
 }
 
 file_descriptor_obj *microbit_file_open(const char *name, uint32_t name_len, bool write, bool binary) {
@@ -270,15 +288,24 @@ file_descriptor_obj *microbit_file_open(const char *name, uint32_t name_len, boo
     if (write) {
         if (index != FILE_NOT_FOUND) {
             // Free old file
-            clear_file(index);
+            if (clear_file(index)) {
+                return NULL;
+            }
         }
         index = find_chunk_and_erase();
         if (index == FILE_NOT_FOUND) {
-            mp_raise_msg(&mp_type_OSError, "no more storage space");
+            mp_raise_msg_o(&mp_type_OSError, "no more storage space");
+            return NULL;
         }
-        persistent_write_byte_unchecked(&(file_system_chunks[index].marker), FILE_START);
-        persistent_write_byte_unchecked(&(file_system_chunks[index].header.name_len), name_len);
-        persistent_write_unchecked(&(file_system_chunks[index].header.filename[0]), name, name_len);
+        if (persistent_write_byte_unchecked(&(file_system_chunks[index].marker), FILE_START)) {
+            return NULL;
+        }
+        if (persistent_write_byte_unchecked(&(file_system_chunks[index].header.name_len), name_len)) {
+            return NULL;
+        }
+        if (persistent_write_unchecked(&(file_system_chunks[index].header.filename[0]), name, name_len)) {
+            return NULL;
+        }
     } else {
         if (index == FILE_NOT_FOUND) {
             return NULL;
@@ -308,16 +335,18 @@ mp_obj_t microbit_remove(mp_obj_t filename) {
     const char *name = mp_obj_str_get_data(filename, &name_len);
     mp_uint_t index = microbit_find_file(name, name_len);
     if (index == 255) {
-        mp_raise_msg(&mp_type_OSError, "file not found");
+        return mp_raise_msg_o(&mp_type_OSError, "file not found");
     }
     clear_file(index);
     return mp_const_none;
 }
 
-static void check_file_open(file_descriptor_obj *self) {
+static int check_file_open(file_descriptor_obj *self) {
     if (!self->open) {
-        mp_raise_ValueError("I/O operation on closed file");
+        mp_raise_ValueError_o("I/O operation on closed file");
+        return 1;
     }
+    return 0;
 }
 
 static int advance(file_descriptor_obj *self, uint32_t n, bool write) {
@@ -328,13 +357,19 @@ static int advance(file_descriptor_obj *self, uint32_t n, bool write) {
         if (write) {
             uint8_t next_chunk = find_chunk_and_erase();
             if (next_chunk == FILE_NOT_FOUND) {
-                clear_file(self->start_chunk);
+                if (clear_file(self->start_chunk)) {
+                    return MP_ESPIPE;
+                }
                 self->open = false;
                 return ENOSPC;
             }
             /* Link next chunk to this one */
-            persistent_write_byte_unchecked(&(file_system_chunks[self->seek_chunk].next_chunk), next_chunk);
-            persistent_write_byte_unchecked(&(file_system_chunks[next_chunk].marker), self->seek_chunk);
+            if (persistent_write_byte_unchecked(&(file_system_chunks[self->seek_chunk].next_chunk), next_chunk)) {
+                return MP_ESPIPE;
+            }
+            if (persistent_write_byte_unchecked(&(file_system_chunks[next_chunk].marker), self->seek_chunk)) {
+                return MP_ESPIPE;
+            }
         }
         self->seek_chunk = file_system_chunks[self->seek_chunk].next_chunk;
     }
@@ -344,7 +379,10 @@ static int advance(file_descriptor_obj *self, uint32_t n, bool write) {
 
 mp_uint_t microbit_file_read(mp_obj_t obj, void *buf, mp_uint_t size, int *errcode) {
     file_descriptor_obj *self = (file_descriptor_obj *)obj;
-    check_file_open(self);
+    if (check_file_open(self)) {
+        *errcode = EIO;
+        return MP_STREAM_ERROR;
+    }
     if (self->writable || file_system_chunks[self->start_chunk].marker == FREED_CHUNK) {
         *errcode = EBADF;
         return MP_STREAM_ERROR;
@@ -374,7 +412,10 @@ mp_uint_t microbit_file_read(mp_obj_t obj, void *buf, mp_uint_t size, int *errco
 
 mp_uint_t microbit_file_write(mp_obj_t obj, const void *buf, mp_uint_t size, int *errcode) {
     file_descriptor_obj *self = (file_descriptor_obj *)obj;
-    check_file_open(self);
+    if (check_file_open(self)) {
+        *errcode = EIO;
+        return MP_STREAM_ERROR;
+    }
     if (!self->writable || file_system_chunks[self->start_chunk].marker == FREED_CHUNK) {
         *errcode = EBADF;
         return MP_STREAM_ERROR;
@@ -383,7 +424,10 @@ mp_uint_t microbit_file_write(mp_obj_t obj, const void *buf, mp_uint_t size, int
     const uint8_t *data = buf;
     while (len) {
         uint32_t to_write = min(((uint32_t)(DATA_PER_CHUNK - self->seek_offset)), len);
-        persistent_write_unchecked(seek_address(self), data, to_write);
+        if (persistent_write_unchecked(seek_address(self), data, to_write)) {
+            *errcode = MP_ESPIPE;
+            return MP_STREAM_ERROR;
+        }
         int err = advance(self, to_write, true);
         if (err) {
             *errcode = err;
@@ -397,7 +441,9 @@ mp_uint_t microbit_file_write(mp_obj_t obj, const void *buf, mp_uint_t size, int
 
 void microbit_file_close(file_descriptor_obj *fd) {
     if (fd->writable) {
-        persistent_write_byte_unchecked(&(file_system_chunks[fd->start_chunk].header.end_offset), fd->seek_offset);
+        if (persistent_write_byte_unchecked(&(file_system_chunks[fd->start_chunk].header.end_offset), fd->seek_offset)) {
+            return;
+        }
     }
     fd->open = false;
 }
@@ -418,7 +464,7 @@ mp_obj_t microbit_file_size(mp_obj_t filename) {
     const char *name = mp_obj_str_get_data(filename, &name_len);
     uint8_t chunk = microbit_find_file(name, name_len);
     if (chunk == 255) {
-        mp_raise_msg(&mp_type_OSError, "file not found");
+        return mp_raise_msg_o(&mp_type_OSError, "file not found");
     }
     mp_uint_t len = 0;
     uint8_t end_offset = file_system_chunks[chunk].header.end_offset;

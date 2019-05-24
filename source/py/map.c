@@ -124,12 +124,15 @@ void mp_map_clear(mp_map_t *map) {
     map->table = NULL;
 }
 
-STATIC void mp_map_rehash(mp_map_t *map) {
+STATIC int mp_map_rehash(mp_map_t *map) {
     size_t old_alloc = map->alloc;
     size_t new_alloc = get_hash_alloc_greater_or_equal_to(map->alloc + 1);
     mp_map_elem_t *old_table = map->table;
     m_rs_push_ptr(old_table); // what if it's NULL?
     mp_map_elem_t *new_table = m_new0(mp_map_elem_t, new_alloc);
+    if (new_table == NULL) {
+        return -1;
+    }
     // If we reach this point, table resizing succeeded, now we can edit the old map.
     map->alloc = new_alloc;
     map->used = 0;
@@ -142,6 +145,7 @@ STATIC void mp_map_rehash(mp_map_t *map) {
     }
     m_del(mp_map_elem_t, old_table, old_alloc);
     m_rs_pop_ptr(old_table);
+    return 0; // success
 }
 
 // MP_MAP_LOOKUP behaviour:
@@ -150,6 +154,7 @@ STATIC void mp_map_rehash(mp_map_t *map) {
 //  - returns slot, with key non-null and value=MP_OBJ_NULL if it was added
 // MP_MAP_LOOKUP_REMOVE_IF_FOUND behaviour:
 //  - returns NULL if not found, else the slot if was found in with key null and value non-null
+// TODO: NULL return can mean 1) not found; 2) exception
 mp_map_elem_t *mp_map_lookup(mp_map_t *map, mp_obj_t index, mp_map_lookup_kind_t lookup_kind) {
 
     if (map->is_fixed && lookup_kind != MP_MAP_LOOKUP) {
@@ -214,7 +219,10 @@ mp_map_elem_t *mp_map_lookup(mp_map_t *map, mp_obj_t index, mp_map_lookup_kind_t
 
     if (map->alloc == 0) {
         if (lookup_kind == MP_MAP_LOOKUP_ADD_IF_NOT_FOUND) {
-            mp_map_rehash(map);
+            if (mp_map_rehash(map)) {
+                // exception
+                return NULL;
+            }
         } else {
             return NULL;
         }
@@ -225,7 +233,11 @@ mp_map_elem_t *mp_map_lookup(mp_map_t *map, mp_obj_t index, mp_map_lookup_kind_t
     if (MP_OBJ_IS_QSTR(index)) {
         hash = qstr_hash(MP_OBJ_QSTR_VALUE(index));
     } else {
-        hash = MP_OBJ_SMALL_INT_VALUE(mp_unary_op(MP_UNARY_OP_HASH, index));
+        mp_obj_t hash_o = mp_unary_op(MP_UNARY_OP_HASH, index);
+        if (hash_o == MP_OBJ_NULL) {
+            return NULL;
+        }
+        hash = MP_OBJ_SMALL_INT_VALUE(hash_o);
     }
 
     size_t pos = hash % map->alloc;
@@ -288,7 +300,10 @@ mp_map_elem_t *mp_map_lookup(mp_map_t *map, mp_obj_t index, mp_map_lookup_kind_t
                     return avail_slot;
                 } else {
                     // not enough room in table, rehash it
-                    mp_map_rehash(map);
+                    if (mp_map_rehash(map)) {
+                        // exception
+                        return NULL;
+                    }
                     // restart the search for the new element
                     start_pos = pos = hash % map->alloc;
                 }
@@ -326,6 +341,7 @@ STATIC void mp_set_rehash(mp_set_t *set) {
     m_rs_pop_ptr(old_table);
 }
 
+// TODO: MP_OBJ_NULL return can mean 1) not found; 2) exception
 mp_obj_t mp_set_lookup(mp_set_t *set, mp_obj_t index, mp_map_lookup_kind_t lookup_kind) {
     // Note: lookup_kind can be MP_MAP_LOOKUP_ADD_IF_NOT_FOUND_OR_REMOVE_IF_FOUND which
     // is handled by using bitwise operations.
@@ -337,7 +353,11 @@ mp_obj_t mp_set_lookup(mp_set_t *set, mp_obj_t index, mp_map_lookup_kind_t looku
             return MP_OBJ_NULL;
         }
     }
-    mp_uint_t hash = MP_OBJ_SMALL_INT_VALUE(mp_unary_op(MP_UNARY_OP_HASH, index));
+    mp_obj_t hash_o = mp_unary_op(MP_UNARY_OP_HASH, index);
+    if (hash_o == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
+    mp_uint_t hash = MP_OBJ_SMALL_INT_VALUE(hash_o);
     size_t pos = hash % set->alloc;
     size_t start_pos = pos;
     mp_obj_t *avail_slot = NULL;

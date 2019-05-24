@@ -26,7 +26,10 @@
 
 #include <stdlib.h>
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/runtime.h"
 
 // this is a wrapper object that turns something that has a __getitem__ method into an iterator
@@ -38,24 +41,22 @@ typedef struct _mp_obj_getitem_iter_t {
 
 STATIC mp_obj_t it_iternext(mp_obj_t self_in) {
     mp_obj_getitem_iter_t *self = MP_OBJ_TO_PTR(self_in);
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
-        // try to get next item
-        mp_obj_t value = mp_call_method_n_kw(1, 0, self->args);
-        self->args[2] = MP_OBJ_NEW_SMALL_INT(MP_OBJ_SMALL_INT_VALUE(self->args[2]) + 1);
-        nlr_pop();
-        return value;
-    } else {
+    // try to get next item
+    mp_obj_t value = mp_call_method_n_kw(1, 0, self->args);
+    if (value == MP_OBJ_NULL) {
         // an exception was raised
-        mp_obj_type_t *t = (mp_obj_type_t*)((mp_obj_base_t*)nlr.ret_val)->type;
+        mp_obj_type_t *t = (mp_obj_type_t*)MP_STATE_THREAD(cur_exc)->type;
         if (t == &mp_type_StopIteration || t == &mp_type_IndexError) {
             // return MP_OBJ_STOP_ITERATION instead of raising
+            MP_STATE_THREAD(cur_exc) = NULL;
             return MP_OBJ_STOP_ITERATION;
         } else {
             // re-raise exception
-            nlr_jump(nlr.ret_val);
+            return MP_OBJ_NULL;
         }
     }
+    self->args[2] = MP_OBJ_NEW_SMALL_INT(MP_OBJ_SMALL_INT_VALUE(self->args[2]) + 1);
+    return value;
 }
 
 STATIC const mp_obj_type_t it_type = {

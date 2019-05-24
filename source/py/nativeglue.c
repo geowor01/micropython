@@ -28,7 +28,10 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/runtime0.h"
 #include "py/runtime.h"
 #include "py/emitglue.h"
@@ -156,8 +159,6 @@ void *const mp_fun_table[MP_F_NUMBER_OF] = {
     mp_call_method_n_kw_var,
     mp_native_getiter,
     mp_native_iternext,
-    nlr_push,
-    nlr_pop,
     mp_native_raise,
     mp_import_name,
     mp_import_from,

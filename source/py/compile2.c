@@ -3500,7 +3500,8 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
     m_del(scope_t*, comp->scopes, comp->num_scopes);
 
     if (comp->compile_error != MP_OBJ_NULL) {
-        nlr_raise(comp->compile_error);
+        mp_raise_o(comp->compile_error);
+        return NULL;
     } else {
         return outer_raw_code;
     }
@@ -3508,7 +3509,14 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
 
 // parse_tree->chunk is on the top of the root stack
 mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, uint emit_opt, bool is_repl) {
+     if (MP_STATE_THREAD(cur_exc) != NULL) {
+        // parser had an exception
+        return MP_OBJ_NULL;
+    }
     mp_raw_code_t *rc = mp_compile_to_raw_code(parse_tree, source_file, emit_opt, is_repl);
+    if (rc == NULL) {
+        return MP_OBJ_NULL;
+    }
     // return function that executes the outer module
     m_rs_push_ptr(rc);
     mp_obj_t f = mp_make_function_from_raw_code(rc, MP_OBJ_NULL, MP_OBJ_NULL);

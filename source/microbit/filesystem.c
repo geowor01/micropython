@@ -363,10 +363,10 @@ mp_uint_t microbit_file_read(mp_obj_t obj, void *buf, mp_uint_t size, int *errco
             if (end_offset == UNUSED_CHUNK) {
                 to_read = 0;
             } else {
-                to_read = min(to_read, (mp_uint_t)end_offset-self->seek_offset);
+                to_read = MIN(to_read, (mp_uint_t)end_offset-self->seek_offset);
             }
         }
-        to_read = min(to_read, size-bytes_read);
+        to_read = MIN(to_read, size-bytes_read);
         if (to_read == 0) {
             break;
         }
@@ -388,7 +388,7 @@ mp_uint_t microbit_file_write(mp_obj_t obj, const void *buf, mp_uint_t size, int
     uint32_t len = size;
     const uint8_t *data = buf;
     while (len) {
-        uint32_t to_write = min(((uint32_t)(DATA_PER_CHUNK - self->seek_offset)), len);
+        uint32_t to_write = MIN(((uint32_t)(DATA_PER_CHUNK - self->seek_offset)), len);
         persistent_write_unchecked(seek_address(self), data, to_write);
         int err = advance(self, to_write, true);
         if (err) {

@@ -34,8 +34,8 @@ extern "C" {
 #include "microbit/modmicrobit.h"
 #include "microbit/microbit_image.h"
 
-#define min(a,b) (((a)<(b))?(a):(b))
-#define max(a,b) (((a)>(b))?(a):(b))
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 const monochrome_5by5_t microbit_blank_image = {
     { &microbit_image_type },
@@ -160,7 +160,7 @@ STATIC microbit_image_obj_t *image_from_parsed_str(const char *s, mp_int_t len) 
     for (int i = 0; i < len; i++) {
         char c = s[i];
         if (c == '\n' || c == ':') {
-            w = max(line_len, w);
+            w = MAX(line_len, w);
             line_len = 0;
             ++h;
         } else if (c == ' ') {
@@ -175,7 +175,7 @@ STATIC microbit_image_obj_t *image_from_parsed_str(const char *s, mp_int_t len) 
     if (line_len) {
         // Omitted trailing terminator
         ++h;
-        w = max(line_len, w);
+        w = MAX(line_len, w);
     }
     result = greyscale_new(w, h);
     RETURN_ON_EXCEPTION(NULL)
@@ -262,7 +262,7 @@ STATIC mp_obj_t microbit_image_make_new(const mp_obj_type_t *type_in, mp_uint_t 
                 mp_int_t i = 0;
                 for (mp_int_t y = 0; y < h; y++) {
                     for (mp_int_t x = 0; x < w; ++x) {
-                        uint8_t val = min(((const uint8_t*)bufinfo.buf)[i], MAX_BRIGHTNESS);
+                        uint8_t val = MIN(((const uint8_t*)bufinfo.buf)[i], MAX_BRIGHTNESS);
                         image->setPixelValue(x, y, val);
                         ++i;
                     }
@@ -290,15 +290,15 @@ STATIC void image_blit(microbit_image_obj_t *src, greyscale_t *dest, mp_int_t x,
         w = 0;
     if (h < 0)
         h = 0;
-    mp_int_t intersect_x0 = max(max(0, x), -xdest);
-    mp_int_t intersect_y0 = max(max(0, y), -ydest);
-    mp_int_t intersect_x1 = min(min(dest->width+x-xdest, src->width()), x+w);
-    mp_int_t intersect_y1 = min(min(dest->height+y-ydest, src->height()), y+h);
+    mp_int_t intersect_x0 = MAX(MAX(0, x), -xdest);
+    mp_int_t intersect_y0 = MAX(MAX(0, y), -ydest);
+    mp_int_t intersect_x1 = MIN(MIN(dest->width+x-xdest, src->width()), x+w);
+    mp_int_t intersect_y1 = MIN(MIN(dest->height+y-ydest, src->height()), y+h);
     mp_int_t xstart, xend, ystart, yend, xdel, ydel;
-    mp_int_t clear_x0 = max(0, xdest);
-    mp_int_t clear_y0 = max(0, ydest);
-    mp_int_t clear_x1 = min(dest->width, xdest+w);
-    mp_int_t clear_y1 = min(dest->height, ydest+h);
+    mp_int_t clear_x0 = MAX(0, xdest);
+    mp_int_t clear_y0 = MAX(0, ydest);
+    mp_int_t clear_x1 = MIN(dest->width, xdest+w);
+    mp_int_t clear_y1 = MIN(dest->height, ydest+h);
     if (intersect_x0 >= intersect_x1 || intersect_y0 >= intersect_y1) {
         // Nothing to copy
         clear_rect(dest, clear_x0, clear_y0, clear_x1, clear_y1);
@@ -648,7 +648,7 @@ microbit_image_obj_t *microbit_image_dim(microbit_image_obj_t *lhs, mp_float_t f
     RETURN_ON_EXCEPTION(NULL)
     for (int x = 0; x < lhs->width(); ++x) {
         for (int y = 0; y < lhs->width(); ++y) {
-            int val = min((int)lhs->getPixelValue(x,y)*fval+0.5, MAX_BRIGHTNESS);
+            int val = MIN((int)lhs->getPixelValue(x,y)*fval+0.5, MAX_BRIGHTNESS);
             result->setPixelValue(x, y, val);
         }
     }
@@ -670,9 +670,9 @@ microbit_image_obj_t *microbit_image_sum(microbit_image_obj_t *lhs, microbit_ima
             int lval = lhs->getPixelValue(x,y);
             int rval = rhs->getPixelValue(x,y);
             if (add)
-                val = min(lval + rval, MAX_BRIGHTNESS);
+                val = MIN(lval + rval, MAX_BRIGHTNESS);
             else
-                val = max(0, lval - rval);
+                val = MAX(0, lval - rval);
             result->setPixelValue(x, y, val);
         }
     }

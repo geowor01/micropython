@@ -180,22 +180,22 @@ STATIC void *thread_entry(void *args_in) {
 
     DEBUG_printf("[thread] start ts=%p args=%p stack=%p\n", &ts, &args, MP_STATE_THREAD(stack_top));
 
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
+    {
         mp_call_function_n_kw(args->fun, args->n_args, args->n_kw, args->args);
-        nlr_pop();
-    } else {
-        // uncaught exception
-        // check for SystemExit
-        mp_obj_base_t *exc = (mp_obj_base_t*)nlr.ret_val;
-        if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(exc->type), MP_OBJ_FROM_PTR(&mp_type_SystemExit))) {
-            // swallow exception silently
-        } else {
-            // print exception out
-            mp_printf(&mp_plat_print, "Unhandled exception in thread started by ");
-            mp_obj_print_helper(&mp_plat_print, args->fun, PRINT_REPR);
-            mp_printf(&mp_plat_print, "\n");
-            mp_obj_print_exception(&mp_plat_print, MP_OBJ_FROM_PTR(exc));
+        if (MP_STATE_THREAD(cur_exc) != NULL) {
+            // uncaught exception
+            // check for SystemExit
+            mp_obj_base_t *exc = (mp_obj_base_t*)nlr.ret_val;
+            if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(exc->type), MP_OBJ_FROM_PTR(&mp_type_SystemExit))) {
+                // swallow exception silently
+            } else {
+                // print exception out
+                mp_printf(&mp_plat_print, "Unhandled exception in thread started by ");
+                mp_obj_print_helper(&mp_plat_print, args->fun, PRINT_REPR);
+                mp_printf(&mp_plat_print, "\n");
+                mp_obj_print_exception(&mp_plat_print, MP_OBJ_FROM_PTR(exc));
+            }
+            MP_STATE_THREAD(cur_exc) = NULL;
         }
     }
 
@@ -265,7 +265,7 @@ STATIC mp_obj_t mod_thread_start_new_thread(size_t n_args, const mp_obj_t *args)
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_thread_start_new_thread_obj, 2, 3, mod_thread_start_new_thread);
 
 STATIC mp_obj_t mod_thread_exit(void) {
-    nlr_raise(mp_obj_new_exception(&mp_type_SystemExit));
+    return mp_raise_o(mp_obj_new_exception(&mp_type_SystemExit));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_thread_exit_obj, mod_thread_exit);
 

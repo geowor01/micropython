@@ -29,7 +29,10 @@
 
 extern "C" {
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/obj.h"
 #include "py/mphal.h"
 #include "microbit/modmicrobit.h"

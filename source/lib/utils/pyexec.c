@@ -29,7 +29,10 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/compile.h"
 #include "py/runtime.h"
 #include "py/repl.h"
@@ -65,8 +68,7 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
     // by default a SystemExit exception returns 0
     pyexec_system_exit = 0;
 
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
+    {
         mp_obj_t module_fun;
         #if MICROPY_MODULE_FROZEN_MPY
         if (exec_flags & EXEC_FLAG_SOURCE_IS_RAW_CODE) {
@@ -74,50 +76,54 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
             module_fun = mp_make_function_from_raw_code(source, MP_OBJ_NULL, MP_OBJ_NULL);
         } else
         #endif
-        {
-            #if MICROPY_ENABLE_COMPILER
-            mp_lexer_t *lex;
-            if (exec_flags & EXEC_FLAG_SOURCE_IS_VSTR) {
-                const vstr_t *vstr = source;
-                lex = mp_lexer_new_from_str_len(MP_QSTR__lt_stdin_gt_, vstr->buf, vstr->len, 0);
-            } else if (exec_flags & EXEC_FLAG_SOURCE_IS_FILENAME) {
-                lex = mp_lexer_new_from_file(source);
-            } else {
-                lex = (mp_lexer_t*)source;
-            }
+
+        #if MICROPY_ENABLE_COMPILER
+        mp_lexer_t *lex;
+        if (exec_flags & EXEC_FLAG_SOURCE_IS_VSTR) {
+            const vstr_t *vstr = source;
+            lex = mp_lexer_new_from_str_len(MP_QSTR__lt_stdin_gt_, vstr->buf, vstr->len, 0);
+        } else if (exec_flags & EXEC_FLAG_SOURCE_IS_FILENAME) {
+            lex = mp_lexer_new_from_file(source);
+        } else {
+            lex = (mp_lexer_t*)source;
+        }
+        if (lex != NULL) {
             // source is a lexer, parse and compile the script
             qstr source_name = lex->source_name;
             mp_parse_tree_t parse_tree = mp_parse(lex, input_kind);
             module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, exec_flags & EXEC_FLAG_IS_REPL);
             #else
-            mp_raise_msg(&mp_type_RuntimeError, "script compilation not supported");
+            mp_raise_msg_o(&mp_type_RuntimeError, "script compilation not supported");
             #endif
-        }
 
-        // execute code
-        mp_hal_set_interrupt_char(CHAR_CTRL_C); // allow ctrl-C to interrupt us
-        mp_call_function_0(module_fun);
-        mp_hal_set_interrupt_char(-1); // disable interrupt
-        nlr_pop();
-        ret = 1;
-        if (exec_flags & EXEC_FLAG_PRINT_EOF) {
-            mp_hal_stdout_tx_strn("\x04", 1);
+            if (module_fun != NULL) {
+                // execute code
+                mp_hal_set_interrupt_char(CHAR_CTRL_C); // allow ctrl-C to interrupt us
+                mp_call_function_0(module_fun);
+                mp_hal_set_interrupt_char(-1); // disable interrupt
+                if (exec_flags & EXEC_FLAG_PRINT_EOF) {
+                    mp_hal_stdout_tx_strn("\x04", 1);
+                }
+            }
         }
-    } else {
-        // uncaught exception
-        // FIXME it could be that an interrupt happens just before we disable it here
-        mp_hal_set_interrupt_char(-1); // disable interrupt
-        // print EOF after normal output
-        if (exec_flags & EXEC_FLAG_PRINT_EOF) {
-            mp_hal_stdout_tx_strn("\x04", 1);
-        }
-        // check for SystemExit
-        if (mp_obj_is_subclass_fast(mp_obj_get_type((mp_obj_t)nlr.ret_val), &mp_type_SystemExit)) {
-            // at the moment, the value of SystemExit is unused
-            ret = pyexec_system_exit;
+        if (MP_STATE_THREAD(cur_exc) != NULL) {
+            mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
+            // uncaught exception
+            // print EOF after normal output
+            if (exec_flags & EXEC_FLAG_PRINT_EOF) {
+                mp_hal_stdout_tx_strn("\x04", 1);
+            }
+            // check for SystemExit
+            if (mp_obj_is_subclass_fast(mp_obj_get_type((mp_obj_t)the_exc), &mp_type_SystemExit)) {
+                // at the moment, the value of SystemExit is unused
+                ret = pyexec_system_exit;
+            } else {
+                mp_obj_print_exception(&mp_plat_print, (mp_obj_t)the_exc);
+                ret = 0;
+            }
+            MP_STATE_THREAD(cur_exc) = NULL;
         } else {
-            mp_obj_print_exception(&mp_plat_print, (mp_obj_t)nlr.ret_val);
-            ret = 0;
+            ret = 1;
         }
     }
 
@@ -362,24 +368,6 @@ friendly_repl_reset:
     #if MICROPY_PY_BUILTINS_HELP
     mp_hal_stdout_tx_str("Type \"help()\" for more information.\r\n");
     #endif
-
-    // to test ctrl-C
-    /*
-    {
-        uint32_t x[4] = {0x424242, 0xdeaddead, 0x242424, 0xdeadbeef};
-        for (;;) {
-            nlr_buf_t nlr;
-            printf("pyexec_repl: %p\n", x);
-            mp_hal_set_interrupt_char(CHAR_CTRL_C);
-            if (nlr_push(&nlr) == 0) {
-                for (;;) {
-                }
-            } else {
-                printf("break\n");
-            }
-        }
-    }
-    */
 
     for (;;) {
     input_restart:

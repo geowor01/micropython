@@ -26,7 +26,10 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/obj.h"
 #include "py/gc.h"
 #include "microbit/filesystem.h"
@@ -41,11 +44,12 @@
 
 
 
-void persistent_write_byte_unchecked(const uint8_t *dest, const uint8_t val) {
+int persistent_write_byte_unchecked(const uint8_t *dest, const uint8_t val) {
 #if DEBUG_PERSISTENT
     if (((~(*dest)) & val) != 0) {
         DEBUG(("PERSISTENCE DEBUG: ERROR: Unchecked write of byte %u to %lx which contains %u\r\n", val, (uint32_t)dest, *dest));
-        mp_raise_msg(&mp_type_Exception, "Internal error: Attempting illegal write.");
+        mp_raise_msg_o(&mp_type_Exception, "Internal error: Attempting illegal write.");
+        return 1;
     }
 #endif
     DEBUG(("PERSISTENCE DEBUG: Write unchecked byte %u to %lx, previous value %u\r\n", val, (uint32_t)dest, *dest));
@@ -53,9 +57,10 @@ void persistent_write_byte_unchecked(const uint8_t *dest, const uint8_t val) {
     ticker_stop();
     nrf_nvmc_write_byte((uint32_t)dest, val);
     ticker_start();
+    return 0;
 }
 
-void persistent_write_unchecked(const void *dest, const void *src, uint32_t len) {
+int persistent_write_unchecked(const void *dest, const void *src, uint32_t len) {
     DEBUG(("PERSISTENCE DEBUG: Write unchecked %lu bytes from %lx to %lx\r\n", len, (uint32_t)src, (uint32_t)dest));
     int8_t *address = (int8_t *)dest;
     int8_t *data = (int8_t *)src;
@@ -63,7 +68,8 @@ void persistent_write_unchecked(const void *dest, const void *src, uint32_t len)
     for(uint32_t i = 0; i < len; i++) {
         if ((~address[i] & data[i]) != 0) {
             DEBUG(("PERSISTENCE DEBUG: ERROR: Unchecked write of byte %u to %lx which contains %u\r\n", data[i], (uint32_t)&address[i], address[i]));
-            mp_raise_msg(&mp_type_Exception, "Internal error: Attempting illegal write.");
+            mp_raise_msg_o(&mp_type_Exception, "Internal error: Attempting illegal write.");
+            return 1;
         }
     }
 #endif
@@ -81,6 +87,7 @@ void persistent_write_unchecked(const void *dest, const void *src, uint32_t len)
     }
     while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
     ticker_start();
+    return 0;
 }
 
 static inline bool can_write(const int8_t *dest, const int8_t *src, uint32_t len) {
@@ -121,7 +128,9 @@ int persistent_write(const void *dst, const void *src, uint32_t len) {
         int8_t *next_page = page + page_size;
         uint32_t data_in_page = min(end_data-addr, next_page-dest);
         if (can_write(dest, addr, data_in_page)) {
-            persistent_write_unchecked(dest, addr, data_in_page);
+            if (persistent_write_unchecked(dest, addr, data_in_page)) {
+                return -1;
+            }
         } else {
             if (tmp_storage == NULL) {
                 tmp_storage = m_new(int8_t, page_size);
@@ -132,7 +141,9 @@ int persistent_write(const void *dst, const void *src, uint32_t len) {
             memcpy(tmp_storage, page, page_size);
             memcpy(tmp_storage+(dest-page), addr, data_in_page);
             persistent_erase_page(page);
-            persistent_write_unchecked(page, tmp_storage, page_size);
+            if (persistent_write_unchecked(page, tmp_storage, page_size)) {
+                return -1;
+            }
         }
         dest = page = next_page;
         addr += data_in_page;

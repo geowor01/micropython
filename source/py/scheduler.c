@@ -41,7 +41,7 @@ void mp_handle_pending(void) {
                 MP_STATE_VM(sched_state) = MP_SCHED_IDLE;
             }
             MICROPY_END_ATOMIC_SECTION(atomic_state);
-            nlr_raise(obj);
+            mp_raise_o(obj);
         }
         mp_handle_pending_tail(atomic_state);
     }
@@ -110,7 +110,7 @@ void mp_handle_pending(void) {
     if (MP_STATE_VM(mp_pending_exception) != MP_OBJ_NULL) {
         mp_obj_t obj = MP_STATE_VM(mp_pending_exception);
         MP_STATE_VM(mp_pending_exception) = MP_OBJ_NULL;
-        nlr_raise(obj);
+        mp_raise_o(obj);
     }
 }
 

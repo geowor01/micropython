@@ -27,7 +27,10 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/runtime.h"
 
 #if MICROPY_PY_BUILTINS_PROPERTY

@@ -64,7 +64,7 @@ bool microbit_obj_pin_can_be_acquired(const microbit_pin_obj_t *pin) {
     return current_mode->release != pinmode_error;
 }
 
-bool microbit_obj_pin_acquire(const microbit_pin_obj_t *pin, const microbit_pinmode_t *new_mode) {
+int microbit_obj_pin_acquire(const microbit_pin_obj_t *pin, const microbit_pinmode_t *new_mode) {
     const microbit_pinmode_t *current_mode = microbit_pin_get_mode(pin);
 
     // The button mode is effectively a digital-in mode, so allow read_digital to work on a button
@@ -74,10 +74,13 @@ bool microbit_obj_pin_acquire(const microbit_pin_obj_t *pin, const microbit_pinm
 
     if (current_mode != new_mode) {
         current_mode->release(pin);
+        if (MP_STATE_THREAD(cur_exc) != MP_OBJ_NULL) {
+            return -1;
+        }
         set_mode(pin->number, new_mode);
-        return true;
+        return 1;
     } else {
-        return false;
+        return 0;
     }
 }
 
@@ -87,7 +90,7 @@ static void noop(const microbit_pin_obj_t *pin) {
 
 void pinmode_error(const microbit_pin_obj_t *pin) {
     const microbit_pinmode_t *current_mode = microbit_pin_get_mode(pin);
-    nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError, "Pin %d in %q mode", pin->number, current_mode->name));
+    mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_ValueError, "Pin %d in %q mode", pin->number, current_mode->name));
 }
 
 static void analog_release(const microbit_pin_obj_t *pin) {

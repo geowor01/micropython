@@ -49,8 +49,8 @@ int persistent_write(const void *dest, const void *src, uint32_t byte_count);
  */
 int persistent_write_byte(const uint8_t *dest, const uint8_t val);
 
-void persistent_write_unchecked(const void *dest, const void *src, uint32_t byte_count);
-void persistent_write_byte_unchecked(const uint8_t *dest, const uint8_t val);
+int persistent_write_unchecked(const void *dest, const void *src, uint32_t byte_count);
+int persistent_write_byte_unchecked(const uint8_t *dest, const uint8_t val);
 
 void persistent_erase_page(const void *page);
 
@@ -120,7 +120,7 @@ mp_obj_t microbit_file_size(mp_obj_t filename);
 
 mp_lexer_t *microbit_file_lexer(qstr src_name, file_descriptor_obj *fd);
 
-void microbit_filesystem_init(void);
+int microbit_filesystem_init(void);
 
 extern const mp_obj_type_t microbit_bytesio_type;
 extern const mp_obj_type_t microbit_textio_type;

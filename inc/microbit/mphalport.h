@@ -39,7 +39,7 @@ int mp_hal_stdin_rx_any(void);
 void mp_hal_move_cursor_back(unsigned int pos);
 void mp_hal_erase_line_from_cursor(unsigned int n_chars);
 
-void mp_hal_display_string(const char*);
+int mp_hal_display_string(const char*);
 
 // MicroPython low-level C API for pins
 #include "nrf_gpio.h"

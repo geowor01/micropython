@@ -28,7 +28,10 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/runtime.h"
 #include "py/runtime0.h"
 #include "py/builtin.h"
@@ -63,15 +66,17 @@ STATIC bool is_set_or_frozenset(mp_obj_t o) {
 
 // This function is used to verify the argument for methods that modify
 // the set object, and raises an exception if the arg is a frozenset.
-STATIC void check_set(mp_obj_t o) {
+STATIC int check_set(mp_obj_t o) {
     #if MICROPY_PY_BUILTINS_FROZENSET
     if (MP_OBJ_IS_TYPE(o, &mp_type_frozenset)) {
         // Mutable method called on frozenset; emulate CPython behavior, eg:
         // AttributeError: 'frozenset' object has no attribute 'add'
-        mp_raise_msg(&mp_type_AttributeError, "'frozenset' has no such attribute");
+        mp_raise_msg_o(&mp_type_AttributeError, "'frozenset' has no such attribute");
+        return 1;
     }
     #endif
     mp_check_self(MP_OBJ_IS_TYPE(o, &mp_type_set));
+    return 0;
 }
 
 STATIC void set_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
@@ -171,7 +176,9 @@ STATIC mp_obj_t set_getiter(mp_obj_t set_in, mp_obj_iter_buf_t *iter_buf) {
 /* set methods                                                                */
 
 STATIC mp_obj_t set_add(mp_obj_t self_in, mp_obj_t item) {
-    check_set(self_in);
+    if (check_set(self_in)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_set_t *self = MP_OBJ_TO_PTR(self_in);
     mp_set_lookup(&self->set, item, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
     return mp_const_none;
@@ -179,7 +186,9 @@ STATIC mp_obj_t set_add(mp_obj_t self_in, mp_obj_t item) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(set_add_obj, set_add);
 
 STATIC mp_obj_t set_clear(mp_obj_t self_in) {
-    check_set(self_in);
+    if (check_set(self_in)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_set_t *self = MP_OBJ_TO_PTR(self_in);
 
     mp_set_clear(&self->set);
@@ -192,6 +201,9 @@ STATIC mp_obj_t set_copy_as_mutable(mp_obj_t self_in) {
     mp_obj_set_t *self = MP_OBJ_TO_PTR(self_in);
 
     mp_obj_set_t *other = m_new_obj(mp_obj_set_t);
+    if (other == NULL) {
+        return MP_OBJ_NULL;
+    }
     other->base.type = &mp_type_set;
     mp_set_init(&other->set, self->set.alloc);
     other->set.used = self->set.used;
@@ -211,7 +223,9 @@ STATIC mp_obj_t set_copy(mp_obj_t self_in) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(set_copy_obj, set_copy);
 
 STATIC mp_obj_t set_discard(mp_obj_t self_in, mp_obj_t item) {
-    check_set(self_in);
+    if (check_set(self_in)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_set_t *self = MP_OBJ_TO_PTR(self_in);
     mp_set_lookup(&self->set, item, MP_MAP_LOOKUP_REMOVE_IF_FOUND);
     return mp_const_none;
@@ -221,7 +235,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(set_discard_obj, set_discard);
 STATIC mp_obj_t set_diff_int(size_t n_args, const mp_obj_t *args, bool update) {
     mp_obj_t self;
     if (update) {
-        check_set(args[0]);
+        if (check_set(args[0])) {
+            return MP_OBJ_NULL;
+        }
         self = args[0];
     } else {
         check_set_or_frozenset(args[0]);
@@ -259,7 +275,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR(set_diff_update_obj, 1, set_diff_update);
 
 STATIC mp_obj_t set_intersect_int(mp_obj_t self_in, mp_obj_t other, bool update) {
     if (update) {
-        check_set(self_in);
+        if (check_set(self_in)) {
+            return MP_OBJ_NULL;
+        }
     } else {
         check_set_or_frozenset(self_in);
     }
@@ -388,28 +406,34 @@ STATIC mp_obj_t set_equal(mp_obj_t self_in, mp_obj_t other_in) {
 }
 
 STATIC mp_obj_t set_pop(mp_obj_t self_in) {
-    check_set(self_in);
+    if (check_set(self_in)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_set_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_t obj = mp_set_remove_first(&self->set);
     if (obj == MP_OBJ_NULL) {
-        mp_raise_msg(&mp_type_KeyError, "pop from an empty set");
+        return mp_raise_msg_o(&mp_type_KeyError, "pop from an empty set");
     }
     return obj;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(set_pop_obj, set_pop);
 
 STATIC mp_obj_t set_remove(mp_obj_t self_in, mp_obj_t item) {
-    check_set(self_in);
+    if (check_set(self_in)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_set_t *self = MP_OBJ_TO_PTR(self_in);
     if (mp_set_lookup(&self->set, item, MP_MAP_LOOKUP_REMOVE_IF_FOUND) == MP_OBJ_NULL) {
-        nlr_raise(mp_obj_new_exception(&mp_type_KeyError));
+        return mp_raise_o(mp_obj_new_exception(&mp_type_KeyError));
     }
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(set_remove_obj, set_remove);
 
 STATIC mp_obj_t set_symmetric_difference_update(mp_obj_t self_in, mp_obj_t other_in) {
-    check_set(self_in);
+    if (check_set(self_in)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_set_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_t iter = mp_getiter(other_in, NULL);
     mp_obj_t next;
@@ -438,7 +462,9 @@ STATIC void set_update_int(mp_obj_set_t *self, mp_obj_t other_in) {
 }
 
 STATIC mp_obj_t set_update(size_t n_args, const mp_obj_t *args) {
-    check_set(args[0]);
+    if (check_set(args[0])) {
+        return MP_OBJ_NULL;
+    }
     for (size_t i = 1; i < n_args; i++) {
         set_update_int(MP_OBJ_TO_PTR(args[0]), args[i]);
     }
@@ -592,6 +618,9 @@ const mp_obj_type_t mp_type_frozenset = {
 
 mp_obj_t mp_obj_new_set(size_t n_args, mp_obj_t *items) {
     mp_obj_set_t *o = m_new_obj(mp_obj_set_t);
+    if (o == NULL) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_set;
     mp_set_init(&o->set, n_args);
     for (size_t i = 0; i < n_args; i++) {

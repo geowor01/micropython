@@ -27,7 +27,10 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/smallint.h"
 #include "py/objint.h"
 #include "py/objstr.h"
@@ -118,10 +121,13 @@ STATIC mp_obj_t mp_builtin_all(mp_obj_t o_in) {
     mp_obj_iter_buf_t iter_buf;
     mp_obj_t iterable = mp_getiter(o_in, &iter_buf);
     mp_obj_t item;
-    while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
+    while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         if (!mp_obj_is_true(item)) {
             return mp_const_false;
         }
+    }
+    if (mp_iternext_had_exc()) {
+        return MP_OBJ_NULL;
     }
     return mp_const_true;
 }
@@ -131,10 +137,13 @@ STATIC mp_obj_t mp_builtin_any(mp_obj_t o_in) {
     mp_obj_iter_buf_t iter_buf;
     mp_obj_t iterable = mp_getiter(o_in, &iter_buf);
     mp_obj_t item;
-    while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
+    while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         if (mp_obj_is_true(item)) {
             return mp_const_true;
         }
+    }
+    if (mp_iternext_had_exc()) {
+        return MP_OBJ_NULL;
     }
     return mp_const_false;
 }
@@ -178,7 +187,7 @@ STATIC mp_obj_t mp_builtin_chr(mp_obj_t o_in) {
         str[3] = (c & 0x3F) | 0x80;
         len = 4;
     } else {
-        mp_raise_ValueError("chr() arg not in range(0x110000)");
+        return mp_raise_ValueError_o("chr() arg not in range(0x110000)");
     }
     return mp_obj_new_str(str, len, true);
     #else
@@ -187,7 +196,7 @@ STATIC mp_obj_t mp_builtin_chr(mp_obj_t o_in) {
         char str[1] = {ord};
         return mp_obj_new_str(str, 1, true);
     } else {
-        mp_raise_ValueError("chr() arg not in range(256)");
+        return mp_raise_ValueError_o("chr() arg not in range(256)");
     }
     #endif
 }
@@ -275,10 +284,10 @@ STATIC mp_obj_t mp_builtin_input(size_t n_args, const mp_obj_t *args) {
     vstr_init(&line, 16);
     int ret = mp_hal_readline(&line, "");
     if (ret == CHAR_CTRL_C) {
-        nlr_raise(mp_obj_new_exception(&mp_type_KeyboardInterrupt));
+        return mp_raise_o(mp_obj_new_exception(&mp_type_KeyboardInterrupt));
     }
     if (line.len == 0 && ret == CHAR_CTRL_D) {
-        nlr_raise(mp_obj_new_exception(&mp_type_EOFError));
+        return mp_raise_o(mp_obj_new_exception(&mp_type_EOFError));
     }
     return mp_obj_new_str_from_vstr(&mp_type_str, &line);
 }
@@ -304,19 +313,22 @@ STATIC mp_obj_t mp_builtin_min_max(size_t n_args, const mp_obj_t *args, mp_map_t
         mp_obj_t best_key = MP_OBJ_NULL;
         mp_obj_t best_obj = MP_OBJ_NULL;
         mp_obj_t item;
-        while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
+        while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
             mp_obj_t key = key_fn == MP_OBJ_NULL ? item : mp_call_function_1(key_fn, item);
             if (best_obj == MP_OBJ_NULL || (mp_binary_op(op, key, best_key) == mp_const_true)) {
                 best_key = key;
                 best_obj = item;
             }
         }
+        if (mp_iternext_had_exc()) {
+            return MP_OBJ_NULL;
+        }
         if (best_obj == MP_OBJ_NULL) {
             default_elem = mp_map_lookup(kwargs, MP_OBJ_NEW_QSTR(MP_QSTR_default), MP_MAP_LOOKUP);
             if (default_elem != NULL) {
                 best_obj = default_elem->value;
             } else {
-                mp_raise_ValueError("arg is an empty sequence");
+                return mp_raise_ValueError_o("arg is an empty sequence");
             }
         }
         return best_obj;
@@ -350,7 +362,7 @@ MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_min_obj, 1, mp_builtin_min);
 STATIC mp_obj_t mp_builtin_next(mp_obj_t o) {
     mp_obj_t ret = mp_iternext_allow_raise(o);
     if (ret == MP_OBJ_STOP_ITERATION) {
-        nlr_raise(mp_obj_new_exception(&mp_type_StopIteration));
+        return mp_raise_o(mp_obj_new_exception(&mp_type_StopIteration));
     } else {
         return ret;
     }
@@ -365,6 +377,10 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_builtin_oct_obj, mp_builtin_oct);
 STATIC mp_obj_t mp_builtin_ord(mp_obj_t o_in) {
     size_t len;
     const char *str = mp_obj_str_get_data(o_in, &len);
+    if (str == NULL) {
+        // exception
+        return MP_OBJ_NULL;
+    }
     #if MICROPY_PY_BUILTINS_STR_UNICODE
     if (MP_OBJ_IS_STR(o_in)) {
         len = unichar_charlen(str, len);
@@ -396,9 +412,9 @@ STATIC mp_obj_t mp_builtin_ord(mp_obj_t o_in) {
     #endif
 
     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-        mp_raise_TypeError("ord expects a character");
+        return mp_raise_TypeError_o("ord expects a character");
     } else {
-        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+        return mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
             "ord() expected a character, but string of length %d found", (int)len));
     }
 }
@@ -409,7 +425,7 @@ STATIC mp_obj_t mp_builtin_pow(size_t n_args, const mp_obj_t *args) {
         case 2: return mp_binary_op(MP_BINARY_OP_POWER, args[0], args[1]);
         default:
 #if !MICROPY_PY_BUILTINS_POW3
-            mp_raise_msg(&mp_type_NotImplementedError, "3-arg pow() not supported");
+            return mp_raise_msg_o(&mp_type_NotImplementedError, "3-arg pow() not supported");
 #elif MICROPY_LONGINT_IMPL != MICROPY_LONGINT_IMPL_MPZ
             return mp_binary_op(MP_BINARY_OP_MODULO, mp_binary_op(MP_BINARY_OP_POWER, args[0], args[1]), args[2]);
 #else
@@ -438,6 +454,9 @@ STATIC mp_obj_t mp_builtin_print(size_t n_args, const mp_obj_t *args, mp_map_t *
     if (file_elem != NULL && file_elem->value != mp_const_none) {
         stream_obj = MP_OBJ_TO_PTR(file_elem->value); // XXX may not be a concrete object
     }
+    if (file_elem == NULL) {
+        return MP_OBJ_NULL;
+    }
 
     mp_print_t print = {stream_obj, mp_stream_write_adaptor};
     #endif
@@ -460,6 +479,10 @@ STATIC mp_obj_t mp_builtin_print(size_t n_args, const mp_obj_t *args, mp_map_t *
     #else
     mp_print_strn(&mp_plat_print, end_data, end_len, 0, 0, 0);
     #endif
+    if (MP_STATE_THREAD(cur_exc) != NULL) {
+        // some printing function above had an exception
+        return MP_OBJ_NULL;
+    }
     return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_print_obj, 0, mp_builtin_print);
@@ -521,8 +544,11 @@ STATIC mp_obj_t mp_builtin_sum(size_t n_args, const mp_obj_t *args) {
     mp_obj_iter_buf_t iter_buf;
     mp_obj_t iterable = mp_getiter(args[0], &iter_buf);
     mp_obj_t item;
-    while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
+    while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         value = mp_binary_op(MP_BINARY_OP_ADD, value, item);
+    }
+    if (mp_iternext_had_exc()) {
+        return MP_OBJ_NULL;
     }
     return value;
 }
@@ -530,7 +556,7 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_builtin_sum_obj, 1, 2, mp_builtin_sum);
 
 STATIC mp_obj_t mp_builtin_sorted(size_t n_args, const mp_obj_t *args, mp_map_t *kwargs) {
     if (n_args > 1) {
-        mp_raise_TypeError("must use keyword argument for key function");
+        return mp_raise_TypeError_o("must use keyword argument for key function");
     }
     mp_obj_t self = mp_type_list.make_new(&mp_type_list, 1, 0, args);
     mp_obj_list_sort(1, &self, kwargs);
@@ -565,7 +591,9 @@ STATIC mp_obj_t mp_builtin_getattr(size_t n_args, const mp_obj_t *args) {
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_builtin_getattr_obj, 2, 3, mp_builtin_getattr);
 
 STATIC mp_obj_t mp_builtin_setattr(mp_obj_t base, mp_obj_t attr, mp_obj_t value) {
-    mp_store_attr(base, mp_obj_str_get_qstr(attr), value);
+    if (mp_store_attr(base, mp_obj_str_get_qstr(attr), value)) {
+        return MP_OBJ_NULL;
+    }
     return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_3(mp_builtin_setattr_obj, mp_builtin_setattr);
@@ -579,14 +607,18 @@ MP_DEFINE_CONST_FUN_OBJ_2(mp_builtin_delattr_obj, mp_builtin_delattr);
 
 STATIC mp_obj_t mp_builtin_hasattr(mp_obj_t object_in, mp_obj_t attr_in) {
     qstr attr = mp_obj_str_get_qstr(attr_in);
-
+    if (attr == MP_QSTR_NULL) {
+        // exception
+        return MP_OBJ_NULL;
+    }
     mp_obj_t dest[2];
     // TODO: https://docs.python.org/3/library/functions.html?highlight=hasattr#hasattr
     // explicitly says "This is implemented by calling getattr(object, name) and seeing
     // whether it raises an AttributeError or not.", so we should explicitly wrap this
     // in nlr_push and handle exception.
-    mp_load_method_maybe(object_in, attr, dest);
-
+    if (mp_load_method_maybe(object_in, attr, dest)) {
+        return MP_OBJ_NULL;
+    }
     return mp_obj_new_bool(dest[0] != MP_OBJ_NULL);
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_builtin_hasattr_obj, mp_builtin_hasattr);

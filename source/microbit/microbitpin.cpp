@@ -65,10 +65,14 @@ mp_obj_t microbit_pin_write_digital(mp_obj_t self_in, mp_obj_t value_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
     int val = mp_obj_get_int(value_in);
     if (val >> 1) {
-        mp_raise_ValueError("value must be 0 or 1");
+        return mp_raise_ValueError_o("value must be 0 or 1");
     }
-    if (microbit_obj_pin_acquire(self, microbit_pin_mode_write_digital)) {
+    int acquire = microbit_obj_pin_acquire(self, microbit_pin_mode_write_digital);
+    if (acquire == 1) {
         nrf_gpio_cfg_output(self->name);
+    }
+    else if (acquire == -1) {
+        return MP_OBJ_NULL;
     }
     if (val)
         nrf_gpio_pin_set(self->name);
@@ -80,8 +84,12 @@ MP_DEFINE_CONST_FUN_OBJ_2(microbit_pin_write_digital_obj, microbit_pin_write_dig
 
 mp_obj_t microbit_pin_read_digital(mp_obj_t self_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
-    if (microbit_obj_pin_acquire(self, microbit_pin_mode_read_digital)) {
+    int acquire = microbit_obj_pin_acquire(self, microbit_pin_mode_read_digital);
+    if (acquire == 1) {
         nrf_gpio_cfg_input(self->name, NRF_GPIO_PIN_PULLDOWN);
+    }
+    else if (acquire == -1) {
+        return MP_OBJ_NULL;
     }
     return mp_obj_new_int(nrf_gpio_pin_read(self->name));
 }
@@ -94,10 +102,12 @@ mp_obj_t microbit_pin_set_pull(mp_obj_t self_in, mp_obj_t pull_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
     int pull = mp_obj_get_int(pull_in);
     if (((1 << pull) & SHIFT_PULL_MASK) == 0) {
-        mp_raise_ValueError("invalid pull");
+        return mp_raise_ValueError_o("invalid pull");
     }
     /* Pull only applies in an read digital mode */
-    microbit_obj_pin_acquire(self, microbit_pin_mode_read_digital);
+    if (microbit_obj_pin_acquire(self, microbit_pin_mode_read_digital) == -1) {
+        return MP_OBJ_NULL;
+    }
     nrf_gpio_cfg_input(self->name, (nrf_gpio_pin_pull_t)pull);
     return mp_const_none;
 }
@@ -127,21 +137,31 @@ mp_obj_t microbit_pin_write_analog(mp_obj_t self_in, mp_obj_t value_in) {
         set_value = mp_obj_get_int(value_in);
     }
     if (set_value < 0 || set_value > MICROBIT_PIN_MAX_OUTPUT) {
-        mp_raise_ValueError("value must be between 0 and 1023");
+        return mp_raise_ValueError_o("value must be between 0 and 1023");
     }
-    if (microbit_obj_pin_acquire(self, microbit_pin_mode_write_analog)) {
+    int acquire = microbit_obj_pin_acquire(self, microbit_pin_mode_write_analog);
+    if (acquire == 1) {
         nrf_gpio_cfg_output(self->name);
     }
+    else if (acquire == -1) {
+        return MP_OBJ_NULL;
+    }
+
     pwm_set_duty_cycle(self->name, set_value);
-    if (set_value == 0)
-        microbit_obj_pin_acquire(self, microbit_pin_mode_unused);
+    if (set_value == 0) {
+        if (microbit_obj_pin_acquire(self, microbit_pin_mode_unused) == -1) {
+            return MP_OBJ_NULL;
+        }
+    }
     return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_2(microbit_pin_write_analog_obj, microbit_pin_write_analog);
 
 mp_obj_t microbit_pin_read_analog(mp_obj_t self_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
-    microbit_obj_pin_acquire(self, microbit_pin_mode_unused);
+    if (microbit_obj_pin_acquire(self, microbit_pin_mode_unused) == -1) {
+        return MP_OBJ_NULL;
+    }
     analogin_t obj;
     analogin_init(&obj, (PinName)self->name);
     int val = analogin_read_u16(&obj);
@@ -154,7 +174,7 @@ mp_obj_t microbit_pin_set_analog_period(mp_obj_t self_in, mp_obj_t period_in) {
     (void)self_in;
     int err = pwm_set_period_us(mp_obj_get_int(period_in)*1000);
     if (err) {
-        mp_raise_ValueError("invalid period");
+        return mp_raise_ValueError_o("invalid period");
     }
     return mp_const_none;
 }
@@ -164,7 +184,7 @@ mp_obj_t microbit_pin_set_analog_period_microseconds(mp_obj_t self_in, mp_obj_t 
     (void)self_in;
     int err = pwm_set_period_us(mp_obj_get_int(period_in));
     if (err) {
-        mp_raise_ValueError("invalid period");
+        return mp_raise_ValueError_o("invalid period");
     }
     return mp_const_none;
 }
@@ -181,7 +201,9 @@ mp_obj_t microbit_pin_is_touched(mp_obj_t self_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
     const microbit_pinmode_t *mode = microbit_pin_get_mode(self);
     if (mode != microbit_pin_mode_touch && mode != microbit_pin_mode_button) {
-        microbit_obj_pin_acquire(self, microbit_pin_mode_touch);
+        if (microbit_obj_pin_acquire(self, microbit_pin_mode_touch) == -1) {
+            return MP_OBJ_NULL;
+        }
         nrf_gpio_cfg_input(self->name, NRF_GPIO_PIN_NOPULL);
     }
     /* Pin is touched if it is low after debouncing */
@@ -302,14 +324,17 @@ void microbit_pin_init(void) {
 
 const microbit_pin_obj_t *microbit_obj_get_pin(mp_obj_t o) {
     mp_obj_type_t *type = mp_obj_get_type(o);
-    if (type == &microbit_touch_pin_type || type == &microbit_ad_pin_type || type == &microbit_dig_pin_type) {
-        return (microbit_pin_obj_t*)o;
-    } else {
-        mp_raise_TypeError("expecting a pin");
+    if (type != &microbit_touch_pin_type && type != &microbit_ad_pin_type && type != &microbit_dig_pin_type) {
+        mp_raise_TypeError_o("expecting a pin");
     }
+    return (microbit_pin_obj_t*)o;
 }
 
 uint8_t microbit_obj_get_pin_name(mp_obj_t o) {
+    const microbit_pin_obj_t *pin = microbit_obj_get_pin(o);
+    if (MP_STATE_THREAD(cur_exc) != NULL) {
+        return 0;
+    }
     return microbit_obj_get_pin(o)->name;
 }
 

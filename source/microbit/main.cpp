@@ -204,7 +204,7 @@ int main(void) {
             file_descriptor_obj *main_module;
             if ((main_module = microbit_file_open("main.py", 7, false, false))) {
                 do_file(main_module);
-            } else if (APPENDED_SCRIPT->header[0] == 'M' && APPENDED_SCRIPT->header[1] == 'P') {
+            } else if (APPENDED_SCRIPT->header[0] == 'M' && APPENDED_SCRIPT->header[1] == 'P' && APPENDED_SCRIPT->len > 0) {
                 // run appended script
                 do_strn(APPENDED_SCRIPT->str, APPENDED_SCRIPT->len);
             } else {

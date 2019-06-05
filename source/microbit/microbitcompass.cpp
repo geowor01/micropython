@@ -39,6 +39,12 @@ typedef struct _microbit_compass_obj_t {
     mp_obj_base_t base;
 } microbit_compass_obj_t;
 
+void microbit_compass_acquire(void) {
+    if (microbit_accelerometer_acquire()) {
+        ubit_compass->configure();
+    }
+}
+
 void microbit_compass_init(void) {
     // load any peristent calibration data if it exists
     uint32_t *persist = (uint32_t*)microbit_compass_calibration_page();
@@ -62,6 +68,7 @@ mp_obj_t microbit_compass_calibrate(mp_obj_t self_in) {
     // can use the display to collect samples for the calibration.
     // It will do the calibration and then return here.
     (void)self_in;
+    microbit_compass_acquire();
     ticker_stop();
     //uBit.systemTicker.attach_us(&uBit, &MicroBit::systemTick, MICROBIT_DEFAULT_TICK_PERIOD * 1000); TODO what to replace with?
     ubit_display.enable();
@@ -114,6 +121,7 @@ static void update(microbit_compass_obj_t *self) {
 
 mp_obj_t microbit_compass_heading(mp_obj_t self_in) {
     microbit_compass_obj_t *self = (microbit_compass_obj_t*)self_in;
+    microbit_compass_acquire();
     // Upon calling heading(), the DAL will automatically calibrate the compass
     // if it's not already calibrated.  Since we need to first enable the display
     // for calibration to work, we must check for non-calibration here and call
@@ -128,24 +136,28 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_compass_heading_obj, microbit_compass_heading
 
 mp_obj_t microbit_compass_get_x(mp_obj_t self_in) {
     (void)self_in;
+    microbit_compass_acquire();
     return mp_obj_new_int(ubit_compass->getX());
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_compass_get_x_obj, microbit_compass_get_x);
 
 mp_obj_t microbit_compass_get_y(mp_obj_t self_in) {
     (void)self_in;
+    microbit_compass_acquire();
     return mp_obj_new_int(ubit_compass->getY());
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_compass_get_y_obj, microbit_compass_get_y);
 
 mp_obj_t microbit_compass_get_z(mp_obj_t self_in) {
     (void)self_in;
+    microbit_compass_acquire();
     return mp_obj_new_int(ubit_compass->getZ());
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_compass_get_z_obj, microbit_compass_get_z);
 
 mp_obj_t microbit_compass_get_field_strength(mp_obj_t self_in) {
     (void)self_in;
+    microbit_compass_acquire();
     return mp_obj_new_int(ubit_compass->getFieldStrength());
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_compass_get_field_strength_obj, microbit_compass_get_field_strength);

@@ -217,15 +217,19 @@ extern volatile bool compass_updating;
 extern const struct _microbit_compass_obj_t microbit_compass_obj;
 
 void microbit_compass_init(void);
+void microbit_compass_acquire(void);
 
 /****************************************************************/
 // microbit.accelerometer object
 
 extern volatile bool accelerometer_up_to_date;
 extern volatile bool accelerometer_updating;
+extern volatile bool accelerometer_in_use;
 
 extern const mp_obj_type_t microbit_accelerometer_type;
 extern const struct _microbit_accelerometer_obj_t microbit_accelerometer_obj;
+
+bool microbit_accelerometer_acquire(void);
 
 //void microbit_accelerometer_event_handler(const MicroBitEvent *evt);
 
@@ -240,9 +244,14 @@ void microbit_button_tick(void);
 /****************************************************************/
 // microbit.i2c, microbit.uart and microbit.spi objects
 
+extern volatile bool i2c_in_use;
+
 extern const struct _microbit_i2c_obj_t microbit_i2c_obj;
 extern struct _microbit_uart_obj_t microbit_uart_obj;
 extern struct _microbit_spi_obj_t microbit_spi_obj;
+
+bool i2c_matches_accel(void);
+void microbit_i2c_free_current(void);
 
 /****************************************************************/
 // declarations of microbit functions and methods

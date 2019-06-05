@@ -37,6 +37,7 @@ typedef struct _microbit_accelerometer_obj_t {
 
 volatile bool accelerometer_up_to_date = false;
 volatile bool accelerometer_updating = false;
+volatile bool accelerometer_in_use = false;
 
 #define GESTURE_LIST_SIZE (8)
 
@@ -45,6 +46,36 @@ volatile bool accelerometer_updating = false;
 volatile uint16_t gesture_state = 0;                    // 1 bit per gesture
 volatile uint8_t gesture_list_cur = 0;                  // index into gesture_list
 volatile uint8_t gesture_list[GESTURE_LIST_SIZE] = {0}; // list of pending gestures, 4-bits per element
+
+
+STATIC void microbit_accelerometer_reset(void) {
+    ubit_i2c.set_pins(I2C_SDA0, I2C_SCL0);
+
+    ubit_i2c.frequency(100000);
+
+    // Call underlying mbed i2c_reset to reconfigure the pins and reset the peripheral
+    i2c_reset(ubit_i2c.get_i2c_obj());
+
+    ubit_accelerometer->configure();
+}
+
+bool microbit_accelerometer_acquire(void) {
+    // accelerometer requires resetting if either i2c has changed the underlying i2c configuration,
+    // or if the pins being used have been used for something else (are in a different mode).
+    bool i2c_changed = i2c_in_use && !i2c_matches_accel();
+    i2c_in_use = false;
+    accelerometer_in_use = true;
+    if (i2c_changed) {
+        // i2c no longer using its pins, so free them.
+        microbit_i2c_free_current();
+    }
+    bool acquire_sda = microbit_obj_pin_acquire(&microbit_p20_obj, microbit_pin_mode_i2c);
+    bool acquire_scl = microbit_obj_pin_acquire(&microbit_p19_obj, microbit_pin_mode_i2c);
+    if (i2c_changed || acquire_sda || acquire_scl) {
+        microbit_accelerometer_reset();
+    }
+    return i2c_changed || acquire_sda || acquire_scl;
+}
 
 static void update(microbit_accelerometer_obj_t *self) {
     /* The only time it is possible for accelerometer_updating to be true here
@@ -79,24 +110,28 @@ void microbit_accelerometer_event_handler(const MicroBitEvent *evt) {
 
 mp_obj_t microbit_accelerometer_get_x(mp_obj_t self_in) {
     (void)self_in;
+    microbit_accelerometer_acquire();
     return mp_obj_new_int(ubit_accelerometer->getX());
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_get_x_obj, microbit_accelerometer_get_x);
 
 mp_obj_t microbit_accelerometer_get_y(mp_obj_t self_in) {
     (void)self_in;
+    microbit_accelerometer_acquire();
     return mp_obj_new_int(ubit_accelerometer->getY());
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_get_y_obj, microbit_accelerometer_get_y);
 
 mp_obj_t microbit_accelerometer_get_z(mp_obj_t self_in) {
     (void)self_in;
+    microbit_accelerometer_acquire();
     return mp_obj_new_int(ubit_accelerometer->getZ());
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_get_z_obj, microbit_accelerometer_get_z);
 
 mp_obj_t microbit_accelerometer_get_values(mp_obj_t self_in) {
     (void)self_in;
+    microbit_accelerometer_acquire();
     mp_obj_tuple_t *tuple = (mp_obj_tuple_t *)mp_obj_new_tuple(3, NULL);
     Sample3D sample = ubit_accelerometer->getSample();
     tuple->items[0] = mp_obj_new_int(sample.x);
@@ -133,6 +168,7 @@ STATIC uint32_t gesture_from_obj(mp_obj_t gesture_in) {
 
 mp_obj_t microbit_accelerometer_current_gesture(mp_obj_t self_in) {
     microbit_accelerometer_obj_t *self = (microbit_accelerometer_obj_t*)self_in;
+    microbit_accelerometer_acquire();
     update(self);
     return MP_OBJ_NEW_QSTR(gesture_name_map[ubit_accelerometer->getGesture()]);
 }
@@ -140,6 +176,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_current_gesture_obj, microbit_a
 
 mp_obj_t microbit_accelerometer_is_gesture(mp_obj_t self_in, mp_obj_t gesture_in) {
     microbit_accelerometer_obj_t *self = (microbit_accelerometer_obj_t*)self_in;
+    microbit_accelerometer_acquire();
     uint32_t gesture = gesture_from_obj(gesture_in);
     update(self);
     return mp_obj_new_bool(ubit_accelerometer->getGesture() == gesture);
@@ -148,6 +185,7 @@ MP_DEFINE_CONST_FUN_OBJ_2(microbit_accelerometer_is_gesture_obj, microbit_accele
 
 mp_obj_t microbit_accelerometer_was_gesture(mp_obj_t self_in, mp_obj_t gesture_in) {
     microbit_accelerometer_obj_t *self = (microbit_accelerometer_obj_t*)self_in;
+    microbit_accelerometer_acquire();
     uint32_t gesture = gesture_from_obj(gesture_in);
     update(self);
     mp_obj_t result = mp_obj_new_bool(gesture_state & (1 << gesture));
@@ -159,6 +197,7 @@ MP_DEFINE_CONST_FUN_OBJ_2(microbit_accelerometer_was_gesture_obj, microbit_accel
 
 mp_obj_t microbit_accelerometer_get_gestures(mp_obj_t self_in) {
     microbit_accelerometer_obj_t *self = (microbit_accelerometer_obj_t*)self_in;
+    microbit_accelerometer_acquire();
     update(self);
     if (gesture_list_cur == 0) {
         return mp_const_empty_tuple;

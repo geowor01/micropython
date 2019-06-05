@@ -36,6 +36,58 @@ typedef struct _microbit_i2c_obj_t {
     MicroPythonI2C *i2c;
 } microbit_i2c_obj_t;
 
+volatile bool i2c_in_use = false;
+
+STATIC volatile const microbit_pin_obj_t *pin_sda = &microbit_p20_obj;
+STATIC volatile const microbit_pin_obj_t *pin_scl = &microbit_p19_obj;
+STATIC int frequency = 100000;
+
+bool i2c_matches_accel(void) {
+    return !(pin_sda != &microbit_p20_obj || pin_scl != &microbit_p19_obj || frequency != ubit_i2c.get_i2c_obj()->freq);
+}
+
+STATIC void microbit_i2c_pin_free(const microbit_pin_obj_t *pin) {
+    if (microbit_pin_get_mode(pin) == microbit_pin_mode_i2c) {
+        microbit_obj_pin_free(pin);
+    }
+}
+
+void microbit_i2c_free_current(void) {
+    microbit_i2c_pin_free((const microbit_pin_obj_t *)pin_sda);
+    microbit_i2c_pin_free((const microbit_pin_obj_t *)pin_scl);
+}
+
+STATIC void microbit_i2c_free_default(void) {
+    microbit_i2c_pin_free(&microbit_p20_obj);
+    microbit_i2c_pin_free(&microbit_p19_obj);
+}
+
+STATIC void microbit_i2c_reset(microbit_i2c_obj_t *self) {
+    self->i2c->set_pins((PinName)pin_sda->name, (PinName)pin_scl->name);
+
+    self->i2c->frequency(frequency);
+
+    // Call underlying mbed i2c_reset to reconfigure the pins and reset the peripheral
+    i2c_reset(self->i2c->get_i2c_obj());
+}
+
+STATIC void microbit_i2c_acquire(microbit_i2c_obj_t *self) {
+    // i2c requires resetting if either the accelerometer has changed the i2c configuration,
+    // or if the pins being used have been used for something else (are in a different mode).
+    bool i2c_changed = accelerometer_in_use && !i2c_matches_accel();
+    accelerometer_in_use = false;
+    i2c_in_use = true;
+    if (i2c_changed) {
+        // accelerometer no longer using pins 19 and 20, so free them.
+        microbit_i2c_free_default();
+    }
+    bool acquire_sda = microbit_obj_pin_acquire((const microbit_pin_obj_t *)pin_sda, microbit_pin_mode_i2c);
+    bool acquire_scl = microbit_obj_pin_acquire((const microbit_pin_obj_t *)pin_scl, microbit_pin_mode_i2c);
+    if (i2c_changed || acquire_sda || acquire_scl) {
+        microbit_i2c_reset(self);
+    }
+}
+
 STATIC mp_obj_t microbit_i2c_init(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_freq, MP_ARG_INT, {.u_int = 100000} },
@@ -48,22 +100,22 @@ STATIC mp_obj_t microbit_i2c_init(mp_uint_t n_args, const mp_obj_t *pos_args, mp
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
+    microbit_i2c_free_current();
+    microbit_i2c_free_default();
 
-    PinName p_sda = I2C_SDA0;
-    PinName p_scl = I2C_SCL0;
+    pin_sda = &microbit_p20_obj;
+    pin_scl = &microbit_p19_obj;
 
     if (args[1].u_obj != mp_const_none) {
-        p_sda = (PinName)microbit_obj_get_pin_name(args[1].u_obj);
+        pin_sda = microbit_obj_get_pin(args[1].u_obj);
     }
     if (args[2].u_obj != mp_const_none) {
-        p_scl = (PinName)microbit_obj_get_pin_name(args[2].u_obj);
+        pin_scl = microbit_obj_get_pin(args[2].u_obj);
     }
-    self->i2c->set_pins(p_sda, p_scl);
 
-    self->i2c->frequency(args[0].u_int);
+    frequency = args[0].u_int;
 
-    // Call underlying mbed i2c_reset to reconfigure the pins and reset the peripheral
-    i2c_reset(self->i2c->get_i2c_obj());
+    microbit_i2c_acquire(self);
 
     return mp_const_none;
 }
@@ -87,6 +139,7 @@ STATIC bool i2c_probe(i2c_t *obj, uint8_t address) {
 
 STATIC mp_obj_t microbit_i2c_scan(mp_obj_t self_in) {
     microbit_i2c_obj_t *self = (microbit_i2c_obj_t*)MP_OBJ_TO_PTR(self_in);
+    microbit_i2c_acquire(self);
     i2c_t *obj = self->i2c->get_i2c_obj();
     mp_obj_t list = mp_obj_new_list(0, NULL);
     // 7-bit addresses 0b0000xxx and 0b1111xxx are reserved
@@ -108,6 +161,7 @@ STATIC mp_obj_t microbit_i2c_read(mp_uint_t n_args, const mp_obj_t *pos_args, mp
 
     // parse args
     microbit_i2c_obj_t *self = (microbit_i2c_obj_t*)pos_args[0];
+    microbit_i2c_acquire(self);
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
@@ -132,6 +186,7 @@ STATIC mp_obj_t microbit_i2c_write(mp_uint_t n_args, const mp_obj_t *pos_args, m
 
     // parse args
     microbit_i2c_obj_t *self = (microbit_i2c_obj_t*)pos_args[0];
+    microbit_i2c_acquire(self);
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 

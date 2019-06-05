@@ -39,6 +39,7 @@ void microbit_ticker(void) {
     // Update compass if it is calibrating, but not if it is still
     // updating as compass.idleTick() is not reentrant.
     if (ubit_compass->isCalibrating() && !compass_updating) {
+        microbit_compass_acquire();
         ubit_compass->idleTick();
     }
 

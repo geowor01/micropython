@@ -154,14 +154,145 @@ typedef struct _appended_script_t {
 
 #define APPENDED_SCRIPT ((appended_script_t*)microbit_mp_appended_script())
 
+static volatile bool script_set = false;
+
 EMSCRIPTEN_KEEPALIVE
 extern void set_script(char *str)
 {
     strcpy(APPENDED_SCRIPT->str, str);
     APPENDED_SCRIPT->len = strlen(str);
+    script_set = true;
 }
 
+#ifdef MBED_CONF_APP_TEST
+
+static uint32_t NUMBER_OF_TESTS;
+static volatile bool run_all_tests = false;
+static volatile bool running_test = false;
+static int test_counter = 0;
+
+EMSCRIPTEN_KEEPALIVE
+extern void set_run_all_tests()
+{
+    run_all_tests = true;
+    running_test = true;
+    test_counter = 0;
+}
+
+EMSCRIPTEN_KEEPALIVE
+extern void set_running_test()
+{
+    running_test = true;
+}
+
+static void setup_tests()
+{
+    NUMBER_OF_TESTS = EM_ASM_INT({
+        MicroPythonTests = {};
+        MicroPythonTests.currently_running = "";
+        MicroPythonTests.failed_tests = [];
+
+        MicroPythonTests.run_all = function() {
+            ccall('set_run_all_tests', 'null');
+            console.log("Reset MicroPython to start run.")
+        };
+
+        MicroPythonTests.run = function(test) {
+            MicroPythonTests.currently_running = test;
+            var request = new XMLHttpRequest();
+            request.onreadystatechange = function() {
+                if (request.readyState == 4 && request.status == 200) {
+                    ccall('set_script', 'null',['string'], [request.responseText]);
+                    ccall('set_running_test', 'null');
+                    console.log("Test: " + test);
+                }
+            };
+            request.open("GET", test + '.py', true);
+            request.send(null);
+            window.MbedJSHal.serial.write("\\r\\n\\nRunning Test <" + test + "> on reboot\\r\\n\\n");
+        };
+
+        MicroPythonTests.run_by_index = function(index) {
+            MicroPythonTests.run(window.MbedJSUI.MicroPythonTestList[index]);
+        };
+
+        MicroPythonTests.log_result = function() {
+            current_line_y = terminal.buffer.ybase + terminal.buffer.y;
+            last_line = terminal.buffer.translateBufferLineToString(current_line_y - 1);
+            if (!last_line.includes("TEST DONE")) {
+                setTimeout(MicroPythonTests.log_result, 10);
+                return;
+            }
+
+            last_line = terminal.buffer.translateBufferLineToString(current_line_y - 2);
+            passed = last_line.includes("PASS");
+            result = "";
+            if (last_line.includes("SystemExit") || last_line.includes("Error") || last_line.includes("Exception")) {
+                lines = [last_line];
+                for (i = 3; !last_line.includes("Traceback"); i++) {
+                    last_line = terminal.buffer.translateBufferLineToString(current_line_y - i);
+                    lines.push(last_line);
+                }
+                last_line = terminal.buffer.translateBufferLineToString(current_line_y - i);
+                if (last_line.includes("SKIP") || last_line.includes("FAIL")) {
+                    lines.push(last_line);
+                }
+                for (i = lines.length - 1; i >= 0; i--) {
+                    result += '\n\t' + lines[i];
+                }
+            }
+            else {
+                result = '\t' + last_line;
+            }
+
+            console.log(result);
+            if (!passed) {
+                MicroPythonTests.failed_tests.push([MicroPythonTests.currently_running, result]);
+            }
+            MicroPythonTests.currently_running = "";
+        };
+
+        return window.MbedJSUI.MicroPythonTestList.length;
+    });
+    mp_hal_delay_ms(1);
+}
+
+static void set_test(uint32_t test_index)
+{
+    mp_hal_stdout_tx_str("\r\n");
+    EM_ASM_({
+        MicroPythonTests.run_by_index($0);
+    }, test_index);
+    mp_hal_stdout_tx_str("\r\n");
+    script_set = false;
+    while (!script_set) {
+        mp_hal_delay_ms(100);
+    }
+}
+
+static void log_test_result() {
+    mp_hal_stdout_tx_str("TEST DONE\r\n");
+    EM_ASM({
+        MicroPythonTests.log_result();
+    });
+    while (EM_ASM_INT({ return MicroPythonTests.currently_running == "" ? 0 : 1; })) {
+        mp_hal_delay_ms(100);
+    };
+}
+
+#endif
+
 int main(void) {
+
+    APPENDED_SCRIPT->header[0] = 'M';
+    APPENDED_SCRIPT->header[1] = 'P';
+#ifdef MBED_CONF_APP_TEST
+    setup_tests();
+#if MBED_CONF_APP_TEST > 1
+    set_run_all_tests();
+#endif
+reset:
+#endif
     // // Configure the soft reset button
     gpio_init_in(&reset_button_gpio, MICROBIT_PIN_BUTTON_RESET);
     gpio_mode(&reset_button_gpio, PullUp);
@@ -175,12 +306,22 @@ int main(void) {
 
     for (;;) {
 
-#ifdef TARGET_SIMULATOR
-        APPENDED_SCRIPT->header[0] = 'M';
-        APPENDED_SCRIPT->header[1] = 'P';
-        EM_ASM({ ccall('set_script', 'null',['string'], [window.document.getElementById("script").value]);});
-        EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode(); });
-#endif // TARGET_SIMULATOR
+#ifdef MBED_CONF_APP_TEST
+        if (run_all_tests) {
+            set_test(test_counter);
+            test_counter++;
+            if (test_counter >= NUMBER_OF_TESTS) {
+                run_all_tests = false;
+            }
+        }
+        else if (!running_test)
+#endif
+        {
+            EM_ASM({
+                ccall('set_script', 'null',['string'], [window.document.getElementById("script").value]);
+                window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode();
+            });
+        }
 
         static uint32_t mp_heap[10240 / sizeof(uint32_t)];
 
@@ -227,23 +368,32 @@ int main(void) {
                 mp_import_all(mp_import_name(MP_QSTR_microbit, mp_const_empty_tuple, MP_OBJ_NEW_SMALL_INT(0)));
             }
         }
-
-        // Run the REPL until the user wants to exit
-        for (;;) {
-            if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
-                if (pyexec_raw_repl() != 0) {
-                    break;
-                }
-            } else {
-                if (pyexec_friendly_repl() != 0) {
-                    break;
+#ifdef MBED_CONF_APP_TEST
+        if (running_test) {
+            log_test_result();
+            if (!run_all_tests)
+                running_test = false;
+        }
+        else
+#endif
+        {
+            // Run the REPL until the user wants to exit
+            for (;;) {
+                if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
+                    if (pyexec_raw_repl() != 0) {
+                        break;
+                    }
+                } else {
+                    if (pyexec_friendly_repl() != 0) {
+                        break;
+                    }
                 }
             }
         }
 
         // Print the special string for pyboard.py to detect the soft reset
         mp_hal_stdout_tx_str("soft reboot\r\n");
-        wait_ms(1);
+        mp_hal_delay_ms(1);
 
         // Stop the ticker to prevent any background tasks from running
         ticker_stop();
@@ -252,6 +402,9 @@ int main(void) {
         memset(&MP_STATE_PORT(async_data)[0], 0, sizeof(MP_STATE_PORT(async_data)));
         MP_STATE_PORT(audio_buffer) = NULL;
         MP_STATE_PORT(music_data) = NULL;
+#ifdef MBED_CONF_APP_TEST
+        goto reset;
+#endif
     }
 }
 

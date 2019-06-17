@@ -135,7 +135,7 @@ mp_uint_t mp_hal_ticks_us(void) {
 }
 
 mp_uint_t mp_hal_ticks_ms(void) {
-    return mp_hal_ticks_us() * 1000;
+    return mp_hal_ticks_us() / 1000;
 }
 
 }

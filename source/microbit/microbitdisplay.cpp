@@ -177,7 +177,7 @@ STATIC void wait_for_event() {
             async_stop();
             return;
         }
-        mp_hal_delay_ms(10);
+        emscripten_sleep(10);
     }
     wakeup_event = false;
 }
@@ -324,7 +324,7 @@ static int light_sensor_read(void) {
     for (int i = 0; i < n; ++i) {
         light_sensor_state = LIGHT_SENSOR_REQUEST_SAMPLE;
         while (light_sensor_state != LIGHT_SENSOR_HAVE_SAMPLE) {
-            mp_hal_delay_ms(10);
+            emscripten_sleep(10);
         }
     }
 

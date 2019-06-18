@@ -67,7 +67,7 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
 
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
-        mp_hal_delay_ms(1);
+        emscripten_sleep(1);
         mp_obj_t module_fun;
         #if MICROPY_MODULE_FROZEN_MPY
         if (exec_flags & EXEC_FLAG_SOURCE_IS_RAW_CODE) {
@@ -86,24 +86,24 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
             } else {
                 lex = (mp_lexer_t*)source;
             }
-            mp_hal_delay_ms(1);
+            emscripten_sleep(1);
             // source is a lexer, parse and compile the script
             qstr source_name = lex->source_name;
             mp_parse_tree_t parse_tree = mp_parse(lex, input_kind);
-            mp_hal_delay_ms(1);
+            emscripten_sleep(1);
             module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, exec_flags & EXEC_FLAG_IS_REPL);
-            mp_hal_delay_ms(1);
+            emscripten_sleep(1);
             #else
             mp_raise_msg(&mp_type_RuntimeError, "script compilation not supported");
             #endif
         }
-        mp_hal_delay_ms(1);
+        emscripten_sleep(1);
 
         // execute code
         mp_hal_set_interrupt_char(CHAR_CTRL_C); // allow ctrl-C to interrupt us
-        mp_hal_delay_ms(1);
+        emscripten_sleep(1);
         mp_call_function_0(module_fun);
-        mp_hal_delay_ms(1);
+        emscripten_sleep(1);
         mp_hal_set_interrupt_char(-1); // disable interrupt
         nlr_pop();
         ret = 1;
@@ -126,6 +126,7 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
             mp_obj_print_exception(&mp_plat_print, (mp_obj_t)nlr.ret_val);
             ret = 0;
         }
+        emscripten_sleep(1);
     }
 
     if (exec_flags & EXEC_FLAG_PRINT_EOF) {

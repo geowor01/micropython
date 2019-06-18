@@ -216,7 +216,7 @@ dispatch_loop:
                     if (mp_hal_ticks_ms() - timer > 100)
                     {
                         timer = mp_hal_ticks_ms();
-                        mp_hal_delay_ms(1);
+                        emscripten_sleep(1);
                     }
                 }
 #if MICROPY_OPT_COMPUTED_GOTO

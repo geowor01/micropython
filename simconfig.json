@@ -61,6 +61,5 @@
         "./microbit-dal/source/drivers/MicroBitThermometer.cpp",
         "./microbit-dal/source/drivers/TimedInterruptIn.cpp"
     ],
-    "emterpretify": true,
     "disableTlsNullEntropy": true
 }

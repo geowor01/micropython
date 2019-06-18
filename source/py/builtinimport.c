@@ -143,8 +143,8 @@ STATIC void do_load_from_lexer(mp_obj_t module_obj, mp_lexer_t *lex) {
 #endif
 
 #if MICROPY_PERSISTENT_CODE_LOAD || MICROPY_MODULE_FROZEN_MPY
-STATIC void do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
-    mp_hal_delay_ms(1);
+STATIC int do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
+    emscripten_sleep(1);
     #if MICROPY_PY___FILE__
     // TODO
     //qstr source_name = lex->source_name;

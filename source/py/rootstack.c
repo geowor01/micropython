@@ -33,6 +33,8 @@
 #include "py/gc.h"
 #include "py/runtime.h"
 
+#include "emscripten.h"
+
 #if 0
 #define RS_DEBUG (1)
 #define RS_DEBUG_printf printf
@@ -110,11 +112,13 @@ void gc_rs_assert(int kind, void *ptr) {
     }
     if (MP_STATE_THREAD(root_stack_cur) == &root_stack[0]) {
         printf("gc_rs_assert(%p): assert empty stack\n", ptr);
+        EM_ASM({ abort(); });
         return;
     }
     if (MP_STATE_THREAD(root_stack_cur)[-1].kind != kind
         || MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr) {
         printf("gc_rs_assert(%p): mismatch %p != %p\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].ptr, ptr);
+        EM_ASM({ abort(); });
         return;
     }
 }
@@ -141,10 +145,12 @@ void gc_rs_pop(int kind, void *ptr) {
     }
     if (MP_STATE_THREAD(root_stack_cur) == &root_stack[0]) {
         printf("gc_rs_pop(%p): pop empty stack\n", ptr);
+        EM_ASM({ abort(); });
         return;
     }
     if (MP_STATE_THREAD(root_stack_cur)[-1].kind != kind || MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr) {
         printf("gc_rs_pop(%p): mismatch %p != %p\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].ptr, ptr);
+        EM_ASM({ abort(); });
         return;
     }
     --MP_STATE_THREAD(root_stack_cur);

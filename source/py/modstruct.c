@@ -183,7 +183,7 @@ STATIC mp_obj_t struct_unpack_from(size_t n_args, const mp_obj_t *args) {
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(struct_unpack_from_obj, 2, 3, struct_unpack_from);
 
-STATIC mp_obj_t struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, size_t n_args, const mp_obj_t *args) {
+STATIC int struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, size_t n_args, const mp_obj_t *args) {
     const char *fmt = mp_obj_str_get_str(fmt_in);
     char fmt_type = get_fmt_type(&fmt);
 
@@ -198,7 +198,8 @@ STATIC mp_obj_t struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p,
             sz = get_fmt_num(&fmt);
         }
         if (p + sz > end_p) {
-            return mp_raise_ValueError_o("buffer too small");
+            mp_raise_ValueError_o("buffer too small");
+            return 1;
         }
 
         if (*fmt == 's') {
@@ -213,12 +214,15 @@ STATIC mp_obj_t struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p,
             p += sz;
         } else {
             while (sz--) {
+                if (i >= n_args) {
+                    return 0;
+                }
                 mp_binary_set_val(fmt_type, *fmt, args[i++], &p);
             }
         }
         fmt++;
     }
-    return MP_OBJ_NULL;
+    return 0;
 }
 
 STATIC mp_obj_t struct_pack(size_t n_args, const mp_obj_t *args) {
@@ -233,8 +237,7 @@ STATIC mp_obj_t struct_pack(size_t n_args, const mp_obj_t *args) {
     byte *p = (byte*)vstr.buf;
     memset(p, 0, size);
     byte *end_p = &p[size];
-    mp_obj_t packed_struct = struct_pack_into_internal(args[0], p, end_p, n_args - 1, &args[1]);
-    if (packed_struct == MP_OBJ_NULL) {
+    if (struct_pack_into_internal(args[0], p, end_p, n_args - 1, &args[1])) {
         return MP_OBJ_NULL;
     }
     return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
@@ -256,8 +259,7 @@ STATIC mp_obj_t struct_pack_into(size_t n_args, const mp_obj_t *args) {
     byte *end_p = &p[bufinfo.len];
     p += offset;
 
-    mp_obj_t packed_struct = struct_pack_into_internal(args[0], p, end_p, n_args - 3, &args[3]);
-    if (packed_struct == MP_OBJ_NULL) {
+    if (struct_pack_into_internal(args[0], p, end_p, n_args - 3, &args[3])) {
         return MP_OBJ_NULL;
     }
     return mp_const_none;

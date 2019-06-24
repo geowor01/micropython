@@ -717,7 +717,11 @@ mp_lexer_t *mp_lexer_new_from_str_len(qstr src_name, const char *str, size_t len
 mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
     mp_reader_t reader;
     mp_reader_new_file(&reader, filename);
-    return mp_lexer_new(qstr_from_str(filename), reader);
+    qstr file = qstr_from_str(filename);
+    if (file == MP_QSTR_NULL) {
+        return NULL;
+    }
+    return mp_lexer_new(file, reader);
 }
 
 #if MICROPY_HELPER_LEXER_UNIX

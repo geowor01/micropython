@@ -161,6 +161,7 @@ STATIC qstr qstr_add(const byte *q_ptr) {
         if (pool == NULL) {
             QSTR_EXIT();
             m_malloc_fail(MP_STATE_VM(last_pool)->alloc * 2);
+            return MP_QSTR_NULL;
         }
         pool->prev = MP_STATE_VM(last_pool);
         pool->total_prev_len = MP_STATE_VM(last_pool)->total_prev_len + MP_STATE_VM(last_pool)->len;
@@ -234,6 +235,7 @@ qstr qstr_from_strn(const char *str, size_t len) {
                 if (MP_STATE_VM(qstr_last_chunk) == NULL) {
                     QSTR_EXIT();
                     m_malloc_fail(n_bytes);
+                    return MP_QSTR_NULL;;
                 }
                 al = n_bytes;
             }

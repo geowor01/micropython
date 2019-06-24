@@ -913,6 +913,9 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
     mp_lexer_t *lex = parser->lexer;
     if (lex->tok_kind == MP_TOKEN_NAME) {
         qstr id = qstr_from_strn(lex->vstr.buf, lex->vstr.len);
+        if (id == MP_QSTR_NULL) {
+            return false;
+        }
         #if MICROPY_COMP_CONST
         // lookup identifier in table of dynamic constants
         mp_map_elem_t *elem = mp_map_lookup(&parser->consts, MP_OBJ_NEW_QSTR(id), MP_MAP_LOOKUP);
@@ -953,6 +956,9 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
         if (vstr.len <= MICROPY_ALLOC_PARSE_INTERN_STRING_LEN) {
             // intern short strings
             qst = qstr_from_strn(vstr.buf, vstr.len);
+            if (qst == MP_QSTR_NULL) {
+                return false;
+            }
         } else {
             // check if this string is already interned
             qst = qstr_find_strn(vstr.buf, vstr.len);
@@ -1128,7 +1134,11 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                             if (lex->tok_kind == tok_kind) {
                                 // matched token
                                 if (tok_kind == MP_TOKEN_NAME) {
-                                    pt_add_kind_qstr(pt, MP_PT_ID_BASE, qstr_from_strn(lex->vstr.buf, lex->vstr.len));
+                                    qstr q = qstr_from_strn(lex->vstr.buf, lex->vstr.len);
+                                    if (q == MP_QSTR_NULL) {
+                                        goto memory_error;;
+                                    }
+                                    pt_add_kind_qstr(pt, MP_PT_ID_BASE, q);
                                 }
                                 if (i == 0 && ADD_BLANK_NODE(rule)) {
                                     pt_add_kind_int(pt, MP_PT_SMALL_INT, ++parser.cur_scope_id);

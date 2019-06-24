@@ -69,6 +69,9 @@ STATIC mp_lexer_t *mp_lexer_frozen_str(const char *str, size_t len) {
     }
 
     qstr source = qstr_from_strn(str, name_len);
+    if (source == MP_QSTR_NULL) {
+        return NULL;
+    }
     mp_lexer_t *lex = MICROPY_MODULE_FROZEN_LEXER(source, content, len, 0);
     return lex;
 }

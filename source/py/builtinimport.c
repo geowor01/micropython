@@ -342,6 +342,9 @@ mp_obj_t mp_builtin___import__(size_t n_args, const mp_obj_t *args) {
         }
 
         qstr new_mod_q = qstr_from_strn(new_mod, new_mod_l);
+        if (new_mod_q == MP_QSTR_NULL) {
+            return MP_OBJ_NULL;
+        }
         DEBUG_printf("Resolved base name for relative import: '%s'\n", qstr_str(new_mod_q));
         module_name = MP_OBJ_NEW_QSTR(new_mod_q);
         mod_str = new_mod;
@@ -367,6 +370,9 @@ mp_obj_t mp_builtin___import__(size_t n_args, const mp_obj_t *args) {
         }
         // Otherwise, we need to return top-level package
         qstr pkg_name = qstr_from_strn(mod_str, p - mod_str);
+        if (pkg_name == MP_QSTR_NULL) {
+            return MP_OBJ_NULL;
+        }
         return mp_module_get(pkg_name);
     }
     DEBUG_printf("Module not yet loaded\n");
@@ -381,6 +387,9 @@ mp_obj_t mp_builtin___import__(size_t n_args, const mp_obj_t *args) {
         if (i == mod_len || mod_str[i] == '.') {
             // create a qstr for the module name up to this depth
             qstr mod_name = qstr_from_strn(mod_str, i);
+            if (mod_name == MP_QSTR_NULL) {
+                return MP_OBJ_NULL;
+            }
             DEBUG_printf("Processing module: %s\n", qstr_str(mod_name));
             DEBUG_printf("Previous path: =%.*s=\n", vstr_len(&path), vstr_str(&path));
 
@@ -485,6 +494,9 @@ mp_obj_t mp_builtin___import__(size_t n_args, const mp_obj_t *args) {
             }
             if (outer_module_obj != MP_OBJ_NULL) {
                 qstr s = qstr_from_strn(mod_str + last, i - last);
+                if (s == MP_QSTR_NULL) {
+                    return MP_OBJ_NULL;
+                }
                 mp_store_attr(outer_module_obj, s, module_obj);
             }
             outer_module_obj = module_obj;

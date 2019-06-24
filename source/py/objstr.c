@@ -1102,6 +1102,10 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 const char *lookup;
                 for (lookup = field_name; lookup < field_name_top && *lookup != '.' && *lookup != '['; lookup++);
                 mp_obj_t field_q = mp_obj_new_str(field_name, lookup - field_name, true/*?*/);
+                if (field_q == MP_OBJ_NULL) {
+                    vstr.buf = NULL;
+                    return vstr;
+                }
                 field_name = lookup;
                 m_rs_push_obj(field_q);
                 mp_map_elem_t *key_elem = mp_map_lookup(kwargs, field_q, MP_MAP_LOOKUP);
@@ -1524,6 +1528,9 @@ STATIC mp_obj_t str_modulo_format(mp_obj_t pattern, size_t n_args, const mp_obj_
                 ++str;
             }
             mp_obj_t k_obj = mp_obj_new_str((const char*)key, str - key, true);
+            if (k_obj == MP_OBJ_NULL) {
+                return MP_OBJ_NULL;
+            }
             arg = mp_obj_dict_get(dict, k_obj);
             if (arg == MP_OBJ_NULL) {
                 return MP_OBJ_NULL;
@@ -2166,7 +2173,11 @@ mp_obj_t mp_obj_new_str_from_vstr(const mp_obj_type_t *type, vstr_t *vstr) {
 mp_obj_t mp_obj_new_str(const char* data, size_t len, bool make_qstr_if_not_already) {
     if (make_qstr_if_not_already) {
         // use existing, or make a new qstr
-        return MP_OBJ_NEW_QSTR(qstr_from_strn(data, len));
+        qstr q = qstr_from_strn(data, len);
+        if (q == MP_QSTR_NULL) {
+            return MP_OBJ_NULL;
+        }
+        return MP_OBJ_NEW_QSTR(q);
     } else {
         qstr q = qstr_find_strn(data, len);
         if (q != MP_QSTR_NULL) {
@@ -2185,7 +2196,11 @@ mp_obj_t mp_obj_str_intern(mp_obj_t str) {
         // exception
         return MP_OBJ_NULL;
     }
-    return MP_OBJ_NEW_QSTR(qstr_from_strn((const char*)data, len));
+    qstr q = qstr_from_strn((const char*)data, len);
+    if (q == MP_QSTR_NULL) {
+        return MP_OBJ_NULL;
+    }
+    return MP_OBJ_NEW_QSTR(q);
 }
 
 mp_obj_t mp_obj_new_bytes(const byte* data, size_t len) {

@@ -1424,6 +1424,9 @@ import_error:
     dot_name[pkg_name_len] = '.';
     memcpy(dot_name + pkg_name_len + 1, qstr_str(name), qstr_len(name));
     qstr dot_name_q = qstr_from_strn(dot_name, dot_name_len);
+    if (dot_name_q) {
+        return MP_OBJ_NULL;
+    }
 
     mp_obj_t args[5];
     args[0] = MP_OBJ_NEW_QSTR(dot_name_q);

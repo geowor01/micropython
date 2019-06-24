@@ -722,6 +722,10 @@ mp_lexer_t *mp_lexer_new_from_str_len(qstr src_name, const char *str, size_t len
 mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
     mp_reader_t reader;
     mp_reader_new_file(&reader, filename);
+    qstr file = qstr_from_str(filename);
+    if (file == MP_QSTR_NULL) {
+        return NULL;
+    }
     m_rs_push_ptr(reader.data);
     mp_lexer_t *lex = mp_lexer_new(qstr_from_str(filename), reader);
     m_rs_pop_ptr(reader.data);

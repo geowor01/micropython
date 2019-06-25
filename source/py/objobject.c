@@ -35,7 +35,9 @@ typedef struct _mp_obj_object_t {
 
 STATIC mp_obj_t object_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)args;
-    mp_arg_check_num(n_args, n_kw, 0, 0, false);
+    if (mp_arg_check_num(n_args, n_kw, 0, 0, false)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_object_t *o = m_new_obj(mp_obj_object_t);
     if (!o) {
         return MP_OBJ_NULL;

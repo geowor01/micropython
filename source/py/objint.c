@@ -47,7 +47,9 @@
 // This dispatcher function is expected to be independent of the implementation of long int
 STATIC mp_obj_t mp_obj_int_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)type_in;
-    mp_arg_check_num(n_args, n_kw, 0, 2, false);
+    if (mp_arg_check_num(n_args, n_kw, 0, 2, false)) {
+        return MP_OBJ_NULL;
+    }
 
     switch (n_args) {
         case 0:

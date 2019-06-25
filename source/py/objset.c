@@ -119,7 +119,9 @@ STATIC void set_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t
 }
 
 STATIC mp_obj_t set_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    mp_arg_check_num(n_args, n_kw, 0, 1, false);
+    if (mp_arg_check_num(n_args, n_kw, 0, 1, false)) {
+        return MP_OBJ_NULL;
+    }
 
     switch (n_args) {
         case 0: {

@@ -217,7 +217,9 @@ STATIC microbit_image_obj_t *image_from_parsed_str(const char *s, mp_int_t len) 
 
 STATIC mp_obj_t microbit_image_make_new(const mp_obj_type_t *type_in, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *args) {
     (void)type_in;
-    mp_arg_check_num(n_args, n_kw, 0, 3, false);
+    if (mp_arg_check_num(n_args, n_kw, 0, 3, false)) {
+        return MP_OBJ_NULL;
+    }
     switch (n_args) {
         case 0: {
             greyscale_t *image = greyscale_new(5, 5);

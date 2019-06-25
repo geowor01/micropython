@@ -901,7 +901,9 @@ STATIC void type_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_
 STATIC mp_obj_t type_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)type_in;
 
-    mp_arg_check_num(n_args, n_kw, 1, 3, false);
+    if (mp_arg_check_num(n_args, n_kw, 1, 3, false)) {
+        return MP_OBJ_NULL;
+    }
 
     switch (n_args) {
         case 1:
@@ -1111,7 +1113,9 @@ STATIC mp_obj_t super_make_new(const mp_obj_type_t *type_in, size_t n_args, size
     (void)type_in;
     // 0 arguments are turned into 2 in the compiler
     // 1 argument is not yet implemented
-    mp_arg_check_num(n_args, n_kw, 2, 2, false);
+    if (mp_arg_check_num(n_args, n_kw, 2, 2, false)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_super_t *o = m_new_obj(mp_obj_super_t);
     if (!o) {
         return MP_OBJ_NULL;
@@ -1277,7 +1281,9 @@ mp_obj_t mp_instance_cast_to_native_base(mp_const_obj_t self_in, mp_const_obj_t 
 STATIC mp_obj_t static_class_method_make_new(const mp_obj_type_t *self, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     assert(self == &mp_type_staticmethod || self == &mp_type_classmethod);
 
-    mp_arg_check_num(n_args, n_kw, 1, 1, false);
+    if (mp_arg_check_num(n_args, n_kw, 1, 1, false)) {
+        return MP_OBJ_NULL;
+    }
 
     mp_obj_static_class_method_t *o = m_new_obj(mp_obj_static_class_method_t);
     if (!o) {

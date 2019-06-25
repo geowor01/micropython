@@ -48,7 +48,9 @@ typedef struct _mp_obj_bufwriter_t {
 } mp_obj_bufwriter_t;
 
 STATIC mp_obj_t bufwriter_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    mp_arg_check_num(n_args, n_kw, 2, 2, false);
+    if (mp_arg_check_num(n_args, n_kw, 2, 2, false)) {
+        return MP_OBJ_NULL;
+    }
     size_t alloc = mp_obj_get_int(args[1]);
     mp_obj_bufwriter_t *o = m_new_obj_var(mp_obj_bufwriter_t, byte, alloc);
     if (!o) {

@@ -80,7 +80,9 @@ STATIC mp_obj_t list_extend_from_iter(mp_obj_t list, mp_obj_t iterable) {
 
 STATIC mp_obj_t list_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)type_in;
-    mp_arg_check_num(n_args, n_kw, 0, 1, false);
+    if (mp_arg_check_num(n_args, n_kw, 0, 1, false)) {
+        return MP_OBJ_NULL;
+    }
 
     switch (n_args) {
         case 0:

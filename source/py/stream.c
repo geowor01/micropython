@@ -140,7 +140,9 @@ STATIC mp_obj_t stream_read_generic(size_t n_args, const mp_obj_t *args, byte fl
         // in time and memory.
 
         vstr_t vstr;
-        vstr_init(&vstr, sz);
+        if (vstr_init(&vstr, sz)) {
+            return MP_OBJ_NULL;
+        }
         mp_uint_t more_bytes = sz;
         mp_uint_t last_buf_offset = 0;
         while (more_bytes > 0) {
@@ -218,7 +220,9 @@ STATIC mp_obj_t stream_read_generic(size_t n_args, const mp_obj_t *args, byte fl
     #endif
 
     vstr_t vstr;
-    vstr_init_len(&vstr, sz);
+    if (vstr_init_len(&vstr, sz)) {
+        return MP_OBJ_NULL;
+    }
     int error;
     mp_uint_t out_sz = mp_stream_rw(args[0], vstr.buf, sz, &error, flags);
     if (error != 0) {
@@ -331,7 +335,9 @@ STATIC mp_obj_t stream_readall(mp_obj_t self_in) {
 
     mp_uint_t total_size = 0;
     vstr_t vstr;
-    vstr_init(&vstr, DEFAULT_BUFFER_SIZE);
+    if (vstr_init(&vstr, DEFAULT_BUFFER_SIZE)) {
+        return MP_OBJ_NULL;
+    }
     char *p = vstr.buf;
     mp_uint_t current_read = DEFAULT_BUFFER_SIZE;
     while (true) {
@@ -380,9 +386,13 @@ STATIC mp_obj_t stream_unbuffered_readline(size_t n_args, const mp_obj_t *args) 
 
     vstr_t vstr;
     if (max_size != -1) {
-        vstr_init(&vstr, max_size);
+        if (vstr_init(&vstr, max_size)) {
+            return MP_OBJ_NULL;
+        }
     } else {
-        vstr_init(&vstr, 16);
+        if (vstr_init(&vstr, 16)) {
+            return MP_OBJ_NULL;
+        }
     }
 
     while (max_size == -1 || max_size-- != 0) {

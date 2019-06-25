@@ -51,7 +51,9 @@ mp_uint_t mp_verbose_flag = 0;
 
 mp_raw_code_t *mp_emit_glue_new_raw_code(void) {
     mp_raw_code_t *rc = m_new0(mp_raw_code_t, 1);
-    rc->kind = MP_CODE_RESERVED;
+    if (rc) {
+        rc->kind = MP_CODE_RESERVED;
+    }
     return rc;
 }
 
@@ -150,6 +152,9 @@ mp_obj_t mp_make_function_from_raw_code(const mp_raw_code_t *rc, mp_obj_t def_ar
     // check for generator functions and if so wrap in generator object
     if ((rc->scope_flags & MP_SCOPE_FLAG_GENERATOR) != 0) {
         fun = mp_obj_new_gen_wrap(fun);
+    }
+    if (!fun) {
+        return MP_OBJ_NULL;
     }
 
     return fun;

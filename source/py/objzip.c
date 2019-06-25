@@ -40,6 +40,9 @@ STATIC mp_obj_t zip_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_
     mp_arg_check_num(n_args, n_kw, 0, MP_OBJ_FUN_ARGS_MAX, false);
 
     mp_obj_zip_t *o = m_new_obj_var(mp_obj_zip_t, mp_obj_t, n_args);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = type;
     o->n_iters = n_args;
     for (size_t i = 0; i < n_args; i++) {

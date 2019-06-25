@@ -84,12 +84,18 @@ STATIC mp_obj_t mp_obj_tuple_make_new(const mp_obj_type_t *type_in, size_t n_arg
             size_t alloc = 4;
             size_t len = 0;
             mp_obj_t *items = m_new(mp_obj_t, alloc);
+            if (!items && alloc > 0) {
+                return MP_OBJ_NULL;
+            }
 
             mp_obj_t iterable = mp_getiter(args[0], NULL);
             mp_obj_t item;
             while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
                 if (len >= alloc) {
-                    items = m_renew(mp_obj_t, items, alloc, alloc * 2);
+                    mp_obj_t *newitems = m_renew(mp_obj_t, items, alloc, alloc * 2);
+                    if (!newitems && alloc > 0) {
+                        return MP_OBJ_NULL;
+                    }
                     alloc *= 2;
                 }
                 items[len++] = item;

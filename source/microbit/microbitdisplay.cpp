@@ -144,6 +144,9 @@ mp_obj_t microbit_display_show_func(mp_uint_t n_args, const mp_obj_t *pos_args, 
     // iterable:
     if (args[4].u_bool) { /*loop*/
         image = microbit_repeat_iterator(image);
+        if (image == MP_OBJ_NULL) {
+            return MP_OBJ_NULL;
+        }
     }
     if (microbit_display_animate(self, image, delay, clear, wait)) {
         return MP_OBJ_NULL;
@@ -500,6 +503,8 @@ int microbit_display_animate(microbit_display_obj_t *self, mp_obj_t iterable, mp
 
 int microbit_display_scroll(microbit_display_obj_t *self, const char* str) {
     mp_obj_t iterable = scrolling_string_image_iterable(str, strlen(str), NULL, false, false);
+    if (!iterable)
+        return 1;
     return microbit_display_animate(self, iterable, DEFAULT_SCROLL_SPEED, false, true);
 }
 
@@ -528,7 +533,7 @@ mp_obj_t microbit_display_scroll_func(mp_uint_t n_args, const mp_obj_t *pos_args
         return MP_OBJ_NULL;
     }
     mp_obj_t iterable = scrolling_string_image_iterable(str, len, args[0].u_obj, args[3].u_bool /*monospace?*/, args[4].u_bool /*loop*/);
-    if (microbit_display_animate(self, iterable, args[1].u_int /*delay*/, false/*clear*/, args[2].u_bool/*wait?*/)) {
+    if (!iterable || microbit_display_animate(self, iterable, args[1].u_int /*delay*/, false/*clear*/, args[2].u_bool/*wait?*/)) {
         return MP_OBJ_NULL;
     }
     return mp_const_none;

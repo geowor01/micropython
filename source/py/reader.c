@@ -55,8 +55,11 @@ STATIC void mp_reader_mem_close(void *data) {
     m_del_obj(mp_reader_mem_t, reader);
 }
 
-void mp_reader_new_mem(mp_reader_t *reader, const byte *buf, size_t len, size_t free_len) {
+int mp_reader_new_mem(mp_reader_t *reader, const byte *buf, size_t len, size_t free_len) {
     mp_reader_mem_t *rm = m_new_obj(mp_reader_mem_t);
+    if (!rm) {
+        return 1;
+    }
     rm->free_len = free_len;
     rm->beg = buf;
     rm->cur = buf;
@@ -64,6 +67,7 @@ void mp_reader_new_mem(mp_reader_t *reader, const byte *buf, size_t len, size_t 
     reader->data = rm;
     reader->readbyte = mp_reader_mem_readbyte;
     reader->close = mp_reader_mem_close;
+    return 0;
 }
 
 #if MICROPY_READER_POSIX

@@ -134,7 +134,7 @@ int persistent_write(const void *dst, const void *src, uint32_t len) {
         } else {
             if (tmp_storage == NULL) {
                 tmp_storage = m_new(int8_t, page_size);
-                if (tmp_storage == NULL) {
+                if (tmp_storage == NULL && page_size > 0) {
                     return -1;
                 }
             }

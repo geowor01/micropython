@@ -136,6 +136,9 @@ STATIC mp_obj_t namedtuple_make_new(const mp_obj_type_t *type_in, size_t n_args,
 
 STATIC mp_obj_t mp_obj_new_namedtuple_type(qstr name, size_t n_fields, mp_obj_t *fields) {
     mp_obj_namedtuple_type_t *o = m_new_obj_var(mp_obj_namedtuple_type_t, qstr, n_fields);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     memset(&o->base, 0, sizeof(o->base));
     o->base.base.type = &mp_type_type;
     o->base.name = name;

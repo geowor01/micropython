@@ -53,8 +53,13 @@ STATIC mp_obj_t static_class_method_make_new(const mp_obj_type_t *self_in, size_
 
 STATIC mp_obj_t mp_obj_new_instance(const mp_obj_type_t *class, size_t subobjs) {
     mp_obj_instance_t *o = m_new_obj_var(mp_obj_instance_t, mp_obj_t, subobjs);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = class;
-    mp_map_init(&o->members, 0);
+    if (mp_map_init(&o->members, 0)) {
+        return MP_OBJ_NULL;
+    }
     mp_seq_clear(o->subobj, 0, subobjs, sizeof(*o->subobj));
     return MP_OBJ_FROM_PTR(o);
 }
@@ -112,7 +117,7 @@ struct class_lookup_data {
     bool is_type;
 };
 
-STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_type_t *type) {
+STATIC int mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_type_t *type) {
     assert(lookup->dest[0] == MP_OBJ_NULL);
     assert(lookup->dest[1] == MP_OBJ_NULL);
     for (;;) {
@@ -124,7 +129,7 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
             if (*(void**)((char*)type + lookup->meth_offset) != NULL) {
                 DEBUG_printf("mp_obj_class_lookup: matched special meth slot for %s\n", qstr_str(lookup->attr));
                 lookup->dest[0] = MP_OBJ_SENTINEL;
-                return;
+                return 0;
             }
         }
 
@@ -138,7 +143,9 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
                     // If we look up a class method, we need to return original type for which we
                     // do a lookup, not a (base) type in which we found the class method.
                     const mp_obj_type_t *org_type = (const mp_obj_type_t*)lookup->obj;
-                    mp_convert_member_lookup(MP_OBJ_NULL, org_type, elem->value, lookup->dest);
+                    if (mp_convert_member_lookup(MP_OBJ_NULL, org_type, elem->value, lookup->dest)) {
+                        return 1;
+                    }
                 } else {
                     mp_obj_instance_t *obj = lookup->obj;
                     mp_obj_t obj_obj;
@@ -148,14 +155,16 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
                     } else {
                         obj_obj = MP_OBJ_FROM_PTR(obj);
                     }
-                    mp_convert_member_lookup(obj_obj, type, elem->value, lookup->dest);
+                    if (mp_convert_member_lookup(obj_obj, type, elem->value, lookup->dest)) {
+                        return 1;
+                    }
                 }
 #if DEBUG_PRINT
                 printf("mp_obj_class_lookup: Returning: ");
                 mp_obj_print(lookup->dest[0], PRINT_REPR); printf(" ");
                 mp_obj_print(lookup->dest[1], PRINT_REPR); printf("\n");
 #endif
-                return;
+                return 0;
             }
         }
 
@@ -165,14 +174,14 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
         if (lookup->obj != NULL && !lookup->is_type && mp_obj_is_native_type(type) && type != &mp_type_object /* object is not a real type */) {
             mp_load_method_maybe(lookup->obj->subobj[0], lookup->attr, lookup->dest);
             if (lookup->dest[0] != MP_OBJ_NULL) {
-                return;
+                return 0;
             }
         }
 
         // attribute not found, keep searching base classes
 
         if (type->parent == NULL) {
-            return;
+            return 0;
         } else if (((mp_obj_base_t*)type->parent)->type == &mp_type_tuple) {
             const mp_obj_tuple_t *parent_tuple = type->parent;
             const mp_obj_t *item = parent_tuple->items;
@@ -184,9 +193,8 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
                     // Not a "real" type
                     continue;
                 }
-                mp_obj_class_lookup(lookup, bt);
-                if (lookup->dest[0] != MP_OBJ_NULL) {
-                    return;
+                if (mp_obj_class_lookup(lookup, bt) || lookup->dest[0] != MP_OBJ_NULL) {
+                    return 0;
                 }
             }
 
@@ -198,9 +206,10 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
         }
         if (type == &mp_type_object) {
             // Not a "real" type
-            return;
+            return 0;
         }
     }
+    return 0;
 }
 
 STATIC void instance_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
@@ -214,12 +223,16 @@ STATIC void instance_print(const mp_print_t *print, mp_obj_t self_in, mp_print_k
         .dest = member,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, self->base.type);
+    if (mp_obj_class_lookup(&lookup, self->base.type)) {
+        return;
+    }
     if (member[0] == MP_OBJ_NULL && kind == PRINT_STR) {
         // If there's no __str__, fall back to __repr__
         lookup.attr = MP_QSTR___repr__;
         lookup.meth_offset = 0;
-        mp_obj_class_lookup(&lookup, self->base.type);
+        if (mp_obj_class_lookup(&lookup, self->base.type)) {
+            return;
+        }
     }
 
     if (member[0] == MP_OBJ_SENTINEL) {
@@ -253,6 +266,9 @@ mp_obj_t mp_obj_instance_make_new(const mp_obj_type_t *self, size_t n_args, size
     assert(num_native_bases < 2);
 
     mp_obj_instance_t *o = MP_OBJ_TO_PTR(mp_obj_new_instance(self, num_native_bases));
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
 
     // This executes only "__new__" part of obejection creation.
     // TODO: This won't work will for classes with native bases.
@@ -271,7 +287,9 @@ mp_obj_t mp_obj_instance_make_new(const mp_obj_type_t *self, size_t n_args, size
         .dest = init_fn,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, self);
+    if (mp_obj_class_lookup(&lookup, self)) {
+        return MP_OBJ_NULL;
+    }
 
     mp_obj_t new_ret = MP_OBJ_FROM_PTR(o);
     if (init_fn[0] == MP_OBJ_SENTINEL) {
@@ -285,6 +303,9 @@ mp_obj_t mp_obj_instance_make_new(const mp_obj_type_t *self, size_t n_args, size
             new_ret = mp_call_function_n_kw(init_fn[0], 1, 0, args2);
         } else {
             mp_obj_t *args2 = m_new(mp_obj_t, 1 + n_args + 2 * n_kw);
+            if (!args2) {
+                return MP_OBJ_NULL;
+            }
             args2[0] = MP_OBJ_FROM_PTR(self);
             memcpy(args2 + 1, args, (n_args + 2 * n_kw) * sizeof(mp_obj_t));
             new_ret = mp_call_function_n_kw(init_fn[0], n_args + 1, n_kw, args2);
@@ -306,13 +327,18 @@ mp_obj_t mp_obj_instance_make_new(const mp_obj_type_t *self, size_t n_args, size
     lookup.obj = o;
     lookup.attr = MP_QSTR___init__;
     lookup.meth_offset = 0;
-    mp_obj_class_lookup(&lookup, self);
+    if (mp_obj_class_lookup(&lookup, self)) {
+        return MP_OBJ_NULL;
+    }
     if (init_fn[0] != MP_OBJ_NULL) {
         mp_obj_t init_ret;
         if (n_args == 0 && n_kw == 0) {
             init_ret = mp_call_method_n_kw(0, 0, init_fn);
         } else {
             mp_obj_t *args2 = m_new(mp_obj_t, 2 + n_args + 2 * n_kw);
+            if (!args2) {
+                return MP_OBJ_NULL;
+            }
             args2[0] = init_fn[0];
             args2[1] = init_fn[1];
             memcpy(args2 + 2, args, (n_args + 2 * n_kw) * sizeof(mp_obj_t));
@@ -377,7 +403,9 @@ STATIC mp_obj_t instance_unary_op(mp_uint_t op, mp_obj_t self_in) {
         .dest = member,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, self->base.type);
+    if (mp_obj_class_lookup(&lookup, self->base.type)) {
+        return MP_OBJ_NULL;
+    }
     if (member[0] == MP_OBJ_SENTINEL) {
         return mp_unary_op(op, self->subobj[0]);
     } else if (member[0] != MP_OBJ_NULL) {
@@ -393,7 +421,9 @@ STATIC mp_obj_t instance_unary_op(mp_uint_t op, mp_obj_t self_in) {
     } else {
         if (op == MP_UNARY_OP_HASH) {
             lookup.attr = MP_QSTR___eq__;
-            mp_obj_class_lookup(&lookup, self->base.type);
+            if (mp_obj_class_lookup(&lookup, self->base.type)) {
+                return MP_OBJ_NULL;
+            }
             if (member[0] == MP_OBJ_NULL) {
                 // https://docs.python.org/3/reference/datamodel.html#object.__hash__
                 // "User-defined classes have __eq__() and __hash__() methods by default;
@@ -476,7 +506,9 @@ STATIC mp_obj_t instance_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_i
         .dest = dest,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, lhs->base.type);
+    if (mp_obj_class_lookup(&lookup, lhs->base.type)) {
+        return MP_OBJ_NULL;
+    }
     if (dest[0] == MP_OBJ_SENTINEL) {
         return mp_binary_op(op, lhs->subobj[0], rhs_in);
     } else if (dest[0] != MP_OBJ_NULL) {
@@ -522,7 +554,9 @@ STATIC void mp_obj_instance_load_attr(mp_obj_t self_in, qstr attr, mp_obj_t *des
         .dest = dest,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, self->base.type);
+    if (mp_obj_class_lookup(&lookup, self->base.type)) {
+        return;
+    }
     mp_obj_t member = dest[0];
     if (member != MP_OBJ_NULL) {
         #if MICROPY_PY_BUILTINS_PROPERTY
@@ -599,7 +633,9 @@ STATIC bool mp_obj_instance_store_attr(mp_obj_t self_in, qstr attr, mp_obj_t val
         .dest = member,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, self->base.type);
+    if (mp_obj_class_lookup(&lookup, self->base.type)) {
+        return false;
+    }
 
     if (member[0] != MP_OBJ_NULL) {
         #if MICROPY_PY_BUILTINS_PROPERTY
@@ -721,17 +757,23 @@ STATIC mp_obj_t instance_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value
     if (value == MP_OBJ_NULL) {
         // delete item
         lookup.attr = MP_QSTR___delitem__;
-        mp_obj_class_lookup(&lookup, self->base.type);
+        if (mp_obj_class_lookup(&lookup, self->base.type)) {
+            return MP_OBJ_NULL;
+        }
         meth_args = 2;
     } else if (value == MP_OBJ_SENTINEL) {
         // load item
         lookup.attr = MP_QSTR___getitem__;
-        mp_obj_class_lookup(&lookup, self->base.type);
+        if (mp_obj_class_lookup(&lookup, self->base.type)) {
+            return MP_OBJ_NULL;
+        }
         meth_args = 2;
     } else {
         // store item
         lookup.attr = MP_QSTR___setitem__;
-        mp_obj_class_lookup(&lookup, self->base.type);
+        if (mp_obj_class_lookup(&lookup, self->base.type)) {
+            return MP_OBJ_NULL;
+        }
         meth_args = 3;
     }
     if (member[0] == MP_OBJ_SENTINEL) {
@@ -759,7 +801,9 @@ STATIC mp_obj_t mp_obj_instance_get_call(mp_obj_t self_in, mp_obj_t *member) {
         .dest = member,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, self->base.type);
+    if (mp_obj_class_lookup(&lookup, self->base.type)) {
+        return MP_OBJ_NULL;
+    }
     return member[0];
 }
 
@@ -797,7 +841,9 @@ STATIC mp_obj_t instance_getiter(mp_obj_t self_in, mp_obj_iter_buf_t *iter_buf) 
         .dest = member,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, self->base.type);
+    if (mp_obj_class_lookup(&lookup, self->base.type)) {
+        return MP_OBJ_NULL;
+    }
     if (member[0] == MP_OBJ_NULL) {
         return MP_OBJ_NULL;
     } else if (member[0] == MP_OBJ_SENTINEL) {
@@ -818,7 +864,9 @@ STATIC mp_int_t instance_get_buffer(mp_obj_t self_in, mp_buffer_info_t *bufinfo,
         .dest = member,
         .is_type = false,
     };
-    mp_obj_class_lookup(&lookup, self->base.type);
+    if (mp_obj_class_lookup(&lookup, self->base.type)) {
+        return 1;
+    }
     if (member[0] == MP_OBJ_SENTINEL) {
         mp_obj_type_t *type = mp_obj_get_type(self->subobj[0]);
         return type->buffer_p.get_buffer(self->subobj[0], bufinfo, flags);
@@ -899,7 +947,9 @@ STATIC void type_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
             .dest = dest,
             .is_type = true,
         };
-        mp_obj_class_lookup(&lookup, self);
+        if (mp_obj_class_lookup(&lookup, self)) {
+            return;
+        }
     } else {
         // delete/store attribute
 
@@ -963,6 +1013,9 @@ mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict) 
     }
 
     mp_obj_type_t *o = m_new0(mp_obj_type_t, 1);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_type;
     o->name = name;
     o->print = instance_print;
@@ -1005,6 +1058,9 @@ mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict) 
         if (MP_OBJ_IS_FUN(elem->value)) {
             // __new__ is a function, wrap it in a staticmethod decorator
             elem->value = static_class_method_make_new(&mp_type_staticmethod, 1, 0, &elem->value);
+            if (!elem->value) {
+                return MP_OBJ_NULL;
+            }
         }
     }
 
@@ -1036,6 +1092,9 @@ STATIC mp_obj_t super_make_new(const mp_obj_type_t *type_in, size_t n_args, size
     // 1 argument is not yet implemented
     mp_arg_check_num(n_args, n_kw, 2, 2, false);
     mp_obj_super_t *o = m_new_obj(mp_obj_super_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     *o = (mp_obj_super_t){{type_in}, args[0], args[1]};
     return MP_OBJ_FROM_PTR(o);
 }
@@ -1069,13 +1128,17 @@ STATIC void super_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
         const mp_obj_t *items = parent_tuple->items;
         for (size_t i = 0; i < len; i++) {
             assert(MP_OBJ_IS_TYPE(items[i], &mp_type_type));
-            mp_obj_class_lookup(&lookup, (mp_obj_type_t*)MP_OBJ_TO_PTR(items[i]));
+            if (mp_obj_class_lookup(&lookup, (mp_obj_type_t*)MP_OBJ_TO_PTR(items[i]))) {
+                return;
+            }
             if (dest[0] != MP_OBJ_NULL) {
                 return;
             }
         }
     } else {
-        mp_obj_class_lookup(&lookup, type->parent);
+        if (mp_obj_class_lookup(&lookup, type->parent)) {
+            return;
+        }
         if (dest[0] != MP_OBJ_NULL) {
             return;
         }
@@ -1196,6 +1259,9 @@ STATIC mp_obj_t static_class_method_make_new(const mp_obj_type_t *self, size_t n
     mp_arg_check_num(n_args, n_kw, 1, 1, false);
 
     mp_obj_static_class_method_t *o = m_new_obj(mp_obj_static_class_method_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     *o = (mp_obj_static_class_method_t){{self}, args[0]};
     return MP_OBJ_FROM_PTR(o);
 }

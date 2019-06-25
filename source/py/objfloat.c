@@ -200,6 +200,9 @@ const mp_obj_type_t mp_type_float = {
 
 mp_obj_t mp_obj_new_float(mp_float_t value) {
     mp_obj_float_t *o = m_new(mp_obj_float_t, 1);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_float;
     o->value = value;
     return MP_OBJ_FROM_PTR(o);
@@ -302,11 +305,13 @@ mp_obj_t mp_obj_float_binary_op(mp_uint_t op, mp_float_t lhs_val, mp_obj_t rhs_i
                 goto zero_division_error;
             }
             mp_obj_float_divmod(&lhs_val, &rhs_val);
-            mp_obj_t tuple[2] = {
-                mp_obj_new_float(lhs_val),
-                mp_obj_new_float(rhs_val),
-            };
-            return mp_obj_new_tuple(2, tuple);
+            mp_obj_tuple_t *tuple = MP_OBJ_TO_PTR(mp_obj_new_tuple(2, NULL));
+            tuple->items[0] = mp_obj_new_float(lhs_val);
+            tuple->items[1] = mp_obj_new_float(rhs_val);
+            if (!tuple->items[0] || !tuple->items[1]) {
+                return MP_OBJ_NULL;
+            }
+            return MP_OBJ_FROM_PTR(tuple);
         }
         case MP_BINARY_OP_LESS: return mp_obj_new_bool(lhs_val < rhs_val);
         case MP_BINARY_OP_MORE: return mp_obj_new_bool(lhs_val > rhs_val);

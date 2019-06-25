@@ -117,10 +117,12 @@ mp_int_t microbit_image_obj_t::height() {
 
 STATIC greyscale_t *greyscale_new(mp_int_t w, mp_int_t h) {
     greyscale_t *result = m_new_obj_var(greyscale_t, uint8_t, (w*h+1)>>1);
-    result->base.type = &microbit_image_type;
-    result->five = 0;
-    result->width = w;
-    result->height = h;
+    if (result) {
+        result->base.type = &microbit_image_type;
+        result->five = 0;
+        result->width = w;
+        result->height = h;
+    }
     return result;
 }
 
@@ -128,9 +130,11 @@ greyscale_t *microbit_image_obj_t::copy() {
     mp_int_t w = this->width();
     mp_int_t h = this->height();
     greyscale_t *result = greyscale_new(w, h);
-    for (mp_int_t y = 0; y < h; y++) {
-        for (mp_int_t x = 0; x < w; ++x) {
-            result->setPixelValue(x,y, this->getPixelValue(x,y));
+    if (result) {
+        for (mp_int_t y = 0; y < h; y++) {
+            for (mp_int_t x = 0; x < w; ++x) {
+                result->setPixelValue(x,y, this->getPixelValue(x,y));
+            }
         }
     }
     return result;
@@ -140,9 +144,11 @@ greyscale_t *microbit_image_obj_t::invert() {
     mp_int_t w = this->width();
     mp_int_t h = this->height();
     greyscale_t *result = greyscale_new(w, h);
-    for (mp_int_t y = 0; y < h; y++) {
-        for (mp_int_t x = 0; x < w; ++x) {
-            result->setPixelValue(x,y, MAX_BRIGHTNESS - this->getPixelValue(x,y));
+    if (result) {
+        for (mp_int_t y = 0; y < h; y++) {
+            for (mp_int_t x = 0; x < w; ++x) {
+                result->setPixelValue(x,y, MAX_BRIGHTNESS - this->getPixelValue(x,y));
+            }
         }
     }
     return result;
@@ -166,6 +172,7 @@ STATIC microbit_image_obj_t *image_from_parsed_str(const char *s, mp_int_t len) 
             ++line_len;
         } else {
             mp_raise_ValueError_o("unexpected character in Image definition");
+            return NULL;
         }
     }
     if (line_len) {
@@ -174,6 +181,9 @@ STATIC microbit_image_obj_t *image_from_parsed_str(const char *s, mp_int_t len) 
         w = max(line_len, w);
     }
     result = greyscale_new(w, h);
+    if (!result) {
+        return NULL;
+    }
     mp_int_t x = 0;
     mp_int_t y = 0;
     /* Second pass -- Fill in data */
@@ -208,10 +218,12 @@ STATIC microbit_image_obj_t *image_from_parsed_str(const char *s, mp_int_t len) 
 STATIC mp_obj_t microbit_image_make_new(const mp_obj_type_t *type_in, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *args) {
     (void)type_in;
     mp_arg_check_num(n_args, n_kw, 0, 3, false);
-
     switch (n_args) {
         case 0: {
             greyscale_t *image = greyscale_new(5, 5);
+            if (!image) {
+                return MP_OBJ_NULL;
+            }
             image->clear();
             return image;
         }
@@ -239,21 +251,22 @@ STATIC mp_obj_t microbit_image_make_new(const mp_obj_type_t *type_in, mp_uint_t 
             mp_int_t w = mp_obj_get_int(args[0]);
             mp_int_t h = mp_obj_get_int(args[1]);
             greyscale_t *image = greyscale_new(w, h);
-            if (n_args == 2) {
-                image->clear();
-            } else {
-                mp_buffer_info_t bufinfo;
-                mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_READ);
-
-                if (w < 0 || h < 0 || (size_t)(w * h) != bufinfo.len) {
-                    return mp_raise_ValueError_o("image data is incorrect size");
-                }
-                mp_int_t i = 0;
-                for (mp_int_t y = 0; y < h; y++) {
-                    for (mp_int_t x = 0; x < w; ++x) {
-                        uint8_t val = min(((const uint8_t*)bufinfo.buf)[i], MAX_BRIGHTNESS);
-                        image->setPixelValue(x, y, val);
-                        ++i;
+            if (image) {
+                if (n_args == 2) {
+                    image->clear();
+                } else {
+                    mp_buffer_info_t bufinfo;
+                    mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_READ);
+                    if (w < 0 || h < 0 || (size_t)(w * h) != bufinfo.len) {
+                        return mp_raise_ValueError_o("image data is incorrect size");
+                    }
+                    mp_int_t i = 0;
+                    for (mp_int_t y = 0; y < h; y++) {
+                        for (mp_int_t x = 0; x < w; ++x) {
+                            uint8_t val = MIN(((const uint8_t*)bufinfo.buf)[i], MAX_BRIGHTNESS);
+                            image->setPixelValue(x, y, val);
+                            ++i;
+                        }
                     }
                 }
             }
@@ -323,7 +336,9 @@ STATIC void image_blit(microbit_image_obj_t *src, greyscale_t *dest, mp_int_t x,
 
 greyscale_t *image_shift(microbit_image_obj_t *self, mp_int_t x, mp_int_t y) {
     greyscale_t *result = greyscale_new(self->width(), self->width());
-    image_blit(self, result, x, y, self->width(), self->width(), 0, 0);
+    if (result) {
+        image_blit(self, result, x, y, self->width(), self->width(), 0, 0);
+    }
     return result;
 }
 
@@ -333,6 +348,9 @@ STATIC microbit_image_obj_t *image_crop(microbit_image_obj_t *img, mp_int_t x, m
     if (h < 0)
         h = 0;
     greyscale_t *result = greyscale_new(w, h);
+    if (!result) {
+        return NULL;
+    }
     image_blit(img, result, x, y, w, h, 0, 0);
     return (microbit_image_obj_t *)result;
 }
@@ -601,6 +619,9 @@ void microbit_image_set_from_char(greyscale_t *img, char c) {
 
 microbit_image_obj_t *microbit_image_for_char(char c) {
     greyscale_t *result = greyscale_new(5,5);
+    if (!result) {
+        return NULL;
+    }
     microbit_image_set_from_char(result, c);
     return (microbit_image_obj_t *)result;
 }
@@ -610,6 +631,9 @@ microbit_image_obj_t *microbit_image_dim(microbit_image_obj_t *lhs, mp_float_t f
         mp_raise_ValueError_o("brightness multiplier must not be negative");
     }
     greyscale_t *result = greyscale_new(lhs->width(), lhs->height());
+    if (!result) {
+        return NULL;
+    }
     for (int x = 0; x < lhs->width(); ++x) {
         for (int y = 0; y < lhs->width(); ++y) {
             int val = min((int)lhs->getPixelValue(x,y)*fval+0.5, MAX_BRIGHTNESS);
@@ -626,6 +650,9 @@ microbit_image_obj_t *microbit_image_sum(microbit_image_obj_t *lhs, microbit_ima
         mp_raise_ValueError_o("images must be the same size");
     }
     greyscale_t *result = greyscale_new(w, h);
+    if (!result) {
+        return NULL;
+    }
     for (int x = 0; x < w; ++x) {
         for (int y = 0; y < h; ++y) {
             int val;
@@ -710,12 +737,14 @@ extern const mp_obj_type_t microbit_scrolling_string_iterator_type;
 
 mp_obj_t scrolling_string_image_iterable(const char* str, mp_uint_t len, mp_obj_t ref, bool monospace, bool repeat) {
     scrolling_string_t *result = m_new_obj(scrolling_string_t);
-    result->base.type = &microbit_scrolling_string_type;
-    result->str = str;
-    result->len = len;
-    result->ref = ref;
-    result->monospace = monospace;
-    result->repeat = repeat;
+    if (result) {
+        result->base.type = &microbit_scrolling_string_type;
+        result->str = str;
+        result->len = len;
+        result->ref = ref;
+        result->monospace = monospace;
+        result->repeat = repeat;
+    }
     return result;
 }
 
@@ -759,8 +788,14 @@ STATIC mp_obj_t get_microbit_scrolling_string_iter(mp_obj_t o_in, mp_obj_iter_bu
     (void)iter_buf; // not big enough to hold scrolling_string_iterator_t
     scrolling_string_t *str = (scrolling_string_t *)o_in;
     scrolling_string_iterator_t *result = m_new_obj(scrolling_string_iterator_t);
+    if (!result) {
+        return MP_OBJ_NULL;
+    }
     result->base.type = &microbit_scrolling_string_iterator_type;
     result->img = greyscale_new(5,5);
+    if (!result->img) {
+        return MP_OBJ_NULL;
+    }
     result->start = str->str;
     result->ref = str->ref;
     result->monospace = str->monospace;
@@ -917,9 +952,15 @@ typedef struct _facade_iterator_t {
 
 mp_obj_t microbit_string_facade(mp_obj_t string) {
     string_image_facade_t *result = m_new_obj(string_image_facade_t);
+    if (!result) {
+        return MP_OBJ_NULL;
+    }
     result->base.type = &string_image_facade_type;
     result->string = string;
     result->image = greyscale_new(5,5);
+    if (!result->image) {
+        return MP_OBJ_NULL;
+    }
     return result;
 }
 

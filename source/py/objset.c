@@ -205,7 +205,9 @@ STATIC mp_obj_t set_copy_as_mutable(mp_obj_t self_in) {
         return MP_OBJ_NULL;
     }
     other->base.type = &mp_type_set;
-    mp_set_init(&other->set, self->set.alloc);
+    if (mp_set_init(&other->set, self->set.alloc)) {
+        return MP_OBJ_NULL;
+    }
     other->set.used = self->set.used;
     memcpy(other->set.table, self->set.table, self->set.alloc * sizeof(mp_obj_t));
 
@@ -216,6 +218,9 @@ STATIC mp_obj_t set_copy(mp_obj_t self_in) {
     check_set_or_frozenset(self_in);
 
     mp_obj_t other = set_copy_as_mutable(self_in);
+    if (other == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     ((mp_obj_base_t*)MP_OBJ_TO_PTR(other))->type = ((mp_obj_base_t*)MP_OBJ_TO_PTR(self_in))->type;
 
     return other;
@@ -242,6 +247,9 @@ STATIC mp_obj_t set_diff_int(size_t n_args, const mp_obj_t *args, bool update) {
     } else {
         check_set_or_frozenset(args[0]);
         self = set_copy_as_mutable(args[0]);
+        if (self == MP_OBJ_NULL) {
+            return MP_OBJ_NULL;
+        }
     }
 
 
@@ -268,7 +276,9 @@ STATIC mp_obj_t set_diff(size_t n_args, const mp_obj_t *args) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR(set_diff_obj, 1, set_diff);
 
 STATIC mp_obj_t set_diff_update(size_t n_args, const mp_obj_t *args) {
-    set_diff_int(n_args, args, true);
+    if (set_diff_int(n_args, args, true) == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR(set_diff_update_obj, 1, set_diff_update);
@@ -447,6 +457,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(set_symmetric_difference_update_obj, set_symmet
 STATIC mp_obj_t set_symmetric_difference(mp_obj_t self_in, mp_obj_t other_in) {
     check_set_or_frozenset(self_in);
     mp_obj_t self_out = set_copy_as_mutable(self_in);
+    if (self_out == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     set_symmetric_difference_update(self_out, other_in);
     ((mp_obj_base_t*)MP_OBJ_TO_PTR(self_out))->type = ((mp_obj_base_t*)MP_OBJ_TO_PTR(self_in))->type;
     return self_out;
@@ -622,7 +635,14 @@ mp_obj_t mp_obj_new_set(size_t n_args, mp_obj_t *items) {
         return MP_OBJ_NULL;
     }
     o->base.type = &mp_type_set;
+<<<<<<< HEAD
     mp_set_init(&o->set, n_args);
+=======
+    m_rs_push_ptr(o);
+    if (mp_set_init(&o->set, n_args)) {
+        return MP_OBJ_NULL;
+    }
+>>>>>>> 24431cc... Propagate Memory Exceptions.
     for (size_t i = 0; i < n_args; i++) {
         mp_set_lookup(&o->set, items[i], MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
     }

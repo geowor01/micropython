@@ -102,6 +102,9 @@ STATIC const mp_obj_type_t mp_type_bound_meth = {
 
 mp_obj_t mp_obj_new_bound_meth(mp_obj_t meth, mp_obj_t self) {
     mp_obj_bound_meth_t *o = m_new_obj(mp_obj_bound_meth_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_bound_meth;
     o->meth = meth;
     o->self = self;

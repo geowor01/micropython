@@ -270,6 +270,9 @@ int mp_print_mp_int(const mp_print_t *print, mp_obj_t x, int base, int base_char
         // the sign & prefix, we format without a prefix
         str = mp_obj_int_formatted(&buf, &buf_size, &fmt_size,
                                    x, base, NULL, base_char, comma);
+        if (!str) {
+            return -1;
+        }
         if (*str == '-') {
             sign = *str++;
             fmt_size--;
@@ -277,6 +280,9 @@ int mp_print_mp_int(const mp_print_t *print, mp_obj_t x, int base, int base_char
     } else {
         str = mp_obj_int_formatted(&buf, &buf_size, &fmt_size,
                                    x, base, prefix, base_char, comma);
+        if (!str) {
+            return -1;
+        }
     }
 
     int spaces_before = 0;

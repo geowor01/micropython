@@ -281,7 +281,9 @@ STATIC mp_obj_t mp_builtin_input(size_t n_args, const mp_obj_t *args) {
         mp_obj_print(args[0], PRINT_STR);
     }
     vstr_t line;
-    vstr_init(&line, 16);
+    if (vstr_init(&line, 16)) {
+        return MP_OBJ_NULL;
+    }
     int ret = mp_hal_readline(&line, "");
     if (ret == CHAR_CTRL_C) {
         return mp_raise_o(mp_obj_new_exception(&mp_type_KeyboardInterrupt));
@@ -504,7 +506,9 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_builtin___repl_print___obj, mp_builtin___repl_print
 STATIC mp_obj_t mp_builtin_repr(mp_obj_t o_in) {
     vstr_t vstr;
     mp_print_t print;
-    vstr_init_print(&vstr, 16, &print);
+    if (vstr_init_print(&vstr, 16, &print)) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_print_helper(&print, o_in, PRINT_REPR);
     return mp_obj_new_str_from_vstr(&mp_type_str, &vstr);
 }

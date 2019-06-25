@@ -37,6 +37,9 @@ STATIC mp_obj_t object_make_new(const mp_obj_type_t *type, size_t n_args, size_t
     (void)args;
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
     mp_obj_object_t *o = m_new_obj(mp_obj_object_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = type;
     return MP_OBJ_FROM_PTR(o);
 }

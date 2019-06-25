@@ -42,6 +42,9 @@ STATIC const uint8_t scope_simple_name_table[] = {
 
 scope_t *scope_new(scope_kind_t kind, mp_parse_node_t pn, qstr source_file, mp_uint_t emit_options) {
     scope_t *scope = m_new0(scope_t, 1);
+    if (!scope) {
+        return NULL;
+    }
     scope->kind = kind;
     scope->pn = pn;
     scope->source_file = source_file;
@@ -58,10 +61,16 @@ scope_t *scope_new(scope_kind_t kind, mp_parse_node_t pn, qstr source_file, mp_u
     }
     #if !MICROPY_USE_SMALL_HEAP_COMPILER
     scope->raw_code = mp_emit_glue_new_raw_code();
+    if (!scope->raw_code) {
+        return NULL;
+    }
     #endif
     scope->emit_options = emit_options;
     scope->id_info_alloc = MICROPY_ALLOC_SCOPE_ID_INIT;
     scope->id_info = m_new(id_info_t, scope->id_info_alloc);
+    if (!scope->id_info && scope->id_info_alloc > 0) {
+        return NULL;
+    }
 
     return scope;
 }
@@ -81,6 +90,9 @@ id_info_t *scope_find_or_add_id(scope_t *scope, qstr qst, bool *added) {
     // make sure we have enough memory
     if (scope->id_info_len >= scope->id_info_alloc) {
         scope->id_info = m_renew(id_info_t, scope->id_info, scope->id_info_alloc, scope->id_info_alloc + MICROPY_ALLOC_SCOPE_ID_INC);
+        if (!scope->id_info && scope->id_info_alloc + MICROPY_ALLOC_SCOPE_ID_INC > 0) {
+            return NULL;
+        }
         scope->id_info_alloc += MICROPY_ALLOC_SCOPE_ID_INC;
     }
 
@@ -113,12 +125,15 @@ id_info_t *scope_find_global(scope_t *scope, qstr qst) {
     return scope_find(scope, qst);
 }
 
-STATIC void scope_close_over_in_parents(scope_t *scope, qstr qst) {
+STATIC int scope_close_over_in_parents(scope_t *scope, qstr qst) {
     assert(scope->parent != NULL); // we should have at least 1 parent
     for (scope_t *s = scope->parent;; s = s->parent) {
         assert(s->parent != NULL); // we should not get to the outer scope
         bool added;
         id_info_t *id = scope_find_or_add_id(s, qst, &added);
+        if (!id) {
+            return 1;
+        }
         if (added) {
             // variable not previously declared in this scope, so declare it as free and keep searching parents
             id->kind = ID_INFO_KIND_FREE;
@@ -132,26 +147,30 @@ STATIC void scope_close_over_in_parents(scope_t *scope, qstr qst) {
                 // ID_INFO_KIND_CELL: variable already closed over in this scope
                 assert(id->kind == ID_INFO_KIND_FREE || id->kind == ID_INFO_KIND_CELL);
             }
-            return;
+            return 0;
         }
     }
+    return 0;
 }
 
-void scope_find_local_and_close_over(scope_t *scope, id_info_t *id, qstr qst) {
+int scope_find_local_and_close_over(scope_t *scope, id_info_t *id, qstr qst) {
     if (scope->parent != NULL) {
         for (scope_t *s = scope->parent; s->parent != NULL; s = s->parent) {
             id_info_t *id2 = scope_find(s, qst);
             if (id2 != NULL) {
                 if (id2->kind == ID_INFO_KIND_LOCAL || id2->kind == ID_INFO_KIND_CELL || id2->kind == ID_INFO_KIND_FREE) {
                     id->kind = ID_INFO_KIND_FREE;
-                    scope_close_over_in_parents(scope, qst);
-                    return;
+                    if (scope_close_over_in_parents(scope, qst)) {
+                        return 1;
+                    }
+                    return 0;
                 }
                 break;
             }
         }
     }
     id->kind = ID_INFO_KIND_GLOBAL_IMPLICIT;
+    return 0;
 }
 
 #endif // MICROPY_ENABLE_COMPILER

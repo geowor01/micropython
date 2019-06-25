@@ -155,6 +155,12 @@ STATIC void compile_syntax_error(compiler_t *comp, const byte *p, const char *ms
     }
 }
 
+STATIC void compile_memory_error(compiler_t *comp) {
+    if (comp->compile_error == MP_OBJ_NULL) {
+        comp->compile_error = MP_STATE_THREAD(cur_exc);
+    }
+}
+
 STATIC void compile_trailer_paren_helper(compiler_t *comp, const byte *p_arglist, bool is_method_call, int n_positional_extra);
 STATIC void compile_comprehension(compiler_t *comp, const byte *p, scope_kind_t kind);
 STATIC const byte *compile_node(compiler_t *comp, const byte *p);
@@ -175,10 +181,11 @@ STATIC void compile_decrease_except_level(compiler_t *comp) {
     comp->cur_except_level -= 1;
 }
 
-STATIC void scope_new_and_link(compiler_t *comp, size_t scope_idx, scope_kind_t kind, const byte *p, uint emit_options) {
+STATIC int scope_new_and_link(compiler_t *comp, size_t scope_idx, scope_kind_t kind, const byte *p, uint emit_options) {
     scope_t *scope = scope_new(kind, p, comp->source_file, emit_options);
     scope->parent = comp->scope_cur;
     comp->scopes[scope_idx] = scope;
+    return 0;
 }
 
 typedef void (*apply_list_fun_t)(compiler_t *comp, const byte *p);
@@ -205,7 +212,10 @@ STATIC void compile_generic_all_nodes(compiler_t *comp, const byte *p, const byt
 
 STATIC void compile_load_id(compiler_t *comp, qstr qst) {
     if (comp->pass == MP_PASS_SCOPE) {
-        mp_emit_common_get_id_for_load(comp->scope_cur, qst);
+        if (mp_emit_common_get_id_for_load(comp->scope_cur, qst)) {
+            compile_memory_error(comp);
+            return;
+        }
     } else {
         #if NEED_METHOD_TABLE
         mp_emit_common_id_op(comp->emit, &comp->emit_method_table->load_id, comp->scope_cur, qst);
@@ -217,7 +227,10 @@ STATIC void compile_load_id(compiler_t *comp, qstr qst) {
 
 STATIC void compile_store_id(compiler_t *comp, qstr qst) {
     if (comp->pass == MP_PASS_SCOPE) {
-        mp_emit_common_get_id_for_modification(comp->scope_cur, qst);
+        if (mp_emit_common_get_id_for_modification(comp->scope_cur, qst)) {
+            compile_memory_error(comp);
+            return;
+        }
     } else {
         #if NEED_METHOD_TABLE
         mp_emit_common_id_op(comp->emit, &comp->emit_method_table->store_id, comp->scope_cur, qst);
@@ -229,7 +242,10 @@ STATIC void compile_store_id(compiler_t *comp, qstr qst) {
 
 STATIC void compile_delete_id(compiler_t *comp, qstr qst) {
     if (comp->pass == MP_PASS_SCOPE) {
-        mp_emit_common_get_id_for_modification(comp->scope_cur, qst);
+        if (mp_emit_common_get_id_for_modification(comp->scope_cur, qst)) {
+            compile_memory_error(comp);
+            return;
+        }
     } else {
         #if NEED_METHOD_TABLE
         mp_emit_common_id_op(comp->emit, &comp->emit_method_table->delete_id, comp->scope_cur, qst);
@@ -1086,6 +1102,9 @@ STATIC void do_import_name(compiler_t *comp, const byte *p, qstr *q_base) {
         // build string
         byte *q_ptr;
         byte *str_dest = qstr_build_start(len, &q_ptr);
+        if (!str_dest) {
+            return;
+        }
         for (const byte *p2 = p; p2 != ptop;) {
             if (p2 > p) {
                 *str_dest++ = '.';
@@ -1210,6 +1229,10 @@ STATIC void compile_import_from(compiler_t *comp, const byte *p, const byte *pto
 STATIC void compile_declare_global(compiler_t *comp, const byte *p_for_err, qstr qst) {
     bool added;
     id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, qst, &added);
+    if (!id_info) {
+        compile_memory_error(comp);
+        return;
+    }
     if (!added && id_info->kind != ID_INFO_KIND_GLOBAL_EXPLICIT) {
         compile_syntax_error(comp, p_for_err, "identifier redefined as global");
         return;
@@ -1238,9 +1261,15 @@ STATIC void compile_global_stmt(compiler_t *comp, const byte *p, const byte *pto
 STATIC void compile_declare_nonlocal(compiler_t *comp, const byte *p_for_err, qstr qst) {
     bool added;
     id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, qst, &added);
+    if (!id_info) {
+        compile_memory_error(comp);
+        return;
+    }
     if (added) {
-        scope_find_local_and_close_over(comp->scope_cur, id_info, qst);
-        if (id_info->kind == ID_INFO_KIND_GLOBAL_IMPLICIT) {
+        if (scope_find_local_and_close_over(comp->scope_cur, id_info, qst)) {
+            compile_memory_error(comp);
+        }
+        else if (id_info->kind == ID_INFO_KIND_GLOBAL_IMPLICIT) {
             compile_syntax_error(comp, p_for_err, "no binding for nonlocal found");
         }
     } else if (id_info->kind != ID_INFO_KIND_FREE) {
@@ -2705,6 +2734,10 @@ STATIC void compile_scope_func_lambda_param(compiler_t *comp, const byte *p, pn_
     if (param_name != MP_QSTR_NULL) {
         bool added;
         id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, param_name, &added);
+        if (!id_info) {
+            compile_memory_error(comp);
+            return;
+        }
         if (!added) {
             compile_syntax_error(comp, p, "name reused for argument");
             return;
@@ -2956,6 +2989,10 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
         if (comp->pass == MP_PASS_SCOPE) {
             bool added;
             id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, qstr_arg, &added);
+            if (!id_info) {
+                compile_memory_error(comp);
+                return;
+            }
             assert(added);
             id_info->kind = ID_INFO_KIND_LOCAL;
             scope->num_pos_args = 1;
@@ -2996,6 +3033,10 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
         if (comp->pass == MP_PASS_SCOPE) {
             bool added;
             id_info_t *id_info = scope_find_or_add_id(scope, MP_QSTR___class__, &added);
+            if (!id_info) {
+                compile_memory_error(comp);
+                return;
+            }
             assert(added);
             id_info->kind = ID_INFO_KIND_LOCAL;
         }
@@ -3304,12 +3345,18 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
     // create the array of scopes
     comp->num_scopes = pt_small_int_value(pt_next(parse_tree->root));
     comp->scopes = m_new0(scope_t*, comp->num_scopes);
+    if (!comp->scopes && comp->num_scopes > 0) {
+        return NULL;
+    }
 
     // create the module scope
     scope_new_and_link(comp, 0, SCOPE_MODULE, parse_tree->root, emit_opt);
 
     // create standard emitter; it's used at least for MP_PASS_SCOPE
     emit_t *emit_bc = emit_bc_new();
+    if (!emit_bc) {
+        return NULL;
+    }
 
     // compile pass 1
     comp->emit = emit_bc;
@@ -3331,6 +3378,9 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
         if (s->raw_code != NULL) { continue; } // scope already did pass 1
         keep_going = true;
         s->raw_code = mp_emit_glue_new_raw_code();
+        if (!s->raw_code) {
+            return NULL;
+        }
         if (false) {
         #if MICROPY_EMIT_INLINE_ASM
         } else if (s->emit_options == MP_EMIT_OPT_ASM) {

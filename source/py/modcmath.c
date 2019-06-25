@@ -49,11 +49,13 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_phase_obj, mp_cmath_phase);
 STATIC mp_obj_t mp_cmath_polar(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
-    mp_obj_t tuple[2] = {
-        mp_obj_new_float(MICROPY_FLOAT_C_FUN(sqrt)(real*real + imag*imag)),
-        mp_obj_new_float(MICROPY_FLOAT_C_FUN(atan2)(imag, real)),
-    };
-    return mp_obj_new_tuple(2, tuple);
+    mp_obj_tuple_t *tuple = MP_OBJ_TO_PTR(mp_obj_new_tuple(2, NULL));
+    tuple->items[0] = mp_obj_new_float(MICROPY_FLOAT_C_FUN(sqrt)(real*real + imag*imag));
+    tuple->items[1] = mp_obj_new_float(MICROPY_FLOAT_C_FUN(atan2)(imag, real));
+    if (tuple->items[0] == MP_OBJ_NULL || tuple->items[1] == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
+    return MP_OBJ_FROM_PTR(tuple);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_polar_obj, mp_cmath_polar);
 

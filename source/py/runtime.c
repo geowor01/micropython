@@ -665,6 +665,9 @@ int mp_call_prepare_args_n_kw_var(bool have_self, size_t n_args_n_kw, const mp_o
         // allocate memory for the new array of args
         args2_alloc = 1 + n_args + 2 * (n_kw + kw_dict_len);
         args2 = m_new(mp_obj_t, args2_alloc);
+        if (!args2) {
+            return 1;
+        }
 
         // copy the self
         if (self != MP_OBJ_NULL) {
@@ -686,6 +689,9 @@ int mp_call_prepare_args_n_kw_var(bool have_self, size_t n_args_n_kw, const mp_o
         // allocate memory for the new array of args
         args2_alloc = 1 + n_args + len + 2 * (n_kw + kw_dict_len);
         args2 = m_new(mp_obj_t, args2_alloc);
+        if (!args2) {
+            return 1;
+        }
 
         // copy the self
         if (self != MP_OBJ_NULL) {
@@ -702,6 +708,9 @@ int mp_call_prepare_args_n_kw_var(bool have_self, size_t n_args_n_kw, const mp_o
         // allocate memory for the new array of args
         args2_alloc = 1 + n_args + 2 * (n_kw + kw_dict_len) + 3;
         args2 = m_new(mp_obj_t, args2_alloc);
+        if (!args2) {
+            return 1;
+        }
 
         // copy the self
         if (self != MP_OBJ_NULL) {
@@ -718,7 +727,11 @@ int mp_call_prepare_args_n_kw_var(bool have_self, size_t n_args_n_kw, const mp_o
         mp_obj_t item;
         while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
             if (args2_len >= args2_alloc) {
-                args2 = m_renew(mp_obj_t, args2, args2_alloc, args2_alloc * 2);
+                mp_obj_t *new_args2 = m_renew(mp_obj_t, args2, args2_alloc, args2_alloc * 2);
+                if (!new_args2) {
+                    return 1;
+                }
+                args2 = new_args2;
                 args2_alloc *= 2;
             }
             args2[args2_len++] = item;
@@ -773,7 +786,11 @@ int mp_call_prepare_args_n_kw_var(bool have_self, size_t n_args_n_kw, const mp_o
                 if (new_alloc < 4) {
                     new_alloc = 4;
                 }
-                args2 = m_renew(mp_obj_t, args2, args2_alloc, new_alloc);
+                mp_obj_t *new_args2 = m_renew(mp_obj_t, args2, args2_alloc, new_alloc);
+                if (!new_args2) {
+                    return 1;
+                }
+                args2 = new_args2;
                 args2_alloc = new_alloc;
             }
 
@@ -972,6 +989,9 @@ STATIC const mp_obj_type_t mp_type_checked_fun = {
 
 STATIC mp_obj_t mp_obj_new_checked_fun(const mp_obj_type_t *type, mp_obj_t fun) {
     mp_obj_checked_fun_t *o = m_new_obj(mp_obj_checked_fun_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_checked_fun;
     o->type = type;
     o->fun = fun;
@@ -984,7 +1004,7 @@ STATIC mp_obj_t mp_obj_new_checked_fun(const mp_obj_type_t *type, mp_obj_t fun) 
 // and put the result in the dest[] array for a possible method call.
 // Conversion means dealing with static/class methods, callables, and values.
 // see http://docs.python.org/3/howto/descriptor.html
-void mp_convert_member_lookup(mp_obj_t self, const mp_obj_type_t *type, mp_obj_t member, mp_obj_t *dest) {
+int mp_convert_member_lookup(mp_obj_t self, const mp_obj_type_t *type, mp_obj_t member, mp_obj_t *dest) {
     if (MP_OBJ_IS_TYPE(member, &mp_type_staticmethod)) {
         // return just the function
         dest[0] = ((mp_obj_static_class_method_t*)MP_OBJ_TO_PTR(member))->fun;
@@ -1016,6 +1036,9 @@ void mp_convert_member_lookup(mp_obj_t self, const mp_obj_type_t *type, mp_obj_t
             // we extracted a builtin method without a first argument, so we must
             // wrap this function in a type checker
             dest[0] = mp_obj_new_checked_fun(type, member);
+            if (!dest[0]) {
+                return 1;
+            }
         } else
         #endif
         {
@@ -1027,6 +1050,7 @@ void mp_convert_member_lookup(mp_obj_t self, const mp_obj_type_t *type, mp_obj_t
         // class member is a value, so just return that value
         dest[0] = member;
     }
+    return 0;
 }
 
 // no attribute found, returns:     dest[0] == MP_OBJ_NULL, dest[1] == MP_OBJ_NULL
@@ -1064,7 +1088,7 @@ int mp_load_method_maybe(mp_obj_t obj, qstr attr, mp_obj_t *dest) {
         mp_map_t *locals_map = &type->locals_dict->map;
         mp_map_elem_t *elem = mp_map_lookup(locals_map, MP_OBJ_NEW_QSTR(attr), MP_MAP_LOOKUP);
         if (elem != NULL) {
-            mp_convert_member_lookup(obj, type, elem->value, dest);
+            return mp_convert_member_lookup(obj, type, elem->value, dest);
         }
     }
     return 0;
@@ -1138,6 +1162,9 @@ mp_obj_t mp_getiter(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf) {
     // if caller did not provide a buffer then allocate one on the heap
     if (iter_buf == NULL) {
         iter_buf = m_new_obj(mp_obj_iter_buf_t);
+        if (!iter_buf) {
+            return MP_OBJ_NULL;
+        }
     }
 
     // check for native getiter (corresponds to __iter__)

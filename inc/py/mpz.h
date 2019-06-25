@@ -98,18 +98,18 @@ typedef struct _mpz_t {
 #define MPZ_CONST_INT(z, val) mpz_t z; mpz_dig_t z ## _digits[MPZ_NUM_DIG_FOR_INT]; mpz_init_fixed_from_int(&z, z_digits, MPZ_NUM_DIG_FOR_INT, val);
 
 void mpz_init_zero(mpz_t *z);
-void mpz_init_from_int(mpz_t *z, mp_int_t val);
-void mpz_init_fixed_from_int(mpz_t *z, mpz_dig_t *dig, size_t dig_alloc, mp_int_t val);
+int mpz_init_from_int(mpz_t *z, mp_int_t val);
+int mpz_init_fixed_from_int(mpz_t *z, mpz_dig_t *dig, size_t dig_alloc, mp_int_t val);
 void mpz_deinit(mpz_t *z);
 
-void mpz_set(mpz_t *dest, const mpz_t *src);
-void mpz_set_from_int(mpz_t *z, mp_int_t src);
-void mpz_set_from_ll(mpz_t *z, long long i, bool is_signed);
+int mpz_set(mpz_t *dest, const mpz_t *src);
+int mpz_set_from_int(mpz_t *z, mp_int_t src);
+int mpz_set_from_ll(mpz_t *z, long long i, bool is_signed);
 #if MICROPY_PY_BUILTINS_FLOAT
-void mpz_set_from_float(mpz_t *z, mp_float_t src);
+int mpz_set_from_float(mpz_t *z, mp_float_t src);
 #endif
 size_t mpz_set_from_str(mpz_t *z, const char *str, size_t len, bool neg, unsigned int base);
-void mpz_set_from_bytes(mpz_t *z, bool big_endian, size_t len, const byte *buf);
+int mpz_set_from_bytes(mpz_t *z, bool big_endian, size_t len, const byte *buf);
 
 static inline bool mpz_is_zero(const mpz_t *z) { return z->len == 0; }
 static inline bool mpz_is_neg(const mpz_t *z) { return z->len != 0 && z->neg != 0; }
@@ -117,18 +117,18 @@ int mpz_cmp(const mpz_t *lhs, const mpz_t *rhs);
 
 void mpz_abs_inpl(mpz_t *dest, const mpz_t *z);
 void mpz_neg_inpl(mpz_t *dest, const mpz_t *z);
-void mpz_not_inpl(mpz_t *dest, const mpz_t *z);
-void mpz_shl_inpl(mpz_t *dest, const mpz_t *lhs, mp_uint_t rhs);
-void mpz_shr_inpl(mpz_t *dest, const mpz_t *lhs, mp_uint_t rhs);
-void mpz_add_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
-void mpz_sub_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
-void mpz_mul_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
-void mpz_pow_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
-void mpz_pow3_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs, const mpz_t *mod);
-void mpz_and_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
-void mpz_or_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
-void mpz_xor_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
-void mpz_divmod_inpl(mpz_t *dest_quo, mpz_t *dest_rem, const mpz_t *lhs, const mpz_t *rhs);
+int mpz_not_inpl(mpz_t *dest, const mpz_t *z);
+int mpz_shl_inpl(mpz_t *dest, const mpz_t *lhs, mp_uint_t rhs);
+int mpz_shr_inpl(mpz_t *dest, const mpz_t *lhs, mp_uint_t rhs);
+int mpz_add_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
+int mpz_sub_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
+int mpz_mul_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
+int mpz_pow_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
+int mpz_pow3_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs, const mpz_t *mod);
+int mpz_and_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
+int mpz_or_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
+int mpz_xor_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs);
+int mpz_divmod_inpl(mpz_t *dest_quo, mpz_t *dest_rem, const mpz_t *lhs, const mpz_t *rhs);
 
 static inline size_t mpz_max_num_bits(const mpz_t *z) { return z->len * MPZ_DIG_SIZE; }
 mp_int_t mpz_hash(const mpz_t *z);

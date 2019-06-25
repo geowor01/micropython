@@ -38,21 +38,28 @@
 #define ROUND_ALLOC(a) (((a) & ((~0U) - 7)) + 8)
 
 // Init the vstr so it allocs exactly given number of bytes.  Set length to zero.
-void vstr_init(vstr_t *vstr, size_t alloc) {
+int vstr_init(vstr_t *vstr, size_t alloc) {
     if (alloc < 1) {
         alloc = 1;
     }
     vstr->alloc = alloc;
     vstr->len = 0;
     vstr->buf = m_new(char, vstr->alloc);
+    if (!vstr->buf && vstr->alloc > 0) {
+        return 1;
+    }
     vstr->fixed_buf = false;
+    return 0;
 }
 
 // Init the vstr so it allocs exactly enough ram to hold a null-terminated
 // string of the given length, and set the length.
-void vstr_init_len(vstr_t *vstr, size_t len) {
-    vstr_init(vstr, len + 1);
+int vstr_init_len(vstr_t *vstr, size_t len) {
+    if (vstr_init(vstr, len + 1)) {
+        return 1;
+    }
     vstr->len = len;
+    return 0;
 }
 
 void vstr_init_fixed_buf(vstr_t *vstr, size_t alloc, char *buf) {
@@ -62,10 +69,13 @@ void vstr_init_fixed_buf(vstr_t *vstr, size_t alloc, char *buf) {
     vstr->fixed_buf = true;
 }
 
-void vstr_init_print(vstr_t *vstr, size_t alloc, mp_print_t *print) {
-    vstr_init(vstr, alloc);
+int vstr_init_print(vstr_t *vstr, size_t alloc, mp_print_t *print) {
+    if (vstr_init(vstr, alloc)) {
+        return 1;
+    }
     print->data = vstr;
     print->print_strn = (mp_print_strn_t)vstr_add_strn;
+    return 0;
 }
 
 void vstr_clear(vstr_t *vstr) {
@@ -77,8 +87,14 @@ void vstr_clear(vstr_t *vstr) {
 
 vstr_t *vstr_new(size_t alloc) {
     vstr_t *vstr = m_new_obj(vstr_t);
+    if (!vstr) {
+        return NULL;
+    }
     m_rs_push_ptr(vstr);
-    vstr_init(vstr, alloc);
+    if (vstr_init(vstr, alloc)) {
+        m_rs_pop_ptr(vstr);
+        return NULL;
+    }
     m_rs_pop_ptr(vstr);
     return vstr;
 }
@@ -98,6 +114,9 @@ char *vstr_extend(vstr_t *vstr, size_t size) {
         return NULL;
     }
     char *new_buf = m_renew(char, vstr->buf, vstr->alloc, vstr->alloc + size);
+    if (!new_buf && vstr->alloc + size > 0) {
+        return NULL;
+    }
     char *p = new_buf + vstr->alloc;
     vstr->alloc += size;
     vstr->buf = new_buf;
@@ -111,6 +130,9 @@ STATIC bool vstr_ensure_extra(vstr_t *vstr, size_t size) {
         }
         size_t new_alloc = ROUND_ALLOC((vstr->len + size) + 16);
         char *new_buf = m_renew(char, vstr->buf, vstr->alloc, new_alloc);
+        if (!new_buf && new_alloc > 0) {
+            return false;
+        }
         vstr->alloc = new_alloc;
         vstr->buf = new_buf;
     }

@@ -98,6 +98,9 @@ STATIC mp_obj_t mp_builtin_compile(size_t n_args, const mp_obj_t *args) {
     }
 
     mp_obj_code_t *code = m_new_obj(mp_obj_code_t);
+    if (!code) {
+        return MP_OBJ_NULL;
+    }
     code->base.type = &mp_type_code;
     m_rs_pop_ptr(lex); // mp_parse_compile_execute will handle RS for us
     m_rs_push_ptr(code);
@@ -147,6 +150,9 @@ STATIC mp_obj_t eval_exec_helper(size_t n_args, const mp_obj_t *args, mp_parse_i
         parse_input_kind = MP_PARSE_FILE_INPUT;
     } else {
         lex = mp_lexer_new_from_str_len(MP_QSTR__lt_string_gt_, str, str_len, 0);
+    }
+    if (!lex) {
+        return MP_OBJ_NULL;
     }
 
     return mp_parse_compile_execute(lex, parse_input_kind, globals, locals);

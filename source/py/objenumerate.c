@@ -58,6 +58,9 @@ STATIC mp_obj_t enumerate_make_new(const mp_obj_type_t *type, size_t n_args, siz
 
     // create enumerate object
     mp_obj_enumerate_t *o = m_new_obj(mp_obj_enumerate_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = type;
     m_rs_push_ptr(o);
     o->iter = mp_getiter(arg_vals.iterable.u_obj, NULL);
@@ -66,6 +69,9 @@ STATIC mp_obj_t enumerate_make_new(const mp_obj_type_t *type, size_t n_args, siz
 #else
     (void)n_kw;
     mp_obj_enumerate_t *o = m_new_obj(mp_obj_enumerate_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = type;
     // MicroPython appears to assume that args[0] is a float when no argument is passed,
     // and an integer when in a function, crashing when inside a try block.

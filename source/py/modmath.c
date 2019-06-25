@@ -188,6 +188,9 @@ STATIC mp_obj_t mp_math_frexp(mp_obj_t x_obj) {
     tuple->items[0] = mp_obj_new_float(significand);
     tuple->items[1] = mp_obj_new_int(int_exponent);
     m_rs_pop_ptr(tuple);
+    if (tuple->items[0] == MP_OBJ_NULL || tuple->items[1]) {
+        return MP_OBJ_NULL;
+    }
     return MP_OBJ_FROM_PTR(tuple);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_frexp_obj, mp_math_frexp);
@@ -201,6 +204,9 @@ STATIC mp_obj_t mp_math_modf(mp_obj_t x_obj) {
     tuple->items[0] = mp_obj_new_float(fractional_part);
     tuple->items[1] = mp_obj_new_float(int_part);
     m_rs_pop_ptr(tuple);
+    if (tuple->items[0] == MP_OBJ_NULL || tuple->items[1]) {
+        return MP_OBJ_NULL;
+    }
     return MP_OBJ_FROM_PTR(tuple);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_modf_obj, mp_math_modf);

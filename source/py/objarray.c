@@ -86,6 +86,9 @@ STATIC void array_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t 
                     mp_print_str(print, ", ");
                 }
                 mp_obj_t item = mp_binary_get_val_array(o->typecode, o->items, i);
+                if (item == MP_OBJ_NULL) {
+                    return;
+                }
                 m_rs_push_obj(item);
                 mp_obj_print_helper(print, item, PRINT_REPR);
                 m_rs_pop_obj(item);
@@ -104,7 +107,7 @@ STATIC mp_obj_array_t *array_new(char typecode, size_t n) {
         return NULL;
     }
     mp_obj_array_t *o = m_new_obj(mp_obj_array_t);
-    if (o == NULL) {
+    if (!o) {
         return NULL;
     }
     #if MICROPY_PY_BUILTINS_BYTEARRAY && MICROPY_PY_ARRAY
@@ -120,6 +123,9 @@ STATIC mp_obj_array_t *array_new(char typecode, size_t n) {
     m_rs_push_ptr(o);
     o->items = m_new(byte, typecode_size * o->len);
     m_rs_pop_ptr(o);
+    if (!o->items && o->len > 0) {
+        return NULL;
+    }
     return o;
 }
 #endif
@@ -236,7 +242,7 @@ STATIC mp_obj_t bytearray_make_new(const mp_obj_type_t *type_in, size_t n_args, 
 
 mp_obj_t mp_obj_new_memoryview(byte typecode, size_t nitems, void *items) {
     mp_obj_array_t *self = m_new_obj(mp_obj_array_t);
-    if (self == NULL) {
+    if (!self) {
         return MP_OBJ_NULL;
     }
     self->base.type = &mp_type_memoryview;
@@ -368,7 +374,7 @@ STATIC mp_obj_t array_append(mp_obj_t self_in, mp_obj_t arg) {
         size_t item_sz = mp_binary_get_size('@', self->typecode, NULL);
         // TODO: alloc policy
         byte *new_items = m_renew(byte, self->items, item_sz * self->len, item_sz * (self->len + 8));
-        if (new_items == NULL) {
+        if (new_items == NULL && item_sz > 0) {
             return MP_OBJ_NULL;
         }
         self->free = 8;
@@ -405,7 +411,7 @@ STATIC mp_obj_t array_extend(mp_obj_t self_in, mp_obj_t arg_in) {
     // TODO: alloc policy; at the moment we go conservative
     if (self->free < len) {
         byte *new_items = m_renew(byte, self->items, (self->len + self->free) * sz, (self->len + len) * sz);
-        if (new_items == NULL) {
+        if (new_items == NULL && (self->len + len) * sz > 0) {
             return MP_OBJ_NULL;
         }
         self->items = new_items;
@@ -490,7 +496,7 @@ STATIC mp_obj_t array_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value
                     if (len_adj > o->free) {
                         // TODO: alloc policy; at the moment we go conservative
                         dest_items = m_renew(byte, o->items, (o->len + o->free) * item_sz, (o->len + len_adj) * item_sz);
-                        if (dest_items == NULL) {
+                        if (dest_items == NULL && (o->len + len_adj) * item_sz > 0) {
                             return MP_OBJ_NULL;
                         }
                         o->items = dest_items;
@@ -521,7 +527,7 @@ STATIC mp_obj_t array_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value
             #if MICROPY_PY_BUILTINS_MEMORYVIEW
             } else if (o->base.type == &mp_type_memoryview) {
                 res = m_new_obj(mp_obj_array_t);
-                if (res == NULL) {
+                if (!res) {
                     return MP_OBJ_NULL;
                 }
                 *res = *o;
@@ -651,6 +657,9 @@ mp_obj_t mp_obj_new_bytearray(size_t n, void *items) {
 // Create bytearray which references specified memory area
 mp_obj_t mp_obj_new_bytearray_by_ref(size_t n, void *items) {
     mp_obj_array_t *o = m_new_obj(mp_obj_array_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_bytearray;
     o->typecode = BYTEARRAY_TYPECODE;
     o->free = 0;

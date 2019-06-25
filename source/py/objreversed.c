@@ -52,6 +52,9 @@ STATIC mp_obj_t reversed_make_new(const mp_obj_type_t *type, size_t n_args, size
     }
 
     mp_obj_reversed_t *o = m_new_obj(mp_obj_reversed_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = type;
     o->seq = args[0];
     m_rs_push_ptr(o);

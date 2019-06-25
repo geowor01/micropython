@@ -246,7 +246,7 @@ STATIC mp_obj_t list_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
                     // TODO: Might optimize memory copies here by checking if block can
                     // be grown inplace or not
                     mp_obj_t *new_items = m_renew(mp_obj_t, self->items, self->alloc, self->len + len_adj);
-                    if (new_items == NULL) {
+                    if (new_items == NULL && self->len + len_adj > 0) {
                         return MP_OBJ_NULL;
                     }
                     self->items = new_items;
@@ -279,7 +279,7 @@ mp_obj_t mp_obj_list_append(mp_obj_t self_in, mp_obj_t arg) {
     mp_obj_list_t *self = MP_OBJ_TO_PTR(self_in);
     if (self->len >= self->alloc) {
         mp_obj_t *items = m_renew(mp_obj_t, self->items, self->alloc, self->alloc * 2);
-        if (items == NULL) {
+        if (items == NULL && self->alloc > 0) {
             return MP_OBJ_NULL;
         }
         self->items = items;
@@ -331,6 +331,9 @@ STATIC mp_obj_t list_pop(size_t n_args, const mp_obj_t *args) {
     self->items[self->len] = MP_OBJ_NULL;
     if (self->alloc > LIST_MIN_ALLOC && self->alloc > 2 * self->len) {
         self->items = m_renew(mp_obj_t, self->items, self->alloc, self->alloc/2);
+        if (!self->items && self->alloc / 2 > 0) {
+            return MP_OBJ_NULL;
+        }
         self->alloc /= 2;
     }
     return ret;
@@ -400,6 +403,9 @@ STATIC mp_obj_t list_clear(mp_obj_t self_in) {
     mp_obj_list_t *self = MP_OBJ_TO_PTR(self_in);
     self->len = 0;
     self->items = m_renew(mp_obj_t, self->items, self->alloc, LIST_MIN_ALLOC);
+    if (!self->items && LIST_MIN_ALLOC > 0) {
+        return MP_OBJ_NULL;
+    }
     self->alloc = LIST_MIN_ALLOC;
     mp_seq_clear(self->items, 0, self->alloc, sizeof(*self->items));
     return mp_const_none;
@@ -520,7 +526,7 @@ mp_obj_list_t *mp_obj_list_init(mp_obj_list_t *o, size_t n) {
     o->alloc = n < LIST_MIN_ALLOC ? LIST_MIN_ALLOC : n;
     o->len = n;
     o->items = m_new(mp_obj_t, o->alloc);
-    if (o->items == NULL) {
+    if (o->items == NULL && o->alloc > 0) {
         return NULL;
     }
     mp_seq_clear(o->items, n, o->alloc, sizeof(*o->items));
@@ -533,7 +539,10 @@ STATIC mp_obj_list_t *list_new(size_t n) {
         return NULL;
     }
     m_rs_push_ptr(o);
-    mp_obj_list_init(o, n);
+    if (!mp_obj_list_init(o, n)) {
+        m_rs_pop_ptr(o);
+        return NULL;
+    }
     m_rs_pop_ptr(o);
     return o;
 }

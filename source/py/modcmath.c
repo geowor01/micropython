@@ -54,6 +54,9 @@ STATIC mp_obj_t mp_cmath_polar(mp_obj_t z_obj) {
     tuple->items[0] = mp_obj_new_float(MICROPY_FLOAT_C_FUN(sqrt)(real*real + imag*imag));
     tuple->items[1] = mp_obj_new_float(MICROPY_FLOAT_C_FUN(atan2)(imag, real));
     m_rs_pop_ptr(tuple);
+    if (tuple->items[0] == MP_OBJ_NULL || tuple->items[1] == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     return MP_OBJ_FROM_PTR(tuple);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_polar_obj, mp_cmath_polar);

@@ -612,14 +612,17 @@ const mp_obj_type_t mp_type_ordereddict = {
 };
 #endif
 
-void mp_obj_dict_init(mp_obj_dict_t *dict, size_t n_args) {
+int mp_obj_dict_init(mp_obj_dict_t *dict, size_t n_args) {
     dict->base.type = &mp_type_dict;
-    mp_map_init(&dict->map, n_args);
+    return mp_map_init(&dict->map, n_args);
 }
 
 mp_obj_t mp_obj_new_dict(size_t n_args) {
     mp_obj_dict_t *o = m_new_obj(mp_obj_dict_t);
-    if (o == NULL) {
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
+    if (mp_obj_dict_init(o, n_args)) {
         return MP_OBJ_NULL;
     }
     m_rs_push_ptr(o);

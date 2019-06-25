@@ -152,12 +152,16 @@ STATIC void next_char(mp_lexer_t *lex) {
     }
 }
 
-STATIC void indent_push(mp_lexer_t *lex, size_t indent) {
+STATIC int indent_push(mp_lexer_t *lex, size_t indent) {
     if (lex->num_indent_level >= lex->alloc_indent_level) {
         lex->indent_level = m_renew(uint16_t, lex->indent_level, lex->alloc_indent_level, lex->alloc_indent_level + MICROPY_ALLOC_LEXEL_INDENT_INC);
+        if (!lex->indent_level && lex->alloc_indent_level + MICROPY_ALLOC_LEXEL_INDENT_INC > 0) {
+            return 1;
+        }
         lex->alloc_indent_level += MICROPY_ALLOC_LEXEL_INDENT_INC;
     }
     lex->indent_level[lex->num_indent_level++] = indent;
+    return 0;
 }
 
 STATIC size_t indent_top(mp_lexer_t *lex) {
@@ -429,7 +433,7 @@ STATIC bool skip_whitespace(mp_lexer_t *lex, bool stop_at_newline) {
     return had_physical_newline;
 }
 
-void mp_lexer_to_next(mp_lexer_t *lex) {
+int mp_lexer_to_next(mp_lexer_t *lex) {
     // start new token text
     vstr_reset(&lex->vstr);
 
@@ -454,7 +458,9 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
         size_t num_spaces = lex->column - 1;
         if (num_spaces == indent_top(lex)) {
         } else if (num_spaces > indent_top(lex)) {
-            indent_push(lex, num_spaces);
+            if (indent_push(lex, num_spaces)) {
+                return 1;
+            }
             lex->emit_dent += 1;
         } else {
             while (num_spaces < indent_top(lex)) {
@@ -665,11 +671,12 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
             }
         }
     }
+    return 0;
 }
 
 mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader) {
     mp_lexer_t *lex = m_new_obj(mp_lexer_t);
-    if(lex == NULL) {
+    if(!lex) {
         return NULL;
     }
     m_rs_push_ptr(lex);
@@ -683,7 +690,9 @@ mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader) {
     lex->alloc_indent_level = MICROPY_ALLOC_LEXER_INDENT_INIT;
     lex->num_indent_level = 1;
     lex->indent_level = m_new(uint16_t, lex->alloc_indent_level);
-    vstr_init(&lex->vstr, 32);
+    if ((!lex->indent_level && lex->alloc_indent_level > 0) || vstr_init(&lex->vstr, 32)) {
+        return NULL;
+    }
 
     // store sentinel for first indentation level
     lex->indent_level[0] = 0;
@@ -696,7 +705,9 @@ mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader) {
     next_char(lex);
 
     // preload first token
-    mp_lexer_to_next(lex);
+    if (mp_lexer_to_next(lex)) {
+        return NULL;
+    }
 
     // Check that the first token is in the first column.  If it's not then we
     // convert the token kind to INDENT so that the parser gives a syntax error.
@@ -710,7 +721,9 @@ mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader) {
 
 mp_lexer_t *mp_lexer_new_from_str_len(qstr src_name, const char *str, size_t len, size_t free_len) {
     mp_reader_t reader;
-    mp_reader_new_mem(&reader, (const byte*)str, len, free_len);
+    if (mp_reader_new_mem(&reader, (const byte*)str, len, free_len)) {
+        return NULL;
+    }
     m_rs_push_ptr(reader.data);
     mp_lexer_t *lex = mp_lexer_new(src_name, reader);
     m_rs_pop_ptr(reader.data);

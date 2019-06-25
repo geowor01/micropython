@@ -154,8 +154,14 @@ mp_obj_t mp_obj_new_int_from_float(mp_float_t val) {
         #if MICROPY_LONGINT_IMPL == MICROPY_LONGINT_IMPL_MPZ
         } else {
             mp_obj_int_t *o = mp_obj_int_new_mpz();
+            if (!o) {
+                return MP_OBJ_NULL;
+            }
             m_rs_push_ptr(o);
-            mpz_set_from_float(&o->mpz, val);
+            if (mpz_set_from_float(&o->mpz, val)) {
+                m_rs_pop_ptr(o);
+                return MP_OBJ_NULL;
+            }
             m_rs_pop_ptr(o);
             return MP_OBJ_FROM_PTR(o);
         }
@@ -191,6 +197,9 @@ void mp_obj_int_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t
     size_t fmt_size;
 
     char *str = mp_obj_int_formatted(&buf, &buf_size, &fmt_size, self_in, 10, NULL, '\0', '\0');
+    if (!str) {
+        return;
+    }
     mp_print_str(print, str);
 
     if (buf != stack_buf) {
@@ -261,6 +270,9 @@ char *mp_obj_int_formatted(char **buf, size_t *buf_size, size_t *fmt_size, mp_co
     size_t needed_size = mp_int_format_size(sizeof(fmt_int_t) * 8, base, prefix, comma);
     if (needed_size > *buf_size) {
         *buf = m_new(char, needed_size);
+        if (!*buf && needed_size > 0) {
+            return NULL;
+        }
         *buf_size = needed_size;
         m_rs_push_ptr(*buf);
     }
@@ -444,7 +456,9 @@ STATIC mp_obj_t int_to_bytes(size_t n_args, const mp_obj_t *args) {
     bool big_endian = args[2] != MP_OBJ_NEW_QSTR(MP_QSTR_little);
 
     vstr_t vstr;
-    vstr_init_len(&vstr, len);
+    if (vstr_init_len(&vstr, len)) {
+        return MP_OBJ_NULL;
+    }
     byte *data = (byte*)vstr.buf;
     memset(data, 0, len);
 

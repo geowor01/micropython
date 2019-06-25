@@ -139,6 +139,9 @@ overflow:
     {
         const char *s2 = (const char*)str_val_start;
         ret_val = mp_obj_new_int_from_str_len(&s2, top - str_val_start, neg, base);
+        if (ret_val == MP_OBJ_NULL) {
+            return MP_OBJ_NULL;
+        }
         str = (const byte*)s2;
         goto have_ret_val;
     }
@@ -156,7 +159,10 @@ value_error:
         vstr_t vstr;
         mp_print_t print;
         m_rs_push_ind(&vstr.buf);
-        vstr_init_print(&vstr, 50, &print);
+        if (vstr_init_print(&vstr, 50, &print)) {
+            m_rs_pop_ind(&vstr.buf);
+            return MP_OBJ_NULL;
+        }
         mp_printf(&print, "invalid syntax for integer with base %d: ", base);
         mp_str_print_quoted(&print, str_val_start, top - str_val_start, true);
         m_rs_pop_ind(&vstr.buf);

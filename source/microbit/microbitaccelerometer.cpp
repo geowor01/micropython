@@ -102,6 +102,9 @@ mp_obj_t microbit_accelerometer_get_values(mp_obj_t self_in) {
     tuple->items[0] = mp_obj_new_int(sample.x);
     tuple->items[1] = mp_obj_new_int(sample.y);
     tuple->items[2] = mp_obj_new_int(sample.z);
+    if (tuple->items[0] == MP_OBJ_NULL || tuple->items[1] == MP_OBJ_NULL || tuple->items[2] == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     return tuple;
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_get_values_obj, microbit_accelerometer_get_values);

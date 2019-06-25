@@ -285,6 +285,9 @@ continue2:;
     while ((local_num = *ip++) != 255) {
         code_state->state[n_state - 1 - local_num] =
             mp_obj_new_cell(code_state->state[n_state - 1 - local_num]);
+        if (code_state->state[n_state - 1 - local_num] == MP_OBJ_NULL) {
+            return 1;
+        }
     }
 
     // now that we skipped over the prelude, set the ip for the VM

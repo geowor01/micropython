@@ -170,11 +170,17 @@ STATIC mp_obj_t struct_unpack_from(size_t n_args, const mp_obj_t *args) {
         mp_obj_t item;
         if (*fmt == 's') {
             item = mp_obj_new_bytes(p, sz);
+            if (item == MP_OBJ_NULL) {
+                return MP_OBJ_NULL;
+            }
             p += sz;
             res->items[i++] = item;
         } else {
             while (sz--) {
                 item = mp_binary_get_val(fmt_type, *fmt, &p);
+                if (item == MP_OBJ_NULL) {
+                    return MP_OBJ_NULL;
+                }
                 res->items[i++] = item;
             }
         }
@@ -235,7 +241,9 @@ STATIC mp_obj_t struct_pack(size_t n_args, const mp_obj_t *args) {
     }
     mp_int_t size = MP_OBJ_SMALL_INT_VALUE(size_obj);
     vstr_t vstr;
-    vstr_init_len(&vstr, size);
+    if (vstr_init_len(&vstr, size)) {
+        return MP_OBJ_NULL;
+    }
     byte *p = (byte*)vstr.buf;
     memset(p, 0, size);
     byte *end_p = &p[size];

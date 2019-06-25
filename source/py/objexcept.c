@@ -66,6 +66,9 @@ mp_obj_t mp_alloc_emergency_exception_buf(mp_obj_t size_in) {
     void *buf = NULL;
     if (size > 0) {
         buf = m_new(byte, size);
+        if (!buf && size > 0) {
+            return MP_OBJ_NULL;
+        }
     }
 
     int old_size = mp_emergency_exception_buf_size;
@@ -380,7 +383,9 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
                 // render exception message and store as .args[0]
                 va_list ap;
                 vstr_t vstr;
-                vstr_init(&vstr, 16);
+                if (vstr_init(&vstr, 16)) {
+                    return MP_OBJ_NULL;
+                }
                 va_start(ap, fmt);
                 vstr_vprintf(&vstr, fmt, ap);
                 va_end(ap);

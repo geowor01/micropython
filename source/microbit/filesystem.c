@@ -316,17 +316,19 @@ file_descriptor_obj *microbit_file_open(const char *name, uint32_t name_len, boo
 
 static file_descriptor_obj *microbit_file_descriptor_new(uint8_t start_chunk, bool write, bool binary) {
     file_descriptor_obj *res = m_new_obj(file_descriptor_obj);
-    if (binary) {
-        res->base.type = &microbit_bytesio_type;
-    } else {
-        res->base.type = &microbit_textio_type;
+    if (res) {
+        if (binary) {
+            res->base.type = &microbit_bytesio_type;
+        } else {
+            res->base.type = &microbit_textio_type;
+        }
+        res->start_chunk = start_chunk;
+        res->seek_chunk = start_chunk;
+        res->seek_offset = file_system_chunks[start_chunk].header.name_len+2;
+        res->writable = write;
+        res->open = true;
+        res->binary = binary;
     }
-    res->start_chunk = start_chunk;
-    res->seek_chunk = start_chunk;
-    res->seek_offset = file_system_chunks[start_chunk].header.name_len+2;
-    res->writable = write;
-    res->open = true;
-    res->binary = binary;
     return res;
 }
 
@@ -499,7 +501,7 @@ mp_lexer_t *microbit_file_lexer(qstr src_name, file_descriptor_obj *fd) {
 mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
     file_descriptor_obj *fd = microbit_file_open(filename, strlen(filename), false, false);
     qstr file = qstr_from_str(filename);
-    if (fd == NULL || file == MP_QSTR_NULL;)
+    if (fd == NULL || file == MP_QSTR_NULL)
         return NULL;
     return microbit_file_lexer(file, fd);
 }

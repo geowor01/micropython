@@ -63,7 +63,9 @@ static void microbit_display_exception(mp_obj_t exc_in) {
     if (1) {
         vstr_t vstr;
         mp_print_t print;
-        vstr_init_print(&vstr, 50, &print);
+        if (vstr_init_print(&vstr, 50, &print)) {
+            return;
+        }
         #if MICROPY_ENABLE_SOURCE_LINE
         if (n >= 3) {
             mp_printf(&print, "line %u ", values[1]);

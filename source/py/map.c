@@ -71,18 +71,22 @@ STATIC size_t get_hash_alloc_greater_or_equal_to(size_t x) {
 /* map                                                                        */
 
 // new table data in map->table is not necessarily reachable
-void mp_map_init(mp_map_t *map, size_t n) {
+int mp_map_init(mp_map_t *map, size_t n) {
     if (n == 0) {
         map->alloc = 0;
         map->table = NULL;
     } else {
         map->alloc = n;
         map->table = m_new0(mp_map_elem_t, map->alloc);
+        if (!map->table && map->alloc > 0) {
+            return 1;
+        }
     }
     map->used = 0;
     map->all_keys_are_qstrs = 1;
     map->is_fixed = 0;
     map->is_ordered = 0;
+    return 0;
 }
 
 void mp_map_init_fixed_table(mp_map_t *map, size_t n, const mp_obj_t *table) {
@@ -96,7 +100,9 @@ void mp_map_init_fixed_table(mp_map_t *map, size_t n, const mp_obj_t *table) {
 
 mp_map_t *mp_map_new(size_t n) {
     mp_map_t *map = m_new(mp_map_t, 1);
-    mp_map_init(map, n);
+    if (!map || mp_map_init(map, n)) {
+        return NULL;
+    }
     return map;
 }
 
@@ -130,7 +136,7 @@ STATIC int mp_map_rehash(mp_map_t *map) {
     mp_map_elem_t *old_table = map->table;
     m_rs_push_ptr(old_table); // what if it's NULL?
     mp_map_elem_t *new_table = m_new0(mp_map_elem_t, new_alloc);
-    if (new_table == NULL) {
+    if (!new_table && new_alloc > 0) {
         return -1;
     }
     // If we reach this point, table resizing succeeded, now we can edit the old map.
@@ -205,6 +211,9 @@ mp_map_elem_t *mp_map_lookup(mp_map_t *map, mp_obj_t index, mp_map_lookup_kind_t
             // TODO: Alloc policy
             map->alloc += 4;
             map->table = m_renew(mp_map_elem_t, map->table, map->used, map->alloc);
+            if (!map->table && map->alloc > 0) {
+                return NULL;
+            }
             mp_seq_clear(map->table, map->used, map->alloc, sizeof(*map->table));
         }
         mp_map_elem_t *elem = map->table + map->used++;
@@ -319,19 +328,26 @@ mp_map_elem_t *mp_map_lookup(mp_map_t *map, mp_obj_t index, mp_map_lookup_kind_t
 
 #if MICROPY_PY_BUILTINS_SET
 
-void mp_set_init(mp_set_t *set, size_t n) {
+int mp_set_init(mp_set_t *set, size_t n) {
     set->alloc = n;
     set->used = 0;
     set->table = m_new0(mp_obj_t, set->alloc);
+    if (!set->table && set->alloc > 0) {
+        return 1;
+    }
+    return 0;
 }
 
-STATIC void mp_set_rehash(mp_set_t *set) {
+STATIC int mp_set_rehash(mp_set_t *set) {
     size_t old_alloc = set->alloc;
     mp_obj_t *old_table = set->table;
     set->alloc = get_hash_alloc_greater_or_equal_to(set->alloc + 1);
     set->used = 0;
     m_rs_push_ptr(old_table);
     set->table = m_new0(mp_obj_t, set->alloc);
+    if (!set->table && set->alloc > 0) {
+        return 1;
+    }
     for (size_t i = 0; i < old_alloc; i++) {
         if (old_table[i] != MP_OBJ_NULL && old_table[i] != MP_OBJ_SENTINEL) {
             mp_set_lookup(set, old_table[i], MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
@@ -339,6 +355,7 @@ STATIC void mp_set_rehash(mp_set_t *set) {
     }
     m_del(mp_obj_t, old_table, old_alloc);
     m_rs_pop_ptr(old_table);
+    return 0;
 }
 
 // TODO: MP_OBJ_NULL return can mean 1) not found; 2) exception
@@ -348,7 +365,9 @@ mp_obj_t mp_set_lookup(mp_set_t *set, mp_obj_t index, mp_map_lookup_kind_t looku
 
     if (set->alloc == 0) {
         if (lookup_kind & MP_MAP_LOOKUP_ADD_IF_NOT_FOUND) {
-            mp_set_rehash(set);
+            if (mp_set_rehash(set)) {
+                return MP_OBJ_NULL;
+            }
         } else {
             return MP_OBJ_NULL;
         }
@@ -408,7 +427,9 @@ mp_obj_t mp_set_lookup(mp_set_t *set, mp_obj_t index, mp_map_lookup_kind_t looku
                     return index;
                 } else {
                     // not enough room in table, rehash it
-                    mp_set_rehash(set);
+                    if (mp_set_rehash(set)) {
+                        return MP_OBJ_NULL;
+                    }
                     // restart the search for the new element
                     start_pos = pos = hash % set->alloc;
                 }

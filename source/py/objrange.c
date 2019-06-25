@@ -100,6 +100,9 @@ STATIC mp_obj_t range_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
     }
 
     mp_obj_range_t *o = m_new_obj(mp_obj_range_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = type;
     o->start = 0;
     o->step = 1;
@@ -160,6 +163,9 @@ STATIC mp_obj_t range_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
             mp_bound_slice_t slice;
             mp_seq_get_fast_slice_indexes(len, index, &slice);
             mp_obj_range_t *o = m_new_obj(mp_obj_range_t);
+            if (!o) {
+                return MP_OBJ_NULL;
+            }
             o->base.type = &mp_type_range;
             o->start = self->start + slice.start * self->step;
             o->stop = self->start + slice.stop * self->step;

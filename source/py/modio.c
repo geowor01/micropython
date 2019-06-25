@@ -51,6 +51,9 @@ STATIC mp_obj_t bufwriter_make_new(const mp_obj_type_t *type, size_t n_args, siz
     mp_arg_check_num(n_args, n_kw, 2, 2, false);
     size_t alloc = mp_obj_get_int(args[1]);
     mp_obj_bufwriter_t *o = m_new_obj_var(mp_obj_bufwriter_t, byte, alloc);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = type;
     o->stream = args[0];
     o->alloc = alloc;
@@ -168,9 +171,15 @@ STATIC mp_obj_t resource_stream(mp_obj_t package_in, mp_obj_t path_in) {
     const char *data = mp_find_frozen_str(path_buf.buf, &len);
     if (data != NULL) {
         mp_obj_stringio_t *o = m_new_obj(mp_obj_stringio_t);
+        if (!o) {
+            return MP_OBJ_NULL;
+        }
         m_rs_push_ptr(o);
         o->base.type = &mp_type_bytesio;
         o->vstr = m_new_obj(vstr_t);
+        if (!o->vstr) {
+            return MP_OBJ_NULL;
+        }
         vstr_init_fixed_buf(o->vstr, len + 1, (char*)data);
         o->vstr->len = len;
         o->pos = 0;

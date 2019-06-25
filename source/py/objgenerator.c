@@ -65,6 +65,9 @@ STATIC mp_obj_t gen_wrap_call(mp_obj_t self_in, size_t n_args, size_t n_kw, cons
     // allocate the generator object, with room for local stack and exception stack
     mp_obj_gen_instance_t *o = m_new_obj_var(mp_obj_gen_instance_t, byte,
         n_state * sizeof(mp_obj_t) + n_exc_stack * sizeof(mp_exc_stack_t));
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_gen_instance;
 
     o->globals = self_fun->globals;
@@ -85,6 +88,9 @@ const mp_obj_type_t mp_type_gen_wrap = {
 
 mp_obj_t mp_obj_new_gen_wrap(mp_obj_t fun) {
     mp_obj_gen_wrap_t *o = m_new_obj(mp_obj_gen_wrap_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_gen_wrap;
     o->fun = MP_OBJ_TO_PTR(fun);
     return MP_OBJ_FROM_PTR(o);

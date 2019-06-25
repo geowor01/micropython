@@ -114,6 +114,9 @@ mp_obj_t mp_obj_new_module(qstr module_name) {
 
     // create new module object
     mp_obj_module_t *o = m_new_obj(mp_obj_module_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     m_rs_push_ptr(o);
     o->base.type = &mp_type_module;
     o->globals = MP_OBJ_TO_PTR(mp_obj_new_dict(MICROPY_MODULE_DICT_SIZE));

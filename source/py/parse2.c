@@ -218,7 +218,11 @@ typedef struct _pt_t {
 
 STATIC pt_t *pt_new(void) {
     pt_t *pt = m_new_obj(pt_t);
-    vstr_init(&pt->vv, 16);
+    if (pt) {
+        if (vstr_init(&pt->vv, 16)) {
+            return NULL;
+        }
+    }
     return pt;
 }
 
@@ -883,7 +887,7 @@ folding_fail:;
     }
 }
 
-STATIC void make_node_const_object(parser_t *parser, pt_t *pt, mp_obj_t obj) {
+STATIC int make_node_const_object(parser_t *parser, pt_t *pt, mp_obj_t obj) {
     m_rs_push_obj(obj); // make obj reachable on behalf of the caller, for efficiency
     int nb = vuint_nbytes(parser->co_used);
     byte *buf = pt_raw_add_blank(pt, 1 + nb);
@@ -893,20 +897,24 @@ STATIC void make_node_const_object(parser_t *parser, pt_t *pt, mp_obj_t obj) {
         // TODO use m_renew_maybe
         size_t alloc = parser->co_alloc + 8;
         parser->co_data = m_renew(mp_uint_t, parser->co_data, parser->co_alloc, alloc);
+        if (!parser->co_data && alloc > 0) {
+            return 1;
+        }
         parser->co_alloc = alloc;
     }
     parser->co_data[parser->co_used++] = (mp_uint_t)obj;
     m_rs_pop_obj(obj);
+    return 0;
 }
 
-STATIC void make_node_string_bytes(parser_t *parser, pt_t *pt, mp_token_kind_t tok, const char *str, size_t len) {
+STATIC int make_node_string_bytes(parser_t *parser, pt_t *pt, mp_token_kind_t tok, const char *str, size_t len) {
     mp_obj_t o;
     if (tok == MP_TOKEN_STRING) {
         o = mp_obj_new_str(str, len, false);
     } else {
         o = mp_obj_new_bytes((const byte*)str, len);
     }
-    make_node_const_object(parser, pt, o);
+    return make_node_const_object(parser, pt, o);
 }
 
 STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
@@ -931,19 +939,27 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
         if (MP_OBJ_IS_SMALL_INT(o)) {
             pt_add_kind_int(pt, MP_PT_SMALL_INT, MP_OBJ_SMALL_INT_VALUE(o));
         } else {
-            make_node_const_object(parser, pt, o);
+            if (make_node_const_object(parser, pt, o)) {
+                return false;
+            }
         }
     } else if (lex->tok_kind == MP_TOKEN_FLOAT_OR_IMAG) {
         mp_obj_t o = mp_parse_num_decimal(lex->vstr.buf, lex->vstr.len, true, false, lex);
-        make_node_const_object(parser, pt, o);
+        if (make_node_const_object(parser, pt, o)) {
+            return false;
+        }
     } else if (lex->tok_kind == MP_TOKEN_STRING || lex->tok_kind == MP_TOKEN_BYTES) {
         // join adjacent string/bytes literals
         mp_token_kind_t tok_kind = lex->tok_kind;
         vstr_t vstr;
-        vstr_init(&vstr, lex->vstr.len);
+        if (vstr_init(&vstr, lex->vstr.len)) {
+            return false;
+        }
         do {
             vstr_add_strn(&vstr, lex->vstr.buf, lex->vstr.len);
-            mp_lexer_to_next(lex);
+            if (mp_lexer_to_next(lex)) {
+                return false;
+            }
         } while (lex->tok_kind == tok_kind);
 
         if (lex->tok_kind == MP_TOKEN_STRING || lex->tok_kind == MP_TOKEN_BYTES) {
@@ -968,14 +984,18 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
             pt_add_kind_qstr(pt, tok_kind == MP_TOKEN_STRING ? MP_PT_STRING : MP_PT_BYTES, qst);
         } else {
             // not interned, make a node holding a pointer to the string/bytes data
-            make_node_string_bytes(parser, pt, tok_kind, vstr.buf, vstr.len);
+            if (make_node_string_bytes(parser, pt, tok_kind, vstr.buf, vstr.len)) {
+                return false;
+            }
         }
         vstr_clear(&vstr);
         return true;
     } else {
         pt_add_kind_byte(pt, MP_PT_TOKEN, lex->tok_kind);
     }
-    mp_lexer_to_next(lex);
+    if (mp_lexer_to_next(lex)) {
+        return false;
+    }
     return true;
 }
 
@@ -1028,7 +1048,9 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
     m_rs_push_ind(&parser.tree.chunk);
 
     #if MICROPY_COMP_CONST
-    mp_map_init(&parser.consts, 0);
+    if (mp_map_init(&parser.consts, 0)) {
+        goto memory_error;
+    }
     m_rs_push_ind(&parser.consts.table);
     #endif
 
@@ -1054,6 +1076,9 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
     bool backtrack = false;
     const rule_t *rule = NULL;
     pt_t *pt = pt_new();
+    if (!pt) {
+        goto memory_error;
+    }
 
     for (;;) {
         next_rule:

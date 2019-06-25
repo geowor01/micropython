@@ -314,7 +314,10 @@ int pyexec_event_repl_process_char(int c) {
 
 int pyexec_raw_repl(void) {
     vstr_t line;
-    vstr_init(&line, 32);
+    if (vstr_init(&line, 32)) {
+        mp_hal_stdout_tx_str("Memory Exception\r\n");
+        return 1;
+    }
 
 raw_repl_reset:
     mp_hal_stdout_tx_str("raw REPL; CTRL-B to exit\r\n");
@@ -364,7 +367,10 @@ raw_repl_reset:
 
 int pyexec_friendly_repl(void) {
     vstr_t line;
-    vstr_init(&line, 32);
+    if (vstr_init(&line, 32)) {
+        mp_hal_stdout_tx_str("Memory Exception\r\n");
+        return 1;
+    }
 
 #if defined(USE_HOST_MODE) && MICROPY_HW_HAS_LCD
     // in host mode, we enable the LCD for the repl

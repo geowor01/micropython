@@ -161,6 +161,9 @@ const mp_obj_type_t mp_type_complex = {
 
 mp_obj_t mp_obj_new_complex(mp_float_t real, mp_float_t imag) {
     mp_obj_complex_t *o = m_new_obj(mp_obj_complex_t);
+    if (!o) {
+        return MP_OBJ_NULL;
+    }
     o->base.type = &mp_type_complex;
     o->real = real;
     o->imag = imag;

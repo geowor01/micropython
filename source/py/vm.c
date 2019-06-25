@@ -984,7 +984,11 @@ unwind_jump:;
 
                 ENTRY(MP_BC_MAKE_FUNCTION): {
                     DECODE_PTR;
-                    PUSH(mp_make_function_from_raw_code(ptr, MP_OBJ_NULL, MP_OBJ_NULL));
+                    mp_obj_t o = mp_make_function_from_raw_code(ptr, MP_OBJ_NULL, MP_OBJ_NULL);
+                    if (o == MP_OBJ_NULL) {
+                        RAISE_IT();
+                    }
+                    PUSH(o);
                     DISPATCH();
                 }
 
@@ -993,6 +997,9 @@ unwind_jump:;
                     // Stack layout: def_tuple def_dict <- TOS
                     mp_obj_t def_dict = POP();
                     SET_TOP(mp_make_function_from_raw_code(ptr, TOP(), def_dict));
+                    if (TOP() == MP_OBJ_NULL) {
+                        RAISE_IT();
+                    }
                     DISPATCH();
                 }
 
@@ -1002,6 +1009,9 @@ unwind_jump:;
                     // Stack layout: closed_overs <- TOS
                     sp -= n_closed_over - 1;
                     SET_TOP(mp_make_closure_from_raw_code(ptr, n_closed_over, sp));
+                    if (TOP() == MP_OBJ_NULL) {
+                        RAISE_IT();
+                    }
                     DISPATCH();
                 }
 
@@ -1011,6 +1021,9 @@ unwind_jump:;
                     // Stack layout: def_tuple def_dict closed_overs <- TOS
                     sp -= 2 + n_closed_over - 1;
                     SET_TOP(mp_make_closure_from_raw_code(ptr, 0x100 | n_closed_over, sp));
+                    if (TOP() == MP_OBJ_NULL) {
+                        RAISE_IT();
+                    }
                     DISPATCH();
                 }
 

@@ -171,7 +171,7 @@ mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader);
 mp_lexer_t *mp_lexer_new_from_str_len(qstr src_name, const char *str, size_t len, size_t free_len);
 
 void mp_lexer_free(mp_lexer_t *lex);
-void mp_lexer_to_next(mp_lexer_t *lex);
+int mp_lexer_to_next(mp_lexer_t *lex);
 
 /******************************************************************/
 // platform specific import function; must be implemented for a specific port

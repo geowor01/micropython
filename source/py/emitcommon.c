@@ -30,19 +30,26 @@
 
 #if MICROPY_ENABLE_COMPILER
 
-void mp_emit_common_get_id_for_load(scope_t *scope, qstr qst) {
+int mp_emit_common_get_id_for_load(scope_t *scope, qstr qst) {
     // name adding/lookup
     bool added;
     id_info_t *id = scope_find_or_add_id(scope, qst, &added);
-    if (added) {
-        scope_find_local_and_close_over(scope, id, qst);
+    if (!id) {
+        return 1;
     }
+    if (added) {
+        return scope_find_local_and_close_over(scope, id, qst);
+    }
+    return 0;
 }
 
-void mp_emit_common_get_id_for_modification(scope_t *scope, qstr qst) {
+int mp_emit_common_get_id_for_modification(scope_t *scope, qstr qst) {
     // name adding/lookup
     bool added;
     id_info_t *id = scope_find_or_add_id(scope, qst, &added);
+    if (!id) {
+        return 1;
+    }
     if (added) {
         if (SCOPE_IS_FUNC_LIKE(scope->kind)) {
             id->kind = ID_INFO_KIND_LOCAL;
@@ -53,6 +60,7 @@ void mp_emit_common_get_id_for_modification(scope_t *scope, qstr qst) {
         // rebind as a local variable
         id->kind = ID_INFO_KIND_LOCAL;
     }
+    return 0;
 }
 
 void mp_emit_common_id_op(emit_t *emit, const mp_emit_method_table_id_ops_t *emit_method_table, scope_t *scope, qstr qst) {

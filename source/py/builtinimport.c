@@ -35,7 +35,6 @@
 #include "py/mpstate.h"
 #include "py/compile.h"
 #include "py/objmodule.h"
-#include "py/persistentcode.h"
 #include "py/runtime.h"
 #include "py/builtin.h"
 #include "py/frozenmod.h"
@@ -438,6 +437,9 @@ mp_obj_t mp_builtin___import__(size_t n_args, const mp_obj_t *args) {
                 // module not already loaded, so load it!
 
                 module_obj = mp_obj_new_module(mod_name);
+                if (module_obj == MP_OBJ_NULL) {
+                    return MP_OBJ_NULL;
+                }
                 m_rs_push_obj_ptr(module_obj);
 
                 // if args[3] (fromtuple) has magic value False, set up

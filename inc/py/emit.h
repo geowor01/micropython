@@ -144,8 +144,8 @@ typedef struct _emit_method_table_t {
     void (*end_except_handler)(emit_t *emit);
 } emit_method_table_t;
 
-void mp_emit_common_get_id_for_load(scope_t *scope, qstr qst);
-void mp_emit_common_get_id_for_modification(scope_t *scope, qstr qst);
+int mp_emit_common_get_id_for_load(scope_t *scope, qstr qst);
+int mp_emit_common_get_id_for_modification(scope_t *scope, qstr qst);
 void mp_emit_common_id_op(emit_t *emit, const mp_emit_method_table_id_ops_t *emit_method_table, scope_t *scope, qstr qst);
 
 extern const emit_method_table_t emit_bc_method_table;

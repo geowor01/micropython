@@ -376,7 +376,7 @@ extern const mp_map_t mp_const_empty_map;
 
 static inline bool MP_MAP_SLOT_IS_FILLED(const mp_map_t *map, size_t pos) { return ((map)->table[pos].key != MP_OBJ_NULL && (map)->table[pos].key != MP_OBJ_SENTINEL); }
 
-void mp_map_init(mp_map_t *map, size_t n);
+int mp_map_init(mp_map_t *map, size_t n);
 void mp_map_init_fixed_table(mp_map_t *map, size_t n, const mp_obj_t *table);
 mp_map_t *mp_map_new(size_t n);
 void mp_map_deinit(mp_map_t *map);
@@ -395,7 +395,7 @@ typedef struct _mp_set_t {
 
 static inline bool MP_SET_SLOT_IS_FILLED(const mp_set_t *set, size_t pos) { return ((set)->table[pos] != MP_OBJ_NULL && (set)->table[pos] != MP_OBJ_SENTINEL); }
 
-void mp_set_init(mp_set_t *set, size_t n);
+int mp_set_init(mp_set_t *set, size_t n);
 mp_obj_t mp_set_lookup(mp_set_t *set, mp_obj_t index, mp_map_lookup_kind_t lookup_kind);
 mp_obj_t mp_set_remove_first(mp_set_t *set);
 void mp_set_clear(mp_set_t *set);
@@ -765,7 +765,7 @@ typedef struct _mp_obj_dict_t {
     mp_obj_base_t base;
     mp_map_t map;
 } mp_obj_dict_t;
-void mp_obj_dict_init(mp_obj_dict_t *dict, size_t n_args);
+int mp_obj_dict_init(mp_obj_dict_t *dict, size_t n_args);
 size_t mp_obj_dict_len(mp_obj_t self_in);
 mp_obj_t mp_obj_dict_get(mp_obj_t self_in, mp_obj_t index);
 mp_obj_t mp_obj_dict_store(mp_obj_t self_in, mp_obj_t key, mp_obj_t value);

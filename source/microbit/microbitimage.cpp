@@ -256,7 +256,9 @@ STATIC mp_obj_t microbit_image_make_new(const mp_obj_type_t *type_in, mp_uint_t 
                     image->clear();
                 } else {
                     mp_buffer_info_t bufinfo;
-                    mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_READ);
+                    if (!mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_READ)) {
+                        return MP_OBJ_NULL;
+                    }
                     if (w < 0 || h < 0 || (size_t)(w * h) != bufinfo.len) {
                         return mp_raise_ValueError_o("image data is incorrect size");
                     }

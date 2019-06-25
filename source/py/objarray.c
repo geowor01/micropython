@@ -262,7 +262,9 @@ STATIC mp_obj_t memoryview_make_new(const mp_obj_type_t *type_in, size_t n_args,
     mp_arg_check_num(n_args, n_kw, 1, 1, false);
 
     mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ);
+    if (!mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ)) {
+        return MP_OBJ_NULL;
+    }
 
     mp_obj_array_t *self = MP_OBJ_TO_PTR(mp_obj_new_memoryview(bufinfo.typecode,
         bufinfo.len / mp_binary_get_size('@', bufinfo.typecode, NULL),
@@ -400,7 +402,9 @@ STATIC mp_obj_t array_extend(mp_obj_t self_in, mp_obj_t arg_in) {
 
     // allow to extend by anything that has the buffer protocol (extension to CPython)
     mp_buffer_info_t arg_bufinfo;
-    mp_get_buffer_raise(arg_in, &arg_bufinfo, MP_BUFFER_READ);
+    if (!mp_get_buffer_raise(arg_in, &arg_bufinfo, MP_BUFFER_READ)) {
+        return MP_OBJ_NULL;
+    }
 
     size_t sz = mp_binary_get_size('@', self->typecode, NULL);
 
@@ -470,7 +474,9 @@ STATIC mp_obj_t array_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value
                         goto compat_error;
                     }
                     mp_buffer_info_t bufinfo;
-                    mp_get_buffer_raise(value, &bufinfo, MP_BUFFER_READ);
+                    if (!mp_get_buffer_raise(value, &bufinfo, MP_BUFFER_READ)) {
+                        return MP_OBJ_NULL;
+                    }
                     src_len = bufinfo.len;
                     src_items = bufinfo.buf;
                 } else {

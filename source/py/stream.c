@@ -285,7 +285,9 @@ void mp_stream_write_adaptor(void *self, const char *buf, size_t len) {
 
 STATIC mp_obj_t stream_write_method(size_t n_args, const mp_obj_t *args) {
     mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_READ);
+    if (!mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_READ)) {
+        return MP_OBJ_NULL;
+    }
     size_t max_len = (size_t)-1;
     size_t off = 0;
     if (n_args == 3) {
@@ -304,7 +306,9 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_stream_write_obj, 2, 4, stream_write_meth
 
 STATIC mp_obj_t stream_write1_method(mp_obj_t self_in, mp_obj_t arg) {
     mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(arg, &bufinfo, MP_BUFFER_READ);
+    if (!mp_get_buffer_raise(arg, &bufinfo, MP_BUFFER_READ)) {
+        return MP_OBJ_NULL;
+    }
     return mp_stream_write(self_in, bufinfo.buf, bufinfo.len, MP_STREAM_RW_WRITE | MP_STREAM_RW_ONCE);
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_stream_write1_obj, stream_write1_method);
@@ -312,7 +316,9 @@ MP_DEFINE_CONST_FUN_OBJ_2(mp_stream_write1_obj, stream_write1_method);
 STATIC mp_obj_t stream_readinto(size_t n_args, const mp_obj_t *args) {
     mp_get_stream_raise(args[0], MP_STREAM_OP_READ);
     mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_WRITE);
+    if (!mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_WRITE)) {
+        return MP_OBJ_NULL;
+    }
 
     // CPython extension: if 2nd arg is provided, that's max len to read,
     // instead of full buffer. Similar to

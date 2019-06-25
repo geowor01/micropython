@@ -140,7 +140,9 @@ STATIC mp_obj_t struct_unpack_from(size_t n_args, const mp_obj_t *args) {
     uint num_items = calcsize_items(fmt);
     mp_obj_tuple_t *res = MP_OBJ_TO_PTR(mp_obj_new_tuple(num_items, NULL));
     mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_READ);
+    if (!mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_READ)) {
+        return MP_OBJ_NULL;
+    }
     byte *p = bufinfo.buf;
     byte *end_p = &p[bufinfo.len];
     mp_int_t offset = 0;
@@ -210,7 +212,9 @@ STATIC int struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, size
 
         if (*fmt == 's') {
             mp_buffer_info_t bufinfo;
-            mp_get_buffer_raise(args[i++], &bufinfo, MP_BUFFER_READ);
+            if (!mp_get_buffer_raise(args[i++], &bufinfo, MP_BUFFER_READ)) {
+                return 1;
+            }
             mp_uint_t to_copy = sz;
             if (bufinfo.len < to_copy) {
                 to_copy = bufinfo.len;
@@ -254,7 +258,9 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(struct_pack_obj, 1, MP_OBJ_FUN_ARGS_MAX, str
 
 STATIC mp_obj_t struct_pack_into(size_t n_args, const mp_obj_t *args) {
     mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_WRITE);
+    if (!mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_WRITE)) {
+        return MP_OBJ_NULL;
+    }
     mp_int_t offset = mp_obj_get_int(args[2]);
     if (offset < 0) {
         // negative offsets are relative to the end of the buffer

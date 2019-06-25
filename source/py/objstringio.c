@@ -229,7 +229,9 @@ STATIC mp_obj_t stringio_make_new(const mp_obj_type_t *type_in, size_t n_args, s
         if (MP_OBJ_IS_INT(args[0])) {
             sz = mp_obj_get_int(args[0]);
         } else {
-            mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ);
+            if (!mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ)) {
+                return MP_OBJ_NULL;
+            }
 
             if (MP_OBJ_IS_STR_OR_BYTES(args[0])) {
                 o->vstr = m_new_obj(vstr_t);

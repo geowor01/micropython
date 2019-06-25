@@ -177,7 +177,9 @@ mp_obj_t mp_obj_str_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_
                 return MP_OBJ_FROM_PTR(o);
             } else {
                 mp_buffer_info_t bufinfo;
-                mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ);
+                if (!mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ)) {
+                    return MP_OBJ_NULL;
+                }
                 return mp_obj_new_str(bufinfo.buf, bufinfo.len, false);
             }
     }

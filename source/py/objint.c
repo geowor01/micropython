@@ -414,7 +414,9 @@ STATIC mp_obj_t int_from_bytes(size_t n_args, const mp_obj_t *args) {
 
     // get the buffer info
     mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_READ);
+    if (!mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_READ)) {
+        return MP_OBJ_NULL;
+    }
 
     const byte* buf = (const byte*)bufinfo.buf;
     int delta = 1;

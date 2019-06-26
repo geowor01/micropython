@@ -267,6 +267,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(dict_copy_obj, dict_copy);
 // this is a classmethod
 STATIC mp_obj_t dict_fromkeys(size_t n_args, const mp_obj_t *args) {
     mp_obj_t iter = mp_getiter(args[1], NULL);
+    if (iter == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_t value = mp_const_none;
     mp_obj_t next = MP_OBJ_NULL;
 
@@ -377,9 +380,15 @@ STATIC mp_obj_t dict_update(size_t n_args, const mp_obj_t *args, mp_map_t *kwarg
         } else {
             // update from a generic iterable of pairs
             mp_obj_t iter = mp_getiter(args[1], NULL);
+            if (iter == MP_OBJ_NULL) {
+                return MP_OBJ_NULL;
+            }
             mp_obj_t next = MP_OBJ_NULL;
             while ((next = mp_iternext(iter)) != MP_OBJ_STOP_ITERATION) {
                 mp_obj_t inneriter = mp_getiter(next, NULL);
+                if (inneriter == MP_OBJ_NULL) {
+                    return MP_OBJ_NULL;
+                }
                 mp_obj_t key = mp_iternext(inneriter);
                 mp_obj_t value = mp_iternext(inneriter);
                 mp_obj_t stop = mp_iternext(inneriter);

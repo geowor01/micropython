@@ -479,6 +479,9 @@ int microbit_display_animate(microbit_display_obj_t *self, mp_obj_t iterable, mp
     MP_STATE_PORT(async_data)[0] = NULL;
     MP_STATE_PORT(async_data)[1] = NULL;
     async_iterator = mp_getiter(iterable, NULL);
+    if (async_iterator == MP_OBJ_NULL) {
+        return 1;
+    }
     async_delay = delay;
     async_clear = clear;
     MP_STATE_PORT(async_data)[0] = self; // so it doesn't get GC'd

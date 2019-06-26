@@ -45,6 +45,9 @@ STATIC mp_obj_t filter_make_new(const mp_obj_type_t *type, size_t n_args, size_t
     o->base.type = type;
     o->fun = args[0];
     o->iter = mp_getiter(args[1], NULL);
+    if (o->iter == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     return MP_OBJ_FROM_PTR(o);
 }
 

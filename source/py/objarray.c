@@ -165,6 +165,9 @@ STATIC mp_obj_t array_construct(char typecode, mp_obj_t initializer) {
     }
 
     mp_obj_t iterable = mp_getiter(initializer, NULL);
+    if (iterable == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_t item;
     size_t i = 0;
     while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {

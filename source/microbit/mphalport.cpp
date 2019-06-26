@@ -144,4 +144,16 @@ mp_uint_t mp_hal_ticks_ms(void) {
     return mp_hal_ticks_us() / 1000;
 }
 
+void crash_micropython(const char *str) {
+    MP_STATE_THREAD(cur_exc) = NULL;
+    mp_hal_stdout_tx_str("\r\nMicroPython crashes due to ");
+    mp_hal_stdout_tx_str(str);
+    mp_hal_stdout_tx_str(". \r\nSimulator will reset after scrolling text.\r\nPress Ctrl + C to reset now.\r\n");
+    mp_hal_display_string("MicroPython crashes due to ");
+    mp_hal_display_string(str);
+    mp_hal_display_string(". \r\nSimulator will now reset.");
+    microbit_reset();
+    wait_ms(1000);
+}
+
 }

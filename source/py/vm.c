@@ -687,7 +687,9 @@ unwind_jump:;
                     mp_uint_t unum = (mp_uint_t)POP(); // get number of exception handlers to unwind
                     while ((unum & 0x7f) > 0) {
                         unum -= 1;
-                        assert(exc_sp >= exc_stack);
+                        if(exc_sp < exc_stack) {
+                            crash_micropython("mishandling of unwinding exception blocks");
+                        }
                         if (MP_TAGPTR_TAG1(exc_sp->val_sp)) {
                             // Getting here the stack looks like:
                             //     (..., X, dest_ip)
@@ -1159,7 +1161,7 @@ yield:
                     MARK_EXC_IP_SELECTIVE();
 //#define EXC_MATCH(exc, type) MP_OBJ_IS_TYPE(exc, type)
 #define EXC_MATCH(exc, type) mp_obj_exception_match(exc, type)
-#define GENERATOR_EXIT_IF_NEEDED(t) if (t != MP_OBJ_NULL && EXC_MATCH(t, MP_OBJ_FROM_PTR(&mp_type_GeneratorExit))) { RAISE(t); }
+#define GENERATOR_EXIT_IF_NEEDED(t) if (t != MP_OBJ_NULL && EXC_MATCH(t, MP_OBJ_FROM_PTR(&mp_type_GeneratorExit))) { if (!mp_obj_is_exception_instance(t)) { crash_micropython("mishandling GeneratorExit"); } RAISE(t); }
                     mp_vm_return_kind_t ret_kind;
                     mp_obj_t send_value = POP();
                     mp_obj_t t_exc = MP_OBJ_NULL;
@@ -1198,11 +1200,15 @@ yield:
                         sp--;
                         if (EXC_MATCH(ret_value, MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
                             PUSH(mp_obj_exception_get_value(ret_value));
+
                             // If we injected GeneratorExit downstream, then even
                             // if it was swallowed, we re-raise GeneratorExit
                             GENERATOR_EXIT_IF_NEEDED(t_exc);
                             DISPATCH();
                         } else {
+                            if (!mp_obj_is_exception_instance(ret_value)) {
+                                crash_micropython("mishandling exceptions with yield from");
+                            }
                             RAISE(ret_value);
                         }
                     }
@@ -1421,6 +1427,9 @@ unwind_loop:
                         // found source line corresponding to bytecode offset
                         break;
                     }
+                }
+                if (!the_exc) {
+                    crash_micropython("the mishandling of GeneratorExit");
                 }
                 mp_obj_exception_add_traceback(MP_OBJ_FROM_PTR(nlr.ret_val), source_file, source_line, block_name);
             }

@@ -31,6 +31,11 @@
 #include <assert.h>
 
 #include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mphal.h"
+#include "py/mpstate.h"
 #include "py/objtype.h"
 #include "py/runtime0.h"
 #include "py/runtime.h"
@@ -127,7 +132,9 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
 
         if (type->locals_dict != NULL) {
             // search locals_dict (the set of methods/attributes)
-            assert(type->locals_dict->base.type == &mp_type_dict); // MicroPython restriction, for now
+            if (type->locals_dict->base.type != &mp_type_dict) {
+                crash_micropython("only accepting locals_dict of type dict when looking up a class");
+            }
             mp_map_t *locals_map = &type->locals_dict->map;
             mp_map_elem_t *elem = mp_map_lookup(locals_map, MP_OBJ_NEW_QSTR(lookup->attr), MP_MAP_LOOKUP);
             if (elem != NULL) {
@@ -900,7 +907,9 @@ STATIC void type_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
         // TODO CPython allows STORE_ATTR to a class, but is this the correct implementation?
 
         if (self->locals_dict != NULL) {
-            assert(self->locals_dict->base.type == &mp_type_dict); // MicroPython restriction, for now
+            if (self->locals_dict->base.type != &mp_type_dict) {
+                crash_micropython("locals_dict of a type not being of type dict");
+            }
             mp_map_t *locals_map = &self->locals_dict->map;
             if (dest[1] == MP_OBJ_NULL) {
                 // delete attribute
@@ -933,8 +942,12 @@ const mp_obj_type_t mp_type_type = {
 };
 
 mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict) {
-    assert(MP_OBJ_IS_TYPE(bases_tuple, &mp_type_tuple)); // MicroPython restriction, for now
-    assert(MP_OBJ_IS_TYPE(locals_dict, &mp_type_dict)); // MicroPython restriction, for now
+    if (!MP_OBJ_IS_TYPE(locals_dict, &mp_type_dict)) {
+        crash_micropython("only accepting locals_dict of type dict when creating a new type");
+    }
+    if (!MP_OBJ_IS_TYPE(bases_tuple, &mp_type_tuple)) {
+        crash_micropython("only accepting bases_tuple of type tuple when creating a new type");
+    }
 
     // TODO might need to make a copy of locals_dict; at least that's how CPython does it
 
@@ -943,7 +956,9 @@ mp_obj_t mp_obj_new_type(qstr name, mp_obj_t bases_tuple, mp_obj_t locals_dict) 
     mp_obj_t *items;
     mp_obj_tuple_get(bases_tuple, &len, &items);
     for (size_t i = 0; i < len; i++) {
-        assert(MP_OBJ_IS_TYPE(items[i], &mp_type_type));
+        if (!MP_OBJ_IS_TYPE(items[i], &mp_type_type)) {
+            crash_micropython("only accepting items of type type when creating a new type");
+        }
         mp_obj_type_t *t = MP_OBJ_TO_PTR(items[i]);
         // TODO: Verify with CPy, tested on function type
         if (t->make_new == NULL) {

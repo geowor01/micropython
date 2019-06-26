@@ -29,6 +29,11 @@
 #include <assert.h>
 
 #include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mphal.h"
+#include "py/mpstate.h"
 #include "py/obj.h"
 #include "py/runtime.h"
 #include "py/bc.h"
@@ -108,9 +113,14 @@ mp_vm_return_kind_t mp_obj_gen_resume(mp_obj_t self_in, mp_obj_t send_value, mp_
     } else {
         *self->code_state.sp = send_value;
     }
+    if (!self->globals) {
+        crash_micropython("reentering the generator while executing");
+    }
     mp_obj_dict_t *old_globals = mp_globals_get();
     mp_globals_set(self->globals);
+    self->globals = NULL;
     mp_vm_return_kind_t ret_kind = mp_execute_bytecode(&self->code_state, throw_value);
+    self->globals = mp_globals_get();
     mp_globals_set(old_globals);
 
     switch (ret_kind) {

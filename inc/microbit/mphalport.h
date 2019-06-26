@@ -41,6 +41,8 @@ void mp_hal_erase_line_from_cursor(unsigned int n_chars);
 
 void mp_hal_display_string(const char*);
 
+void crash_micropython(const char*);
+
 // MicroPython low-level C API for pins
 #include "nrf_gpio.h"
 #include "microbit/modmicrobit.h"

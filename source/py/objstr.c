@@ -29,6 +29,11 @@
 #include <assert.h>
 
 #include "py/nlr.h"
+#include <limits.h>
+#include <assert.h>
+#include "py/mpconfig.h"
+#include "py/mphal.h"
+#include "py/mpstate.h"
 #include "py/unicode.h"
 #include "py/objstr.h"
 #include "py/objlist.h"
@@ -208,7 +213,10 @@ STATIC mp_obj_t bytes_make_new(const mp_obj_type_t *type_in, size_t n_args, size
     }
 
     if (MP_OBJ_IS_SMALL_INT(args[0])) {
-        uint len = MP_OBJ_SMALL_INT_VALUE(args[0]);
+        mp_int_t len = MP_OBJ_SMALL_INT_VALUE(args[0]);
+        if (len < 0) {
+            crash_micropython("initialising bytes with a negative length");
+        }
         vstr_t vstr;
         vstr_init_len(&vstr, len);
         memset(vstr.buf, 0, len);
@@ -683,6 +691,10 @@ STATIC mp_obj_t str_finder(size_t n_args, const mp_obj_t *args, int direction, b
         end = str_index_to_ptr(self_type, haystack, haystack_len, args[3], true);
     }
 
+    if (end < start) {
+        crash_micropython("end being less than start for find");
+    }
+
     const byte *p = find_subbytes(start, end - start, needle, needle_len, direction);
     if (p == NULL) {
         // not found
@@ -726,7 +738,13 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(str_rindex_obj, 2, 4, str_rindex);
 STATIC mp_obj_t str_startswith(size_t n_args, const mp_obj_t *args) {
     const mp_obj_type_t *self_type = mp_obj_get_type(args[0]);
     GET_STR_DATA_LEN(args[0], str, str_len);
-    GET_STR_DATA_LEN(args[1], prefix, prefix_len);
+
+    size_t prefix_len;
+    const char *prefix = mp_obj_str_get_data(args[1], &prefix_len);
+    if (prefix == NULL) {
+        crash_micropython("passing startswith a non-string object");
+    }
+
     const byte *start = str;
     if (n_args > 2) {
         start = str_index_to_ptr(self_type, str, str_len, args[2], true);
@@ -740,7 +758,13 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(str_startswith_obj, 2, 3, str_startswith);
 
 STATIC mp_obj_t str_endswith(size_t n_args, const mp_obj_t *args) {
     GET_STR_DATA_LEN(args[0], str, str_len);
-    GET_STR_DATA_LEN(args[1], suffix, suffix_len);
+
+    size_t suffix_len;
+    const char *suffix = mp_obj_str_get_data(args[1], &suffix_len);
+    if (suffix == NULL) {
+        crash_micropython("passing endswith a non-string object");
+    }
+
     if (n_args > 2) {
         mp_raise_NotImplementedError("start/end indices");
     }

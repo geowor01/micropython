@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "py/mphal.h"
 #include "py/runtime.h"
 
 #if MICROPY_PY_BUILTINS_ENUMERATE
@@ -62,6 +63,12 @@ STATIC mp_obj_t enumerate_make_new(const mp_obj_type_t *type, size_t n_args, siz
     (void)n_kw;
     mp_obj_enumerate_t *o = m_new_obj(mp_obj_enumerate_t);
     o->base.type = type;
+    // MicroPython appears to assume that args[0] is a float when no argument is passed,
+    // and an integer when in a function, crashing when inside a try block.
+    // For safety, this will crash the simulator.
+    if (n_args == 0) {
+        crash_micropython("passing enumerate no arguments");
+    }
     o->iter = mp_getiter(args[0], NULL);
     o->cur = n_args > 1 ? mp_obj_get_int(args[1]) : 0;
 #endif

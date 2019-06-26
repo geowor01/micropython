@@ -124,6 +124,9 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_builtin_abs_obj, mp_builtin_abs);
 STATIC mp_obj_t mp_builtin_all(mp_obj_t o_in) {
     mp_obj_iter_buf_t iter_buf;
     mp_obj_t iterable = mp_getiter(o_in, &iter_buf);
+    if (iterable == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_t item;
     while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         if (!mp_obj_is_true(item)) {
@@ -140,6 +143,9 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_builtin_all_obj, mp_builtin_all);
 STATIC mp_obj_t mp_builtin_any(mp_obj_t o_in) {
     mp_obj_iter_buf_t iter_buf;
     mp_obj_t iterable = mp_getiter(o_in, &iter_buf);
+    if (iterable == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_t item;
     while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         if (mp_obj_is_true(item)) {
@@ -318,6 +324,9 @@ STATIC mp_obj_t mp_builtin_min_max(size_t n_args, const mp_obj_t *args, mp_map_t
         // given an iterable
         mp_obj_iter_buf_t iter_buf;
         mp_obj_t iterable = mp_getiter(args[0], &iter_buf);
+        if (iterable == MP_OBJ_NULL) {
+            return MP_OBJ_NULL;
+        }
         m_rs_push_obj(iterable);
         // TODO how to deal with best_key and best_obj on root stack?
         mp_obj_t best_key = MP_OBJ_NULL;
@@ -564,6 +573,9 @@ STATIC mp_obj_t mp_builtin_sum(size_t n_args, const mp_obj_t *args) {
     }
     mp_obj_iter_buf_t iter_buf;
     mp_obj_t iterable = mp_getiter(args[0], &iter_buf);
+    if (iterable == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     mp_obj_t item;
     while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         value = mp_binary_op(MP_BINARY_OP_ADD, value, item);

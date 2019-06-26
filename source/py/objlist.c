@@ -64,7 +64,10 @@ STATIC void list_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t k
 
 STATIC mp_obj_t list_extend_from_iter(mp_obj_t list, mp_obj_t iterable) {
     mp_obj_t iter = mp_getiter(iterable, NULL);
-     m_rs_push_obj(iter);
+    if (iter == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
+    m_rs_push_obj(iter);
     mp_obj_t item;
     while ((item = mp_iternext2(iter)) != MP_OBJ_NULL) {
         if (mp_obj_list_append_rs(list, item) == MP_OBJ_NULL) {

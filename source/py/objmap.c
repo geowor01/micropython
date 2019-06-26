@@ -50,6 +50,9 @@ STATIC mp_obj_t map_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_
     m_rs_push_ptr(o);
     for (size_t i = 0; i < n_args - 1; i++) {
         o->iters[i] = mp_getiter(args[i + 1], NULL);
+        if (o->iters[i] == MP_OBJ_NULL) {
+            return MP_OBJ_NULL;
+        }
     }
     m_rs_pop_ptr(o);
     return MP_OBJ_FROM_PTR(o);

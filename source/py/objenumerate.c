@@ -65,6 +65,9 @@ STATIC mp_obj_t enumerate_make_new(const mp_obj_type_t *type, size_t n_args, siz
     m_rs_push_ptr(o);
     o->iter = mp_getiter(arg_vals.iterable.u_obj, NULL);
     m_rs_pop_ptr(o);
+    if (o->iter == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     o->cur = arg_vals.start.u_int;
 #else
     (void)n_kw;
@@ -81,6 +84,9 @@ STATIC mp_obj_t enumerate_make_new(const mp_obj_type_t *type, size_t n_args, siz
     }
     m_rs_push_ptr(o);
     o->iter = mp_getiter(args[0], NULL);
+    if (o->iter == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     o->cur = n_args > 1 ? mp_obj_get_int(args[1]) : 0;
     m_rs_pop_ptr(o);
 #endif

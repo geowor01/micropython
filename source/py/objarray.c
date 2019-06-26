@@ -170,6 +170,9 @@ STATIC mp_obj_t array_construct(char typecode, mp_obj_t initializer) {
     m_rs_push_ptr(array);
 
     mp_obj_t iterable = mp_getiter(initializer, NULL);
+    if (iterable == MP_OBJ_NULL) {
+        return MP_OBJ_NULL;
+    }
     m_rs_push_obj(iterable);
     mp_obj_t item;
     size_t i = 0;

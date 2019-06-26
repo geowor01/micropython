@@ -162,6 +162,9 @@ STATIC int pyexec_friendly_repl_process_char(int c);
 
 void pyexec_event_repl_init(void) {
     MP_STATE_VM(repl_line) = vstr_new(32);
+    if (!MP_STATE_VM(repl_line)) {
+        return;
+    }
     repl.cont_line = false;
     // no prompt before printing friendly REPL banner or entering raw REPL
     readline_init(MP_STATE_VM(repl_line), "");

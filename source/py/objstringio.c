@@ -253,6 +253,10 @@ STATIC mp_obj_t stringio_make_new(const mp_obj_type_t *type_in, size_t n_args, s
 
     o->vstr = vstr_new(sz);
 
+    if (!o->vstr) {
+        return MP_OBJ_NULL;
+    }
+
     if (initdata) {
         stringio_write(MP_OBJ_FROM_PTR(o), bufinfo.buf, bufinfo.len, NULL);
         // Cur ptr is always at the beginning of buffer at the construction

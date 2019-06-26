@@ -872,7 +872,7 @@ int mp_unpack_sequence(mp_obj_t seq_in, size_t num, mp_obj_t *items) {
         mp_obj_iter_buf_t iter_buf;
         mp_obj_t iterable = mp_getiter(seq_in, &iter_buf);
         if (iterable == MP_OBJ_NULL) {
-            return MP_OBJ_NULL;
+            return 1;
         }
 
         for (seq_len = 0; seq_len < num; seq_len++) {
@@ -931,7 +931,7 @@ int mp_unpack_ex(mp_obj_t seq_in, size_t num_in, mp_obj_t *items) {
         // TODO Improve to waste less memory in the dynamically created list.
         mp_obj_t iterable = mp_getiter(seq_in, NULL);
         if (iterable == MP_OBJ_NULL) {
-            return MP_OBJ_NULL;
+            return 1;
         }
         m_rs_push_obj(iterable);
         mp_obj_t item;

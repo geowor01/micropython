@@ -60,6 +60,8 @@ static inline void m_rs_push_ptr(void *ptr) { gc_rs_push(0, ptr); }
 static inline void m_rs_push_ind(void *ptr) { gc_rs_push(1, ptr); }
 static inline void m_rs_pop_ptr(void *ptr) { gc_rs_pop(0, ptr); }
 static inline void m_rs_pop_ind(void *ptr) { gc_rs_pop(1, ptr); }
+void m_rs_push_barrier();
+void m_rs_clear_to_barrier();
 
 #else
 
@@ -71,5 +73,7 @@ static inline void m_rs_push_ptr(void *ptr) { (void)ptr; }
 static inline void m_rs_push_ind(void *ptr) { (void)ptr; }
 static inline void m_rs_pop_ptr(void *ptr) { (void)ptr; }
 static inline void m_rs_pop_ind(void *ptr) { (void)ptr; }
+static inline void m_rs_push_barrier() { }
+static inline void m_rs_clear_to_barrier() { }
 
 #endif

@@ -34,6 +34,7 @@
 #include "py/obj.h"
 #include "py/objlist.h"
 #include "py/objexcept.h"
+#include "py/rootstack.h"
 
 // This file contains structures defining the state of the MicroPython
 // memory system, runtime and virtual machine.  The state is a global
@@ -246,5 +247,6 @@ extern mp_state_thread_t *mp_thread_get_state(void);
 #endif
 
 #define RETURN_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { return x; }
+#define RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { m_rs_clear_to_barrier(); return x; }
 
 #endif // MICROPY_INCLUDED_PY_MPSTATE_H

@@ -126,12 +126,16 @@ STATIC mp_obj_t mp_builtin_all(mp_obj_t o_in) {
     mp_obj_t iterable = mp_getiter(o_in, &iter_buf);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_t item;
+    m_rs_push_barrier();
+    m_rs_push_obj(iterable);
     while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
         if (!mp_obj_is_true(item)) {
+            m_rs_clear_to_barrier();
             return mp_const_false;
         }
     }
+    m_rs_clear_to_barrier();
     return mp_const_true;
 }
 MP_DEFINE_CONST_FUN_OBJ_1(mp_builtin_all_obj, mp_builtin_all);
@@ -141,12 +145,16 @@ STATIC mp_obj_t mp_builtin_any(mp_obj_t o_in) {
     mp_obj_t iterable = mp_getiter(o_in, &iter_buf);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_t item;
+    m_rs_push_barrier();
+    m_rs_push_obj(iterable);
     while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
         if (mp_obj_is_true(item)) {
+            m_rs_clear_to_barrier();
             return mp_const_true;
         }
     }
+    m_rs_clear_to_barrier();
     return mp_const_false;
 }
 MP_DEFINE_CONST_FUN_OBJ_1(mp_builtin_any_obj, mp_builtin_any);
@@ -330,22 +338,24 @@ STATIC mp_obj_t mp_builtin_min_max(size_t n_args, const mp_obj_t *args, mp_map_t
         mp_obj_t best_key = MP_OBJ_NULL;
         mp_obj_t best_obj = MP_OBJ_NULL;
         mp_obj_t item;
+        m_rs_push_barrier();
+        m_rs_push_obj(iterable);
         while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
-            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
             m_rs_push_obj(item);
             mp_obj_t key = key_fn == MP_OBJ_NULL ? item : mp_call_function_1(key_fn, item);
             m_rs_pop_obj(item);
-            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
             m_rs_push_obj(key);
             if (best_obj == MP_OBJ_NULL || (mp_binary_op(op, key, best_key) == mp_const_true)) {
-                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+                RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
                 best_key = key;
                 best_obj = item;
             }
             m_rs_pop_obj(key);
-            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
         }
-        m_rs_pop_obj(iterable);
+        m_rs_clear_to_barrier();
         RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (best_obj == MP_OBJ_NULL) {
             default_elem = mp_map_lookup(kwargs, MP_OBJ_NEW_QSTR(MP_QSTR_default), MP_MAP_LOOKUP);
@@ -583,12 +593,14 @@ STATIC mp_obj_t mp_builtin_sum(size_t n_args, const mp_obj_t *args) {
     mp_obj_t iterable = mp_getiter(args[0], &iter_buf);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_t item;
+    m_rs_push_barrier();
+    m_rs_push_obj(iterable);
     while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
         value = mp_binary_op(MP_BINARY_OP_ADD, value, item);
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
     }
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    m_rs_clear_to_barrier();
     return value;
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_builtin_sum_obj, 1, 2, mp_builtin_sum);

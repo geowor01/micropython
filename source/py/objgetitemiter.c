@@ -39,7 +39,9 @@ typedef struct _mp_obj_getitem_iter_t {
 STATIC mp_obj_t it_iternext(mp_obj_t self_in) {
     mp_obj_getitem_iter_t *self = MP_OBJ_TO_PTR(self_in);
     // try to get next item
+    m_rs_push_barrier();
     mp_obj_t value = mp_call_method_n_kw(1, 0, self->args);
+    m_rs_clear_to_barrier();
     if (MP_STATE_THREAD(cur_exc) != NULL) {
         // an exception was raised
         mp_obj_type_t *t = (mp_obj_type_t*)MP_STATE_THREAD(cur_exc)->type;

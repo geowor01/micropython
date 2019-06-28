@@ -160,7 +160,7 @@ STATIC void do_load_from_lexer(mp_obj_t module_obj, mp_lexer_t *lex) {
 #endif
 
 #if MICROPY_PERSISTENT_CODE_LOAD || MICROPY_MODULE_FROZEN_MPY
-STATIC int do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
+STATIC void do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
     emscripten_sleep(1);
     #if MICROPY_PY___FILE__
     // TODO
@@ -182,15 +182,13 @@ STATIC int do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
     mp_obj_t module_fun = mp_make_function_from_raw_code(raw_code, MP_OBJ_NULL, MP_OBJ_NULL);
     if (MP_STATE_THREAD(cur_exc) == NULL) {
         m_rs_push_obj_ptr(module_fun);
-        module_fun = mp_call_function_0(module_fun);
+        mp_call_function_0(module_fun);
         m_rs_pop_obj_ptr(module_fun);
     }
 
     // restore context
     mp_globals_set(old_globals);
     mp_locals_set(old_locals);
-
-    return module_fun == MP_OBJ_NULL;
 }
 #endif
 

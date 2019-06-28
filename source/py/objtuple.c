@@ -84,27 +84,28 @@ STATIC mp_obj_t mp_obj_tuple_make_new(const mp_obj_type_t *type_in, size_t n_arg
             RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             m_rs_push_ptr(items);
 
+            m_rs_push_ptr(items);
+            m_rs_push_barrier();
             mp_obj_t iterable = mp_getiter(args[0], NULL);
-            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
             m_rs_push_obj(iterable);
             mp_obj_t item;
             while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
-                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+                RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
                 if (len >= alloc) {
                     m_rs_push_obj(item);
                     mp_obj_t *newitems = m_renew(mp_obj_t, items, alloc, alloc * 2);
-                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+                    RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
                     alloc *= 2;
-                    m_rs_pop_obj(item);
-                    m_rs_pop_obj(iterable);
-                    m_rs_pop_ptr(items);
+                    m_rs_clear_to_barrier();
                     m_rs_push_ptr(newitems);
+                    m_rs_push_barrier();
                     m_rs_push_obj(iterable);
                     items = newitems;
                 }
                 items[len++] = item;
             }
-            m_rs_pop_obj(iterable);
+            m_rs_clear_to_barrier();
             RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
             mp_obj_t tuple = mp_obj_new_tuple(len, items);

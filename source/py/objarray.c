@@ -157,25 +157,26 @@ STATIC mp_obj_t array_construct(char typecode, mp_obj_t initializer) {
 
     mp_obj_t iterable = mp_getiter(initializer, NULL);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
-    m_rs_push_obj(iterable);
 
     mp_obj_t item;
     size_t i = 0;
+    m_rs_push_barrier();
+    m_rs_push_obj(iterable);
     while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
+        m_rs_push_obj(item);
         if (len == 0) {
-            m_rs_push_obj(item);
             array_append(MP_OBJ_FROM_PTR(array), item);
-            m_rs_pop_obj(item);
 
         } else {
             mp_binary_set_val_array(typecode, array->items, i++, item);
         }
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        m_rs_pop_obj(item);
+        RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
     }
-    m_rs_pop_obj(iterable);
-    m_rs_pop_ptr(array);
+    m_rs_clear_to_barrier();
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    m_rs_pop_ptr(array);
 
     return MP_OBJ_FROM_PTR(array);
 }

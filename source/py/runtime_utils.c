@@ -29,17 +29,25 @@
 #include "py/obj.h"
 
 void mp_call_function_1_protected(mp_obj_t fun, mp_obj_t arg) {
+    m_rs_push_barrier();
     mp_obj_t ret = mp_call_function_1(fun, arg);
+    m_rs_clear_to_barrier();
     if (MP_STATE_THREAD(cur_exc) != NULL) {
+        m_rs_push_barrier();
         MP_STATE_THREAD(cur_exc) = NULL;
         mp_obj_print_exception(&mp_plat_print, MP_OBJ_FROM_PTR(MP_STATE_THREAD(cur_exc)));
+        m_rs_clear_to_barrier();
     }
 }
 
 void mp_call_function_2_protected(mp_obj_t fun, mp_obj_t arg1, mp_obj_t arg2) {
+    m_rs_push_barrier();
     mp_obj_t ret = mp_call_function_2(fun, arg1, arg2);
+    m_rs_clear_to_barrier();
     if (MP_STATE_THREAD(cur_exc) != NULL) {
+        m_rs_push_barrier();
         MP_STATE_THREAD(cur_exc) = NULL;
         mp_obj_print_exception(&mp_plat_print, MP_OBJ_FROM_PTR(MP_STATE_THREAD(cur_exc)));
+        m_rs_clear_to_barrier();
     }
 }

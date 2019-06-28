@@ -61,14 +61,15 @@ STATIC void list_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t k
 STATIC mp_obj_t list_extend_from_iter(mp_obj_t list, mp_obj_t iterable) {
     mp_obj_t iter = mp_getiter(iterable, NULL);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
-    m_rs_push_obj(iter);
     mp_obj_t item;
+    m_rs_push_barrier();
+    m_rs_push_obj(iter);
     while ((item = mp_iternext(iter)) != MP_OBJ_STOP_ITERATION) {
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
         mp_obj_list_append_rs(list, item);
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(MP_OBJ_NULL)
     }
-    m_rs_pop_obj(iter);
+    m_rs_clear_to_barrier();
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return list;
 }

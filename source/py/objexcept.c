@@ -319,7 +319,7 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
 
     // make exception object
     mp_obj_exception_t *o = m_new_obj_var_maybe(mp_obj_exception_t, mp_obj_t, 0);
-    m_rs_push_ptr(o);
+
     if (o == NULL) {
         // Couldn't allocate heap memory; use local data instead.
         // Unfortunately, we won't be able to format the string...
@@ -374,6 +374,7 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
         }
 #endif // MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF
     } else {
+        m_rs_push_ptr(o);
         o->base.type = exc_type;
         o->traceback_data = NULL;
         o->args = MP_OBJ_TO_PTR(mp_obj_new_tuple(1, NULL));
@@ -398,9 +399,8 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
                 RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             }
         }
+        m_rs_pop_ptr(o);
     }
-
-    m_rs_pop_ptr(o);
     return MP_OBJ_FROM_PTR(o);
 }
 

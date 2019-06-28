@@ -190,6 +190,7 @@ run_code_state: ;
     // outer exception handling loop
     for (;;) {
 outer_dispatch_loop:
+        m_rs_push_barrier();
         {
             // local variables that are not visible to the exception handler
             const byte *ip = code_state->ip;
@@ -809,7 +810,9 @@ unwind_jump:;
                     } else {
                         obj = MP_OBJ_FROM_PTR(&sp[-MP_OBJ_ITER_BUF_NSLOTS + 1]);
                     }
+                    m_rs_push_barrier();
                     mp_obj_t value = mp_iternext_allow_raise(obj);
+                    m_rs_clear_to_barrier();
                     RAISE_ON_EXCEPTION()
                     if (value == MP_OBJ_STOP_ITERATION) {
                         sp -= MP_OBJ_ITER_BUF_NSLOTS; // pop the exhausted iterator
@@ -927,7 +930,9 @@ unwind_jump:;
                     DECODE_UINT;
                     mp_obj_t seq = sp[0];
                     m_rs_push_obj(seq); // sp[0] will be overwritten, so retain root pointer
+                    m_rs_push_barrier();
                     mp_unpack_ex(seq, unum, sp);
+                    m_rs_clear_to_barrier();
                     m_rs_pop_obj(seq);
                     RAISE_ON_EXCEPTION()
                     sp += (unum & 0xff) + ((unum >> 8) & 0xff);
@@ -1155,6 +1160,7 @@ unwind_return:
                         goto run_code_state;
                     }
                     #endif
+                    m_rs_clear_to_barrier();
                     return MP_VM_RETURN_NORMAL;
 
                 ENTRY(MP_BC_RAISE_VARARGS): {
@@ -1191,6 +1197,7 @@ yield:
                     code_state->ip = ip;
                     code_state->sp = sp;
                     code_state->exc_sp = MP_TAGPTR_MAKE(exc_sp, currently_in_except_block);
+                    m_rs_clear_to_barrier();
                     return MP_VM_RETURN_YIELD;
 
                 ENTRY(MP_BC_YIELD_FROM): {
@@ -1326,6 +1333,7 @@ yield:
                     mp_obj_t obj = mp_obj_new_exception_msg(&mp_type_NotImplementedError, "byte code not implemented");
                     RAISE_ON_EXCEPTION()
                     fastn[0] = obj;
+                    m_rs_clear_to_barrier();
                     return MP_VM_RETURN_EXCEPTION;
                 }
 
@@ -1409,12 +1417,14 @@ exception_handler:
                         DECODE_ULABEL; // the jump offset if iteration finishes; for labels are always forward
                         code_state->ip = ip + ulab; // jump to after for-block
                         code_state->sp -= MP_OBJ_ITER_BUF_NSLOTS; // pop the exhausted iterator
+                        m_rs_clear_to_barrier();
                         goto outer_dispatch_loop; // continue with dispatch loop
                     } else if (*code_state->ip == MP_BC_YIELD_FROM) {
                         // StopIteration inside yield from call means return a value of
                         // yield from, so inject exception's value as yield from's result
                         *++code_state->sp = mp_obj_exception_get_value(MP_OBJ_FROM_PTR(the_exc));
                         code_state->ip++; // yield from is over, move to next instruction
+                        m_rs_clear_to_barrier();
                         goto outer_dispatch_loop; // continue with dispatch loop
                     }
                 }
@@ -1520,8 +1530,10 @@ unwind_loop:
                 // propagate exception to higher level
                 // TODO what to do about ip and sp? they don't really make sense at this point
                 fastn[0] = MP_OBJ_FROM_PTR(the_exc); // must put exception here because sp is invalid
+                m_rs_clear_to_barrier();
                 return MP_VM_RETURN_EXCEPTION;
             }
         }
+        m_rs_clear_to_barrier();
     }
 }

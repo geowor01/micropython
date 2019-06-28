@@ -126,6 +126,9 @@ STATIC const qstr gesture_name_map[] = {
 
 STATIC uint32_t gesture_from_obj(mp_obj_t gesture_in) {
     qstr gesture = mp_obj_str_get_qstr(gesture_in);
+    if (gesture == MP_QSTR_NULL) {
+        return -1;
+    }
     for (uint i = 0; i < MP_ARRAY_SIZE(gesture_name_map); ++i) {
         if (gesture == gesture_name_map[i]) {
             return i;
@@ -145,6 +148,9 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_current_gesture_obj, microbit_a
 mp_obj_t microbit_accelerometer_is_gesture(mp_obj_t self_in, mp_obj_t gesture_in) {
     microbit_accelerometer_obj_t *self = (microbit_accelerometer_obj_t*)self_in;
     uint32_t gesture = gesture_from_obj(gesture_in);
+    if (gesture < 0) {
+        return MP_OBJ_NULL;
+    }
     update(self);
     return mp_obj_new_bool(ubit_accelerometer->getGesture() == gesture);
 }
@@ -153,6 +159,9 @@ MP_DEFINE_CONST_FUN_OBJ_2(microbit_accelerometer_is_gesture_obj, microbit_accele
 mp_obj_t microbit_accelerometer_was_gesture(mp_obj_t self_in, mp_obj_t gesture_in) {
     microbit_accelerometer_obj_t *self = (microbit_accelerometer_obj_t*)self_in;
     uint32_t gesture = gesture_from_obj(gesture_in);
+    if (gesture < 0) {
+        return MP_OBJ_NULL;
+    }
     update(self);
     mp_obj_t result = mp_obj_new_bool(gesture_state & (1 << gesture));
     gesture_state &= (~(1 << gesture));

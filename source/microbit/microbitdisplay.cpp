@@ -124,6 +124,9 @@ mp_obj_t microbit_display_show_func(mp_uint_t n_args, const mp_obj_t *pos_args, 
         mp_uint_t len;
         const char *str = mp_obj_str_get_data(image, &len);
         if (str == NULL || len == 0) {
+            if (MP_STATE_THREAD(cur_exc) != NULL) {
+                return MP_OBJ_NULL;
+            }
             // There are no chars; do nothing.
             return mp_const_none;
         } else if (len == 1) {
@@ -376,7 +379,7 @@ static int32_t callback(void) {
     return render_timings[brightness];
 }
 
-static void draw_object(mp_obj_t obj) {
+static int draw_object(mp_obj_t obj) {
     microbit_display_obj_t *display = (microbit_display_obj_t*)MP_STATE_PORT(async_data)[0];
     if (obj == MP_OBJ_STOP_ITERATION) {
         if (async_clear) {
@@ -391,6 +394,9 @@ static void draw_object(mp_obj_t obj) {
         mp_uint_t len;
         const char *str = mp_obj_str_get_data(obj, &len);
         if (str == NULL || len == 1) {
+            if (MP_STATE_THREAD(cur_exc) != NULL) {
+                return 1;
+            }
             microbit_display_show(display, microbit_image_for_char(str[0]));
         } else {
             async_stop();
@@ -399,6 +405,7 @@ static void draw_object(mp_obj_t obj) {
         MP_STATE_VM(mp_pending_exception) = mp_obj_new_exception_msg(&mp_type_TypeError, "not an image");
         async_stop();
     }
+    return 0;
 }
 
 static void microbit_display_update(void) {
@@ -491,7 +498,9 @@ int microbit_display_animate(microbit_display_obj_t *self, mp_obj_t iterable, mp
     if (MP_STATE_THREAD(cur_exc) != NULL) {
         return 1;
     }
-    draw_object(obj);
+    if (draw_object(obj)) {
+        return 1;
+    }
     async_tick = 0;
     async_mode = ASYNC_MODE_ANIMATION;
     if (wait) {

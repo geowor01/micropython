@@ -74,9 +74,15 @@ STATIC mp_obj_t mp_builtin_compile(size_t n_args, const mp_obj_t *args) {
     // get the source
     size_t str_len;
     const char *str = mp_obj_str_get_data(args[0], &str_len);
+    if (str == NULL) {
+        return MP_OBJ_NULL;
+    }
 
     // get the filename
     qstr filename = mp_obj_str_get_qstr(args[1]);
+    if (filename == MP_QSTR_NULL) {
+        return MP_OBJ_NULL;
+    }
 
     // create the lexer
     mp_lexer_t *lex = mp_lexer_new_from_str_len(filename, str, str_len, 0);
@@ -86,6 +92,9 @@ STATIC mp_obj_t mp_builtin_compile(size_t n_args, const mp_obj_t *args) {
 
     // get the compile mode
     qstr mode = mp_obj_str_get_qstr(args[2]);
+    if (mode == MP_QSTR_NULL) {
+        return MP_OBJ_NULL;
+    }
     mp_parse_input_kind_t parse_input_kind;
     switch (mode) {
         case MP_QSTR_single: parse_input_kind = MP_PARSE_SINGLE_INPUT; break;
@@ -136,6 +145,9 @@ STATIC mp_obj_t eval_exec_helper(size_t n_args, const mp_obj_t *args, mp_parse_i
 
     size_t str_len;
     const char *str = mp_obj_str_get_data(args[0], &str_len);
+    if (str == NULL) {
+        return MP_OBJ_NULL;
+    }
 
     // create the lexer
     // MP_PARSE_SINGLE_INPUT is used to indicate a file input

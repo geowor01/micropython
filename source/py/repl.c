@@ -155,6 +155,9 @@ size_t mp_repl_autocomplete(const char *str, size_t len, const mp_print_t *print
                 if (MP_MAP_SLOT_IS_FILLED(&dict->map, i)) {
                     size_t d_len;
                     const char *d_str = mp_obj_str_get_data(dict->map.table[i].key, &d_len);
+                    if (d_str == NULL) {
+                        return 0;
+                    }
                     if (s_len == d_len && strncmp(s_start, d_str, d_len) == 0) {
                         obj = dict->map.table[i].value;
                         break;
@@ -199,6 +202,9 @@ size_t mp_repl_autocomplete(const char *str, size_t len, const mp_print_t *print
                 if (MP_MAP_SLOT_IS_FILLED(&dict->map, i)) {
                     size_t d_len;
                     const char *d_str = mp_obj_str_get_data(dict->map.table[i].key, &d_len);
+                    if (d_str == NULL) {
+                        return 0;
+                    }
                     if (s_len <= d_len && strncmp(s_start, d_str, s_len) == 0) {
                         if (match_str == NULL) {
                             match_str = d_str;
@@ -249,6 +255,9 @@ size_t mp_repl_autocomplete(const char *str, size_t len, const mp_print_t *print
                 if (MP_MAP_SLOT_IS_FILLED(&dict->map, i)) {
                     size_t d_len;
                     const char *d_str = mp_obj_str_get_data(dict->map.table[i].key, &d_len);
+                    if (d_str == NULL) {
+                        return 0;
+                    }
                     if (s_len <= d_len && strncmp(s_start, d_str, s_len) == 0) {
                         int gap = (line_len + WORD_SLOT_LEN - 1) / WORD_SLOT_LEN * WORD_SLOT_LEN - line_len;
                         if (gap < 2) {

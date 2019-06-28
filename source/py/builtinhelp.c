@@ -107,7 +107,11 @@ STATIC void mp_help_print_modules(void) {
     for (unsigned int i = 0; i < num_rows; ++i) {
         unsigned int j = i;
         for (;;) {
-            int l = mp_print_str(MP_PYTHON_PRINTER, mp_obj_str_get_str(items[j]));
+            const char *item = mp_obj_str_get_str(items[j]);
+            if (item == NULL) {
+                return;
+            }
+            int l = mp_print_str(MP_PYTHON_PRINTER, item);
             j += num_rows;
             if (j >= len) {
                 break;

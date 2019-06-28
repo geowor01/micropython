@@ -109,6 +109,9 @@ STATIC mp_obj_t namedtuple_make_new(const mp_obj_type_t *type_in, size_t n_args,
     memset(&tuple->items[n_args], 0, sizeof(mp_obj_t) * n_kw);
     for (size_t i = n_args; i < n_args + 2 * n_kw; i += 2) {
         qstr kw = mp_obj_str_get_qstr(args[i]);
+        if (kw == MP_QSTR_NULL) {
+            return MP_OBJ_NULL;
+        }
         size_t id = namedtuple_find_field(type, kw);
         if (id == (size_t)-1) {
             if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
@@ -153,12 +156,18 @@ STATIC mp_obj_t mp_obj_new_namedtuple_type(qstr name, size_t n_fields, mp_obj_t 
     o->n_fields = n_fields;
     for (size_t i = 0; i < n_fields; i++) {
         o->fields[i] = mp_obj_str_get_qstr(fields[i]);
+        if (o->fields[i] == MP_QSTR_NULL) {
+            return MP_OBJ_NULL;
+        }
     }
     return MP_OBJ_FROM_PTR(o);
 }
 
 STATIC mp_obj_t new_namedtuple_type(mp_obj_t name_in, mp_obj_t fields_in) {
     qstr name = mp_obj_str_get_qstr(name_in);
+    if (name == MP_QSTR_NULL) {
+        return MP_OBJ_NULL;
+    }
     size_t n_fields;
     mp_obj_t *fields;
     #if MICROPY_CPYTHON_COMPAT

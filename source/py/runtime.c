@@ -1436,6 +1436,9 @@ import_error:
     mp_load_method_maybe(module, MP_QSTR___name__, dest);
     size_t pkg_name_len;
     const char *pkg_name = mp_obj_str_get_data(dest[0], &pkg_name_len);
+    if (pkg_name == NULL) {
+        return MP_OBJ_NULL;
+    }
 
     const uint dot_name_len = pkg_name_len + 1 + qstr_len(name);
     char *dot_name = alloca(dot_name_len);

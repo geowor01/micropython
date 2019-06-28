@@ -341,6 +341,9 @@ static file_descriptor_obj *microbit_file_descriptor_new(uint8_t start_chunk, bo
 mp_obj_t microbit_remove(mp_obj_t filename) {
     mp_uint_t name_len;
     const char *name = mp_obj_str_get_data(filename, &name_len);
+    if (name == NULL) {
+        return MP_OBJ_NULL;
+    }
     mp_uint_t index = microbit_find_file(name, name_len);
     if (index == 255) {
         return mp_raise_msg_o(&mp_type_OSError, "file not found");
@@ -470,6 +473,9 @@ mp_obj_t microbit_file_list(void) {
 mp_obj_t microbit_file_size(mp_obj_t filename) {
     mp_uint_t name_len;
     const char *name = mp_obj_str_get_data(filename, &name_len);
+    if (name == NULL) {
+        return MP_OBJ_NULL;
+    }
     uint8_t chunk = microbit_find_file(name, name_len);
     if (chunk == 255) {
         return mp_raise_msg_o(&mp_type_OSError, "file not found");

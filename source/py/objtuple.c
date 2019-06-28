@@ -89,32 +89,33 @@ STATIC mp_obj_t mp_obj_tuple_make_new(const mp_obj_type_t *type_in, size_t n_arg
             if (!items && alloc > 0) {
                 return MP_OBJ_NULL;
             }
-            m_rs_push_ptr(items);
 
+            m_rs_push_ptr(items);
+            m_rs_push_barrier();
             mp_obj_t iterable = mp_getiter(args[0], NULL);
             if (iterable == MP_OBJ_NULL) {
                 return MP_OBJ_NULL;
             }
-            m_rs_push_obj(iterable);
             mp_obj_t item;
+            m_rs_push_obj(iterable);
             while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
                 if (len >= alloc) {
                     m_rs_push_obj(item);
                     mp_obj_t *newitems = m_renew(mp_obj_t, items, alloc, alloc * 2);
                     if (!newitems && alloc > 0) {
+                        m_rs_clear_to_barrier();
                         return MP_OBJ_NULL;
                     }
                     alloc *= 2;
-                    m_rs_pop_obj(item);
-                    m_rs_pop_obj(iterable);
-                    m_rs_pop_ptr(items);
+                    m_rs_clear_to_barrier();
                     m_rs_push_ptr(newitems);
+                    m_rs_push_barrier();
                     m_rs_push_obj(iterable);
                     items = newitems;
                 }
                 items[len++] = item;
             }
-            m_rs_pop_obj(iterable);
+            m_rs_clear_to_barrier();
             if (mp_iternext_had_exc()) {
                 return MP_OBJ_NULL;
             }

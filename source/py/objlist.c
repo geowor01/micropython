@@ -67,17 +67,19 @@ STATIC mp_obj_t list_extend_from_iter(mp_obj_t list, mp_obj_t iterable) {
     if (iter == MP_OBJ_NULL) {
         return MP_OBJ_NULL;
     }
-    m_rs_push_obj(iter);
     mp_obj_t item;
+    m_rs_push_barrier();
+    m_rs_push_obj(iter);
     while ((item = mp_iternext2(iter)) != MP_OBJ_NULL) {
         if (mp_obj_list_append_rs(list, item) == MP_OBJ_NULL) {
+            m_rs_clear_to_barrier();
             return MP_OBJ_NULL;
         }
     }
+    m_rs_clear_to_barrier();
     if (mp_iternext_had_exc()) {
         return MP_OBJ_NULL;
     }
-    m_rs_pop_obj(iter);
     return list;
 }
 

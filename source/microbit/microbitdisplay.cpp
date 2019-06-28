@@ -426,9 +426,12 @@ static void microbit_display_update(void) {
             mp_obj_t obj;
             gc_lock();
             {
+                m_rs_push_barrier();
                 obj = mp_iternext_allow_raise(async_iterator);
                 gc_unlock();
+                m_rs_clear_to_barrier();
                 if (MP_STATE_THREAD(cur_exc) != NULL) {
+                    m_rs_push_barrier();
                     mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
                     // uncaught exception
                     if (!mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(the_exc->type),
@@ -441,9 +444,12 @@ static void microbit_display_update(void) {
                         MP_STATE_VM(mp_pending_exception) = MP_OBJ_FROM_PTR(the_exc);
                     }
                     obj = MP_OBJ_STOP_ITERATION;
+                    m_rs_clear_to_barrier();
                 }
             }
+            m_rs_push_barrier();
             draw_object(obj);
+            m_rs_clear_to_barrier();
             break;
         }
         case ASYNC_MODE_CLEAR:

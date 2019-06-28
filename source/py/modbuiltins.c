@@ -128,11 +128,15 @@ STATIC mp_obj_t mp_builtin_all(mp_obj_t o_in) {
         return MP_OBJ_NULL;
     }
     mp_obj_t item;
+    m_rs_push_barrier();
+    m_rs_push_obj(iterable);
     while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         if (!mp_obj_is_true(item)) {
+            m_rs_clear_to_barrier();
             return mp_const_false;
         }
     }
+    m_rs_clear_to_barrier();
     if (mp_iternext_had_exc()) {
         return MP_OBJ_NULL;
     }
@@ -147,11 +151,15 @@ STATIC mp_obj_t mp_builtin_any(mp_obj_t o_in) {
         return MP_OBJ_NULL;
     }
     mp_obj_t item;
+    m_rs_push_barrier();
+    m_rs_push_obj(iterable);
     while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         if (mp_obj_is_true(item)) {
+            m_rs_clear_to_barrier();
             return mp_const_true;
         }
     }
+    m_rs_clear_to_barrier();
     if (mp_iternext_had_exc()) {
         return MP_OBJ_NULL;
     }
@@ -327,11 +335,12 @@ STATIC mp_obj_t mp_builtin_min_max(size_t n_args, const mp_obj_t *args, mp_map_t
         if (iterable == MP_OBJ_NULL) {
             return MP_OBJ_NULL;
         }
-        m_rs_push_obj(iterable);
         // TODO how to deal with best_key and best_obj on root stack?
         mp_obj_t best_key = MP_OBJ_NULL;
         mp_obj_t best_obj = MP_OBJ_NULL;
         mp_obj_t item;
+        m_rs_push_barrier();
+        m_rs_push_obj(iterable);
         while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
             m_rs_push_obj(item);
             mp_obj_t key = key_fn == MP_OBJ_NULL ? item : mp_call_function_1(key_fn, item);
@@ -343,7 +352,7 @@ STATIC mp_obj_t mp_builtin_min_max(size_t n_args, const mp_obj_t *args, mp_map_t
             }
             m_rs_pop_obj(key);
         }
-        m_rs_pop_obj(iterable);
+        m_rs_clear_to_barrier();
         if (mp_iternext_had_exc()) {
             return MP_OBJ_NULL;
         }
@@ -583,9 +592,12 @@ STATIC mp_obj_t mp_builtin_sum(size_t n_args, const mp_obj_t *args) {
         return MP_OBJ_NULL;
     }
     mp_obj_t item;
+    m_rs_push_barrier();
+    m_rs_push_obj(iterable);
     while ((item = mp_iternext2(iterable)) != MP_OBJ_NULL) {
         value = mp_binary_op(MP_BINARY_OP_ADD, value, item);
     }
+    m_rs_clear_to_barrier();
     if (mp_iternext_had_exc()) {
         return MP_OBJ_NULL;
     }

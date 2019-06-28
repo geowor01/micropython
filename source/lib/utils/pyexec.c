@@ -69,6 +69,7 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
     pyexec_system_exit = 0;
 
     {
+        m_rs_push_barrier();
         emscripten_sleep(1);
         mp_obj_t module_fun;
         #if MICROPY_MODULE_FROZEN_MPY
@@ -114,7 +115,9 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
                 mp_hal_stdout_tx_strn("\x04", 1);
             }
         }
+        m_rs_clear_to_barrier();
         if (MP_STATE_THREAD(cur_exc) != NULL) {
+            m_rs_push_barrier();
             mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
             // uncaught exception
             // print EOF after normal output
@@ -130,6 +133,7 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
                 ret = 0;
             }
             MP_STATE_THREAD(cur_exc) = NULL;
+            m_rs_clear_to_barrier();
         } else {
             ret = 1;
         }

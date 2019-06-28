@@ -96,11 +96,12 @@ static void microbit_display_exception(mp_obj_t exc_in) {
 static void do_lexer(mp_lexer_t *lex) {
     if (lex == NULL) {
         printf("MemoryError: lexer could not allocate memory\n");
-        m_rs_pop_ptr(lex);
         return;
     }
 
     {
+        m_rs_push_barrier();
+        m_rs_push_ptr(lex);
         qstr source_name = lex->source_name;
         mp_parse_tree_t parse_tree = mp_parse(lex, MP_PARSE_FILE_INPUT);
         m_rs_assert(parse_tree.chunk);
@@ -110,7 +111,9 @@ static void do_lexer(mp_lexer_t *lex) {
             mp_call_function_0(module_fun);
             mp_hal_set_interrupt_char(-1);
         }
+        m_rs_clear_to_barrier();
         if (MP_STATE_THREAD(cur_exc) != NULL) {
+            m_rs_push_barrier();
             // uncaught exception
             mp_hal_set_interrupt_char(-1); // disable interrupt
 
@@ -124,20 +127,23 @@ static void do_lexer(mp_lexer_t *lex) {
                 microbit_display_exception(MP_STATE_THREAD(cur_exc));
             }
             MP_STATE_THREAD(cur_exc) = NULL;
+            m_rs_clear_to_barrier();
         }
     }
 }
 
 static void do_strn(const char *src, size_t len) {
+    m_rs_push_barrier();
     mp_lexer_t *lex = mp_lexer_new_from_str_len(MP_QSTR___main__, src, len, 0);
-    m_rs_push_ptr(lex);
     do_lexer(lex);
+    m_rs_clear_to_barrier();
 }
 
 static void do_file(file_descriptor_obj *fd) {
+    m_rs_push_barrier();
     mp_lexer_t *lex = microbit_file_lexer(MP_QSTR___main__, fd);
-    m_rs_push_ptr(lex);
     do_lexer(lex);
+    m_rs_clear_to_barrier();
 }
 
 typedef struct _appended_script_t {

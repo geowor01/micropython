@@ -299,7 +299,9 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
     // execute the byte code with the correct globals context
     code_state->old_globals = mp_globals_get();
     mp_globals_set(self->globals);
+    m_rs_push_barrier();
     mp_vm_return_kind_t vm_return_kind = mp_execute_bytecode(code_state, MP_OBJ_NULL);
+    m_rs_clear_to_barrier();
     mp_globals_set(code_state->old_globals);
 
 #if VM_DETECT_STACK_OVERFLOW

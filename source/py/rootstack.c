@@ -45,6 +45,7 @@
 // State for root stack
 #define RS_KIND_PTR (0)
 #define RS_KIND_IND (1)
+#define RS_KIND_BAR (2)
 static root_stack_elem_t root_stack[1024];
 
 void m_rs_init(void) {
@@ -63,32 +64,39 @@ void m_rs_deinit(void) {
 void m_rs_mark(void) {
     // Mark all those blocks that are on the root stack
     for (root_stack_elem_t *r = &root_stack[0]; r < MP_STATE_THREAD(root_stack_cur); ++r) {
-        void *p;
-        if (r->kind == RS_KIND_PTR) {
-            p = r->ptr;
-        } else {
-            p = *(void**)r->ptr;
+        if (r->kind != RS_KIND_BAR) {
+            void *p;
+            if (r->kind == RS_KIND_PTR) {
+                p = r->ptr;
+            } else {
+                p = *(void**)r->ptr;
+            }
+            gc_collect_root(&p, 1);
         }
-        gc_collect_root(&p, 1);
     }
 }
 
 void gc_rs_dump(void) {
     for (root_stack_elem_t *r = &root_stack[0]; r < MP_STATE_THREAD(root_stack_cur); ++r) {
-        uintptr_t *p;
-        if (r->kind == RS_KIND_PTR) {
-            p = r->ptr;
-        } else {
-            p = *(uintptr_t**)r->ptr;
-            printf(" [ind=%p]", r->ptr);
+        if (r->kind != RS_KIND_BAR) {
+            uintptr_t *p;
+            if (r->kind == RS_KIND_PTR) {
+                p = r->ptr;
+            } else {
+                p = *(uintptr_t**)r->ptr;
+                printf(" [ind=%p]", r->ptr);
+            }
+            size_t n = gc_nbytes(p);
+            if (n == 0) {
+                printf(" %p outside heap\n", p);
+            } else {
+                #define F "%016" PRIxPTR
+                printf(" %p sz=%u [" F ":" F ":" F ":" F "] [%.*s]\n", p, (uint)n, p[0], p[1], p[2], p[3], 0, (char*)p);
+                #undef F
+            }
         }
-        size_t n = gc_nbytes(p);
-        if (n == 0) {
-            printf(" %p outside heap\n", p);
-        } else {
-            #define F "%016" PRIxPTR
-            printf(" %p sz=%u [" F ":" F ":" F ":" F "] [%.*s]\n", p, (uint)n, p[0], p[1], p[2], p[3], 0, (char*)p);
-            #undef F
+        else {
+            printf(" BARRIER\n");
         }
     }
 }
@@ -97,6 +105,9 @@ void gc_rs_dump(void) {
 void gc_rs_assert(int kind, void *ptr) {
     RS_DEBUG_printf("gc_rs_assert(%p) sz=%lu\n", ptr, MP_STATE_THREAD(root_stack_cur) - &root_stack[0]);
     //for (void **r = &root_stack[0]; r < MP_STATE_THREAD(root_stack_cur); ++r) { printf(" %p", *r); } printf("\n");
+    if ((kind != RS_KIND_BAR && ptr == NULL) || MP_STATE_THREAD(cur_exc) != NULL) {
+        return;
+    }
     if (MP_STATE_THREAD(root_stack_cur) == &root_stack[0]) {
         printf("gc_rs_assert(%p): assert empty stack\n", ptr);
         return;
@@ -112,6 +123,9 @@ void gc_rs_assert(int kind, void *ptr) {
 void gc_rs_push(int kind, void *ptr) {
     RS_DEBUG_printf("gc_rs_push(%p) sz=%lu\n", ptr, MP_STATE_THREAD(root_stack_cur) - &root_stack[0]);
     //for (void **r = &root_stack[0]; r < MP_STATE_THREAD(root_stack_cur); ++r) { printf(" %p", *r); } printf("\n");
+    if (kind != RS_KIND_BAR && ptr == NULL) {
+        return;
+    }
     assert(MP_STATE_THREAD(root_stack_cur) < &root_stack[MP_ARRAY_SIZE(root_stack)]);
     MP_STATE_THREAD(root_stack_cur)->kind = kind;
     MP_STATE_THREAD(root_stack_cur)->ptr = ptr;
@@ -122,14 +136,37 @@ void gc_rs_push(int kind, void *ptr) {
 void gc_rs_pop(int kind, void *ptr) {
     RS_DEBUG_printf("gc_rs_pop(%p) sz=%lu\n", ptr, MP_STATE_THREAD(root_stack_cur) - &root_stack[0]);
     //for (void **r = &root_stack[0]; r < MP_STATE_THREAD(root_stack_cur); ++r) { printf(" %p", *r); } printf("\n");
+    if ((kind != RS_KIND_BAR && ptr == NULL) || MP_STATE_THREAD(cur_exc) != NULL) {
+        return;
+    }
     if (MP_STATE_THREAD(root_stack_cur) == &root_stack[0]) {
         printf("gc_rs_pop(%p): pop empty stack\n", ptr);
         return;
     }
-    if (MP_STATE_THREAD(root_stack_cur)[-1].ptr != 0 && (MP_STATE_THREAD(root_stack_cur)[-1].kind != kind
-                                                      || MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr)) {
+    if (MP_STATE_THREAD(root_stack_cur)[-1].kind != kind || MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr) {
         printf("gc_rs_pop(%p): mismatch %p != %p\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].ptr, ptr);
         return;
+    }
+    --MP_STATE_THREAD(root_stack_cur);
+}
+
+
+void m_rs_push_barrier() {
+    RS_DEBUG_printf("m_rs_push_barrier() sz=%lu\n", MP_STATE_THREAD(root_stack_cur) - &root_stack[0]);
+    gc_rs_push(RS_KIND_BAR, NULL);
+}
+
+void m_rs_clear_to_barrier() {
+    RS_DEBUG_printf("m_rs_clear_to_barrier() sz=%lu\n", MP_STATE_THREAD(root_stack_cur) - &root_stack[0]);
+
+    while (MP_STATE_THREAD(root_stack_cur)[-1].kind != RS_KIND_BAR || MP_STATE_THREAD(root_stack_cur)[-1].ptr != NULL) {
+        RS_DEBUG_printf("m_rs_clear(%p) sz=%lu\n", MP_STATE_THREAD(root_stack_cur)[-1].ptr, MP_STATE_THREAD(root_stack_cur) - &root_stack[0]);
+        if (MP_STATE_THREAD(root_stack_cur) == &root_stack[0]) {
+            printf("m_rs_clear(): clear empty stack, no barrier found\n");
+            EM_ASM({ abort(); });
+            return;
+        }
+        --MP_STATE_THREAD(root_stack_cur);
     }
     --MP_STATE_THREAD(root_stack_cur);
 }

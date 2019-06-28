@@ -610,7 +610,10 @@ mp_obj_t mp_call_function_n_kw(mp_obj_t fun_in, size_t n_args, size_t n_kw, cons
 
     // do the call
     if (type->call != NULL) {
-        return type->call(fun_in, n_args, n_kw, args);
+        m_rs_push_barrier();
+        mp_obj_t res = type->call(fun_in, n_args, n_kw, args);
+        m_rs_clear_to_barrier();
+        return res;
     }
 
     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
@@ -1266,7 +1269,9 @@ mp_obj_t mp_iternext(mp_obj_t o_in) {
         mp_load_method_maybe(o_in, MP_QSTR___next__, dest);
         if (dest[0] != MP_OBJ_NULL) {
             // __next__ exists, call it and return its result
+            m_rs_push_barrier();
             mp_obj_t ret = mp_call_method_n_kw(0, 0, dest);
+            m_rs_clear_to_barrier();
             if (ret != MP_OBJ_NULL) {
                 return ret;
             } else {
@@ -1320,7 +1325,9 @@ mp_vm_return_kind_t mp_resume(mp_obj_t self_in, mp_obj_t send_value, mp_obj_t th
     }
 
     if (type->iternext != NULL && send_value == mp_const_none) {
+        m_rs_push_barrier();
         mp_obj_t ret = type->iternext(self_in);
+        m_rs_clear_to_barrier();
         if (ret == MP_OBJ_NULL) {
             // exception
             *ret_val = MP_OBJ_FROM_PTR(MP_STATE_THREAD(cur_exc));
@@ -1344,7 +1351,9 @@ mp_vm_return_kind_t mp_resume(mp_obj_t self_in, mp_obj_t send_value, mp_obj_t th
     if (send_value == mp_const_none) {
         mp_load_method_maybe(self_in, MP_QSTR___next__, dest);
         if (dest[0] != MP_OBJ_NULL) {
+            m_rs_push_barrier();
             *ret_val = mp_call_method_n_kw(0, 0, dest);
+            m_rs_clear_to_barrier();
             if (*ret_val == MP_OBJ_NULL) {
                 *ret_val = MP_OBJ_FROM_PTR(MP_STATE_THREAD(cur_exc));
                 MP_STATE_THREAD(cur_exc) = NULL;
@@ -1506,12 +1515,13 @@ mp_obj_t mp_parse_compile_execute(mp_lexer_t *lex, mp_parse_input_kind_t parse_i
     // set new context
     mp_globals_set(globals);
     mp_locals_set(locals);
-
+    m_rs_push_barrier();
     qstr source_name = lex->source_name;
     m_rs_push_ptr(lex);
     mp_parse_tree_t parse_tree = mp_parse(lex, parse_input_kind);
     m_rs_assert(parse_tree.chunk);
     mp_obj_t module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, false);
+    m_rs_clear_to_barrier();
 
     mp_obj_t ret = MP_OBJ_NULL;
     if (module_fun != MP_OBJ_NULL) {
@@ -1521,7 +1531,9 @@ mp_obj_t mp_parse_compile_execute(mp_lexer_t *lex, mp_parse_input_kind_t parse_i
         } else {
             // execute module function and get return value
             m_rs_push_obj_ptr(module_fun);
+            m_rs_push_barrier();
             ret = mp_call_function_0(module_fun);
+            m_rs_clear_to_barrier();
             m_rs_pop_obj_ptr(module_fun);
         }
     }
@@ -1536,6 +1548,7 @@ mp_obj_t mp_parse_compile_execute(mp_lexer_t *lex, mp_parse_input_kind_t parse_i
 
 void *m_malloc_fail(size_t num_bytes) {
     DEBUG_printf("memory allocation failed, allocating %u bytes\n", (uint)num_bytes);
+    mp_hal_delay_ms(100);
     #if MICROPY_ENABLE_GC
     if (gc_is_locked()) {
         mp_raise_msg_o(&mp_type_MemoryError, "memory allocation failed, heap is locked");

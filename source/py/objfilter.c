@@ -57,6 +57,8 @@ STATIC mp_obj_t filter_iternext(mp_obj_t self_in) {
     mp_check_self(MP_OBJ_IS_TYPE(self_in, &mp_type_filter));
     mp_obj_filter_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_t next;
+    m_rs_push_barrier();
+    m_rs_push_obj(self->iter);
     while ((next = mp_iternext2(self->iter)) != MP_OBJ_NULL) {
         m_rs_push_obj(next);
         mp_obj_t val;
@@ -66,11 +68,12 @@ STATIC mp_obj_t filter_iternext(mp_obj_t self_in) {
             val = next;
         }
         if (mp_obj_is_true(val)) {
-            m_rs_pop_obj(next);
+            m_rs_clear_to_barrier();
             return next;
         }
         m_rs_pop_obj(next);
     }
+    m_rs_clear_to_barrier();
     if (mp_iternext_had_exc()) {
         return MP_OBJ_NULL;
     }

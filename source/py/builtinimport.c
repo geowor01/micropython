@@ -170,9 +170,14 @@ STATIC int do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
     mp_locals_set(mod_globals);
 
     mp_obj_t module_fun = mp_make_function_from_raw_code(raw_code, MP_OBJ_NULL, MP_OBJ_NULL);
-    m_rs_push_obj_ptr(module_fun);
-    module_fun = mp_call_function_0(module_fun);
-    m_rs_pop_obj_ptr(module_fun);
+    if (module_fun == MP_OBJ_NULL) {
+        m_rs_push_obj_ptr(module_fun);
+        mp_obj_t call = mp_call_function_0(module_fun);
+        m_rs_pop_obj_ptr(module_fun);
+        if (call == MP_OBJ_NULL) {
+            module_fun = MP_OBJ_NULL;
+        }
+    }
 
     // restore context
     mp_globals_set(old_globals);

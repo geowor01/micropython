@@ -910,10 +910,16 @@ STATIC mp_obj_t type_make_new(const mp_obj_type_t *type_in, size_t n_args, size_
             return MP_OBJ_FROM_PTR(mp_obj_get_type(args[0]));
 
         case 3:
+        {
             // args[0] = name
             // args[1] = bases tuple
             // args[2] = locals dict
-            return mp_obj_new_type(mp_obj_str_get_qstr(args[0]), args[1], args[2]);
+            qstr args0 = mp_obj_str_get_qstr(args[0]);
+            if (args0 == MP_QSTR_NULL) {
+                return MP_OBJ_NULL;
+            }
+            return mp_obj_new_type(args0, args[1], args[2]);
+        }
 
         default:
             return mp_raise_TypeError_o("type takes 1 or 3 arguments");

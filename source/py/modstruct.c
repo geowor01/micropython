@@ -100,7 +100,7 @@ STATIC uint calcsize_items(const char *fmt) {
 
 STATIC mp_obj_t struct_calcsize(mp_obj_t fmt_in) {
     const char *fmt = mp_obj_str_get_str(fmt_in);
-    if (fmt == NULL) {
+    if (!fmt) {
         return MP_OBJ_NULL;
     }
     char fmt_type = get_fmt_type(&fmt);
@@ -136,6 +136,9 @@ STATIC mp_obj_t struct_unpack_from(size_t n_args, const mp_obj_t *args) {
     // Since we implement unpack and unpack_from using the same function
     // we relax the "exact" requirement, and only implement "big enough".
     const char *fmt = mp_obj_str_get_str(args[0]);
+    if (!fmt) {
+        return MP_OBJ_NULL;
+    }
     char fmt_type = get_fmt_type(&fmt);
     uint num_items = calcsize_items(fmt);
     mp_obj_tuple_t *res = MP_OBJ_TO_PTR(mp_obj_new_tuple(num_items, NULL));
@@ -195,6 +198,9 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(struct_unpack_from_obj, 2, 3, struct_unpack_
 
 STATIC int struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, size_t n_args, const mp_obj_t *args) {
     const char *fmt = mp_obj_str_get_str(fmt_in);
+    if (!fmt) {
+        return 1;
+    }
     char fmt_type = get_fmt_type(&fmt);
 
     size_t i;

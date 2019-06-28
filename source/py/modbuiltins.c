@@ -469,9 +469,15 @@ STATIC mp_obj_t mp_builtin_print(size_t n_args, const mp_obj_t *args, mp_map_t *
     size_t end_len = 1;
     if (sep_elem != NULL && sep_elem->value != mp_const_none) {
         sep_data = mp_obj_str_get_data(sep_elem->value, &sep_len);
+        if (sep_data == NULL) {
+            return MP_OBJ_NULL;
+        }
     }
     if (end_elem != NULL && end_elem->value != mp_const_none) {
         end_data = mp_obj_str_get_data(end_elem->value, &end_len);
+        if (end_data == NULL) {
+            return MP_OBJ_NULL;
+        }
     }
     #if MICROPY_PY_IO && MICROPY_PY_SYS_STDFILES
     void *stream_obj = &mp_sys_stdout_obj;
@@ -621,12 +627,17 @@ STATIC mp_obj_t mp_builtin_getattr(size_t n_args, const mp_obj_t *args) {
     if (n_args > 2) {
         defval = args[2];
     }
-    return mp_load_attr_default(args[0], mp_obj_str_get_qstr(args[1]), defval);
+    qstr args1 = mp_obj_str_get_qstr(args[1]);
+    if (args1 == MP_QSTR_NULL) {
+        return MP_OBJ_NULL;
+    }
+    return mp_load_attr_default(args[0], args1, defval);
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_builtin_getattr_obj, 2, 3, mp_builtin_getattr);
 
 STATIC mp_obj_t mp_builtin_setattr(mp_obj_t base, mp_obj_t attr, mp_obj_t value) {
-    if (mp_store_attr(base, mp_obj_str_get_qstr(attr), value)) {
+    qstr qstr = mp_obj_str_get_qstr(attr);
+    if (qstr == MP_QSTR_NULL || mp_store_attr(base, attr, value)) {
         return MP_OBJ_NULL;
     }
     return mp_const_none;

@@ -235,6 +235,9 @@ STATIC mp_obj_t microbit_image_make_new(const mp_obj_type_t *type_in, mp_uint_t 
                 // arg is a string object
                 mp_uint_t len;
                 const char *str = mp_obj_str_get_data(args[0], &len);
+                if (str == NULL) {
+                    return MP_OBJ_NULL;
+                }
                 // make image from string
                 if (len == 1) {
                     /* For a single charater, return the font glyph */
@@ -909,6 +912,9 @@ static mp_obj_t string_image_facade_subscr(mp_obj_t self_in, mp_obj_t index_in, 
         string_image_facade_t *self = (string_image_facade_t *)self_in;
         mp_uint_t len;
         const char *text = mp_obj_str_get_data(self->string, &len);
+        if (text == NULL) {
+            return MP_OBJ_NULL;
+        }
         mp_uint_t index = mp_get_index(self->base.type, len, index_in, false);
         microbit_image_set_from_char(self->image, text[index]);
         return self->image;
@@ -972,6 +978,9 @@ static mp_obj_t microbit_facade_iter_next(mp_obj_t iter_in) {
     facade_iterator_t *iter = (facade_iterator_t *)iter_in;
     mp_uint_t len;
     const char *text = mp_obj_str_get_data(iter->string, &len);
+    if (text == NULL) {
+        return MP_OBJ_NULL;
+    }
     if (iter->index >= len) {
         return MP_OBJ_STOP_ITERATION;
     }

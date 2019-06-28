@@ -2360,7 +2360,7 @@ qstr mp_obj_str_get_qstr(mp_obj_t self_in) {
         return qstr_from_strn((char*)self->data, self->len);
     } else {
         bad_implicit_conversion(self_in);
-        return MP_QSTR_NULL; // TODO callers should handle this case
+        return MP_QSTR_NULL;
     }
 }
 
@@ -2373,7 +2373,7 @@ const char *mp_obj_str_get_str(mp_obj_t self_in) {
         return (const char*)s;
     } else {
         bad_implicit_conversion(self_in);
-        return NULL; // TODO callers should handle this case
+        return NULL;
     }
 }
 
@@ -2384,7 +2384,7 @@ const char *mp_obj_str_get_data(mp_obj_t self_in, size_t *len) {
         return (const char*)s;
     } else {
         bad_implicit_conversion(self_in);
-        return NULL; // TODO callers should handle this case
+        return NULL;
     }
 }
 

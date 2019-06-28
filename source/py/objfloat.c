@@ -149,6 +149,9 @@ STATIC mp_obj_t float_make_new(const mp_obj_type_t *type_in, size_t n_args, size
                 // a string, parse it
                 size_t l;
                 const char *s = mp_obj_str_get_data(args[0], &l);
+                if (s == NULL) {
+                    return MP_OBJ_NULL;
+                }
                 return mp_parse_num_decimal(s, l, false, false, NULL);
             } else if (mp_obj_is_float(args[0])) {
                 // a float, just return it

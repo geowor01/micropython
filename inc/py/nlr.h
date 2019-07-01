@@ -62,7 +62,12 @@ struct _nlr_buf_t {
 #if MICROPY_NLR_SETJMP
     jmp_buf jmpbuf;
 #endif
+
+    struct _root_stack_elem_t *root_stack;
 };
+
+#define MP_NLR_SAVE_ROOT_STACK(nlr_buf) (nlr_buf)->root_stack = MP_STATE_THREAD(root_stack_cur)
+#define MP_NLR_RESTORE_ROOT_STACK(nlr_buf) MP_STATE_THREAD(root_stack_cur) = (nlr_buf)->root_stack
 
 #if MICROPY_NLR_SETJMP
 #include "py/mpstate.h"
@@ -70,7 +75,7 @@ struct _nlr_buf_t {
 NORETURN void nlr_setjmp_jump(void *val);
 // nlr_push() must be defined as a macro, because "The stack context will be
 // invalidated if the function which called setjmp() returns."
-#define nlr_push(buf) ((buf)->prev = MP_STATE_THREAD(nlr_top), MP_STATE_THREAD(nlr_top) = (buf), setjmp((buf)->jmpbuf))
+#define nlr_push(buf) ((buf)->prev = MP_STATE_THREAD(nlr_top), MP_STATE_THREAD(nlr_top) = (buf), MP_NLR_SAVE_ROOT_STACK(buf), setjmp((buf)->jmpbuf))
 #define nlr_pop() { MP_STATE_THREAD(nlr_top) = MP_STATE_THREAD(nlr_top)->prev; }
 #define nlr_jump(val) nlr_setjmp_jump(val)
 #else

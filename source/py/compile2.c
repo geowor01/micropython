@@ -2613,7 +2613,8 @@ STATIC const byte *compile_node(compiler_t *comp, const byte *p) {
             qstr qst = p[1] | (p[2] << 8);
             size_t len;
             const byte *data = qstr_data(qst, &len);
-            EMIT_ARG(load_const_obj, mp_obj_new_bytes(data, len));
+            mp_obj_t o = mp_obj_new_bytes(data, len);
+            EMIT_ARG(load_const_obj, o);
         }
         return pt_next(p);
     } else if (pt_is_any_id(p)) {
@@ -3294,6 +3295,7 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
     // put compiler state on the stack, it's relatively small
     compiler_t comp_state = {0};
     compiler_t *comp = &comp_state;
+    m_rs_push_ind(&comp_state.compile_error);
 
     comp->source_file = source_file;
     comp->is_repl = is_repl;
@@ -3306,10 +3308,13 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
     comp->scopes = m_new0(scope_t*, comp->num_scopes);
 
     // create the module scope
+    // leaves it on root stack
     scope_new_and_link(comp, 0, SCOPE_MODULE, parse_tree->root, emit_opt);
+    m_rs_push_ptr(comp->scopes[0]);
 
     // create standard emitter; it's used at least for MP_PASS_SCOPE
     emit_t *emit_bc = emit_bc_new();
+    m_rs_push_ptr(emit_bc);
 
     // compile pass 1
     comp->emit = emit_bc;
@@ -3457,6 +3462,8 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
     // free the emitters
 
     emit_bc_free(emit_bc);
+    m_rs_pop_ptr(emit_bc);
+
 #if MICROPY_EMIT_NATIVE
     if (emit_native != NULL) {
 #if MICROPY_EMIT_X64
@@ -3475,6 +3482,10 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
         ASM_EMITTER(free)(comp->emit_inline_asm);
     }
     #endif
+
+    m_rs_pop_ptr(comp->scopes[0]);
+    m_rs_pop_ind(&comp_state.compile_error);
+    m_rs_pop_ptr(parse_tree->chunk);
 
     // free the parse tree
     mp_parse_tree_clear(parse_tree);
@@ -3495,10 +3506,15 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
     }
 }
 
+// parse_tree->chunk is on the top of the root stack
 mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, uint emit_opt, bool is_repl) {
     mp_raw_code_t *rc = mp_compile_to_raw_code(parse_tree, source_file, emit_opt, is_repl);
     // return function that executes the outer module
-    return mp_make_function_from_raw_code(rc, MP_OBJ_NULL, MP_OBJ_NULL);
+    m_rs_push_ptr(rc);
+    mp_obj_t f = mp_make_function_from_raw_code(rc, MP_OBJ_NULL, MP_OBJ_NULL);
+    m_rs_pop_ptr(rc);
+    m_del_obj(mp_raw_code_t, rc);
+    return f;
 }
 
 #endif // MICROPY_ENABLE_COMPILER && MICROPY_USE_SMALL_HEAP_COMPILER

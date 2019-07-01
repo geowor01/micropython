@@ -169,6 +169,7 @@ STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader) {
     // load bytecode
     size_t bc_len = read_uint(reader);
     byte *bytecode = m_new(byte, bc_len);
+    m_rs_push_ptr(bytecode);
     read_bytes(reader, bytecode, bc_len);
 
     // extract prelude
@@ -188,6 +189,7 @@ STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader) {
     size_t n_obj = read_uint(reader);
     size_t n_raw_code = read_uint(reader);
     mp_uint_t *const_table = m_new(mp_uint_t, prelude.n_pos_args + prelude.n_kwonly_args + n_obj + n_raw_code);
+    m_rs_push_ptr(const_table);
     mp_uint_t *ct = const_table;
     for (size_t i = 0; i < prelude.n_pos_args + prelude.n_kwonly_args; ++i) {
         *ct++ = (mp_uint_t)MP_OBJ_NEW_QSTR(load_qstr(reader));
@@ -200,6 +202,8 @@ STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader) {
     }
 
     // create raw_code and return it
+    m_rs_pop_ptr(const_table);
+    m_rs_pop_ptr(bytecode);
     mp_raw_code_t *rc = mp_emit_glue_new_raw_code();
     mp_emit_glue_assign_bytecode(rc, bytecode, bc_len, const_table,
         #if MICROPY_PERSISTENT_CODE_SAVE
@@ -219,20 +223,28 @@ mp_raw_code_t *mp_raw_code_load(mp_reader_t *reader) {
         mp_raise_ValueError("incompatible .mpy file");
     }
     mp_raw_code_t *rc = load_raw_code(reader);
+    m_rs_push_ptr(rc);
     reader->close(reader->data);
+    m_rs_pop_ptr(rc);
     return rc;
 }
 
 mp_raw_code_t *mp_raw_code_load_mem(const byte *buf, size_t len) {
     mp_reader_t reader;
     mp_reader_new_mem(&reader, buf, len, 0);
-    return mp_raw_code_load(&reader);
+    m_rs_push_ptr(reader.data);
+    mp_raw_code_t *rc = mp_raw_code_load(&reader);
+    m_rs_pop_ptr(reader.data);
+    return rc;
 }
 
 mp_raw_code_t *mp_raw_code_load_file(const char *filename) {
     mp_reader_t reader;
     mp_reader_new_file(&reader, filename);
-    return mp_raw_code_load(&reader);
+    m_rs_push_ptr(reader.data);
+    mp_raw_code_t *rc = mp_raw_code_load(&reader);
+    m_rs_pop_ptr(reader.data);
+    return rc;
 }
 
 #endif // MICROPY_PERSISTENT_CODE_LOAD

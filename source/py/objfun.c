@@ -251,8 +251,9 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
     // allocate state for locals and stack
     size_t state_size = n_state * sizeof(mp_obj_t) + n_exc_stack * sizeof(mp_exc_stack_t);
     mp_code_state_t *code_state = NULL;
-    if (state_size > VM_MAX_STATE_ON_STACK) {
-        code_state = m_new_obj_var_maybe(mp_code_state_t, byte, state_size);
+    code_state = m_new_obj_var_maybe(mp_code_state_t, byte, state_size);
+    if (code_state != NULL) {
+        m_rs_push_ptr(code_state);
     }
     if (code_state == NULL) {
         code_state = alloca(sizeof(mp_code_state_t) + state_size);
@@ -308,6 +309,7 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
 
     // free the state if it was allocated on the heap
     if (state_size != 0) {
+        m_rs_pop_ptr(code_state);
         m_del_var(mp_code_state_t, byte, state_size, code_state);
     }
 

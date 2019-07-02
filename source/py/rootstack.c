@@ -153,10 +153,11 @@ void m_rs_pop_obj(mp_obj_t o) {
 }
 #endif
 
-void mp_obj_list_append_rs(mp_obj_t self, mp_obj_t arg) {
+mp_obj_t mp_obj_list_append_rs(mp_obj_t self, mp_obj_t arg) {
     m_rs_push_obj(arg);
-    mp_obj_list_append(self, arg);
+    mp_obj_t o = mp_obj_list_append(self, arg);
     m_rs_pop_obj(arg);
+    return o;
 }
 
 #endif

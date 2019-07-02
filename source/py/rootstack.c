@@ -111,13 +111,18 @@ void gc_rs_assert(int kind, void *ptr) {
         return;
     }
     if (MP_STATE_THREAD(root_stack_cur) == &root_stack[0]) {
-        printf("gc_rs_assert(%p): assert empty stack\n", ptr);
+        printf("gc_rs_assert(%p): empty stack\n", ptr);
         EM_ASM({ abort(); });
         return;
     }
     if (MP_STATE_THREAD(root_stack_cur)[-1].kind != kind
         || MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr) {
-        printf("gc_rs_assert(%p): mismatch %p != %p\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].ptr, ptr);
+        if (MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr) {
+            printf("gc_rs_assert(%p): mismatch %p != %p\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].ptr, ptr);
+        }
+        else {
+            printf("gc_rs_assert(%p): mismatch of pointer kind %d != %d\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].kind, kind);
+        }
         EM_ASM({ abort(); });
         return;
     }
@@ -144,12 +149,23 @@ void gc_rs_pop(int kind, void *ptr) {
         return;
     }
     if (MP_STATE_THREAD(root_stack_cur) == &root_stack[0]) {
-        printf("gc_rs_pop(%p): pop empty stack\n", ptr);
+        printf("gc_rs_pop(%p): cannot pop empty stack\n", ptr);
         EM_ASM({ abort(); });
         return;
     }
-    if (MP_STATE_THREAD(root_stack_cur)[-1].kind != kind || MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr) {
-        printf("gc_rs_pop(%p): mismatch %p != %p\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].ptr, ptr);
+    if (MP_STATE_THREAD(root_stack_cur)[-1].kind != kind || MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr || kind == RS_KIND_BAR) {
+        if (kind == RS_KIND_BAR) {
+            printf("gc_rs_pop(%p): cannot pop a barrier\n", ptr);
+        }
+        else if (MP_STATE_THREAD(root_stack_cur)[-1].kind == RS_KIND_BAR) {
+            printf("gc_rs_pop(%p): a barrier is at the top of the stack\n", ptr);
+        }
+        else if (MP_STATE_THREAD(root_stack_cur)[-1].ptr != ptr) {
+            printf("gc_rs_pop(%p): mismatch %p != %p\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].ptr, ptr);
+        }
+        else {
+            printf("gc_rs_pop(%p): mismatch of pointer kind %d != %d\n", ptr, MP_STATE_THREAD(root_stack_cur)[-1].kind, kind);
+        }
         EM_ASM({ abort(); });
         return;
     }

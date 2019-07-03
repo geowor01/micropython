@@ -36,7 +36,9 @@ typedef struct _mp_obj_object_t {
 STATIC mp_obj_t object_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)args;
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_object_t *o = m_new_obj(mp_obj_object_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     return MP_OBJ_FROM_PTR(o);
 }
@@ -50,10 +52,11 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(object___init___obj, object___init__);
 
 STATIC mp_obj_t object___new__(mp_obj_t cls) {
     if (!MP_OBJ_IS_TYPE(cls, &mp_type_type) || !mp_obj_is_instance_type((mp_obj_type_t*)MP_OBJ_TO_PTR(cls))) {
-        mp_raise_TypeError("__new__ arg must be a user-type");
+        return mp_raise_TypeError_o("__new__ arg must be a user-type");
     }
     mp_obj_t o = MP_OBJ_SENTINEL;
     mp_obj_t res = mp_obj_instance_make_new(MP_OBJ_TO_PTR(cls), 1, 0, &o);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return res;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(object___new___fun_obj, object___new__);

@@ -28,7 +28,6 @@
 #include <assert.h>
 
 #include "py/mpstate.h"
-#include "py/nlr.h"
 #include "py/objmodule.h"
 #include "py/runtime.h"
 #include "py/builtin.h"
@@ -39,16 +38,21 @@ STATIC void module_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kin
 
     const char *module_name = "";
     mp_map_elem_t *elem = mp_map_lookup(&self->globals->map, MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_MAP_LOOKUP);
+    RETURN_ON_EXCEPTION()
     if (elem != NULL) {
         module_name = mp_obj_str_get_str(elem->value);
+        RETURN_ON_EXCEPTION()
     }
 
 #if MICROPY_PY___FILE__
     // If we store __file__ to imported modules then try to lookup this
     // symbol to give more information about the module.
     elem = mp_map_lookup(&self->globals->map, MP_OBJ_NEW_QSTR(MP_QSTR___file__), MP_MAP_LOOKUP);
+    RETURN_ON_EXCEPTION()
     if (elem != NULL) {
-        mp_printf(print, "<module '%s' from '%s'>", module_name, mp_obj_str_get_str(elem->value));
+        char *str = mp_obj_str_get_str(elem->value);
+        RETURN_ON_EXCEPTION()
+        mp_printf(print, "<module '%s' from '%s'>", module_name, str);
         return;
     }
 #endif
@@ -61,6 +65,7 @@ STATIC void module_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
     if (dest[0] == MP_OBJ_NULL) {
         // load attribute
         mp_map_elem_t *elem = mp_map_lookup(&self->globals->map, MP_OBJ_NEW_QSTR(attr), MP_MAP_LOOKUP);
+        RETURN_ON_EXCEPTION()
         if (elem != NULL) {
             dest[0] = elem->value;
         }
@@ -71,7 +76,9 @@ STATIC void module_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
             #if MICROPY_CAN_OVERRIDE_BUILTINS
             if (dict == &mp_module_builtins_globals) {
                 if (MP_STATE_VM(mp_module_builtins_override_dict) == NULL) {
-                    MP_STATE_VM(mp_module_builtins_override_dict) = MP_OBJ_TO_PTR(mp_obj_new_dict(1));
+                    mp_obj_t o = mp_obj_new_dict(1);
+                    RETURN_ON_EXCEPTION()
+                    MP_STATE_VM(mp_module_builtins_override_dict) = MP_OBJ_TO_PTR(o);
                 }
                 dict = MP_STATE_VM(mp_module_builtins_override_dict);
             } else
@@ -84,10 +91,12 @@ STATIC void module_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
         if (dest[1] == MP_OBJ_NULL) {
             // delete attribute
             mp_obj_dict_delete(MP_OBJ_FROM_PTR(dict), MP_OBJ_NEW_QSTR(attr));
+            RETURN_ON_EXCEPTION()
         } else {
             // store attribute
             // TODO CPython allows STORE_ATTR to a module, but is this the correct implementation?
             mp_obj_dict_store(MP_OBJ_FROM_PTR(dict), MP_OBJ_NEW_QSTR(attr), dest[1]);
+            RETURN_ON_EXCEPTION()
         }
         dest[0] = MP_OBJ_NULL; // indicate success
     }
@@ -103,6 +112,7 @@ const mp_obj_type_t mp_type_module = {
 mp_obj_t mp_obj_new_module(qstr module_name) {
     mp_map_t *mp_loaded_modules_map = &MP_STATE_VM(mp_loaded_modules_dict).map;
     mp_map_elem_t *el = mp_map_lookup(mp_loaded_modules_map, MP_OBJ_NEW_QSTR(module_name), MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     // We could error out if module already exists, but let C extensions
     // add new members to existing modules.
     if (el->value != MP_OBJ_NULL) {
@@ -111,12 +121,15 @@ mp_obj_t mp_obj_new_module(qstr module_name) {
 
     // create new module object
     mp_obj_module_t *o = m_new_obj(mp_obj_module_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_ptr(o);
     o->base.type = &mp_type_module;
     o->globals = MP_OBJ_TO_PTR(mp_obj_new_dict(MICROPY_MODULE_DICT_SIZE));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // store __name__ entry in the module
     mp_obj_dict_store(MP_OBJ_FROM_PTR(o->globals), MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(module_name));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // store the new module into the slot in the global dict holding all modules
     el->value = MP_OBJ_FROM_PTR(o);
@@ -244,10 +257,12 @@ mp_obj_t mp_module_get(qstr module_name) {
     mp_map_t *mp_loaded_modules_map = &MP_STATE_VM(mp_loaded_modules_dict).map;
     // lookup module
     mp_map_elem_t *el = mp_map_lookup(mp_loaded_modules_map, MP_OBJ_NEW_QSTR(module_name), MP_MAP_LOOKUP);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     if (el == NULL) {
         // module not found, look for builtin module names
         el = mp_map_lookup((mp_map_t*)&mp_builtin_module_map, MP_OBJ_NEW_QSTR(module_name), MP_MAP_LOOKUP);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (el == NULL) {
             return MP_OBJ_NULL;
         }
@@ -256,10 +271,13 @@ mp_obj_t mp_module_get(qstr module_name) {
             // look for __init__ and call it if it exists
             mp_obj_t dest[2];
             mp_load_method_maybe(el->value, MP_QSTR___init__, dest);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             if (dest[0] != MP_OBJ_NULL) {
                 mp_call_method_n_kw(0, 0, dest);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 // register module so __init__ is not called again
                 mp_module_register(module_name, el->value);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             }
         }
     }

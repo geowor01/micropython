@@ -49,8 +49,11 @@ typedef struct _mp_obj_bufwriter_t {
 
 STATIC mp_obj_t bufwriter_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 2, 2, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     size_t alloc = mp_obj_get_int(args[1]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_bufwriter_t *o = m_new_obj_var(mp_obj_bufwriter_t, byte, alloc);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     o->stream = args[0];
     o->alloc = alloc;
@@ -104,7 +107,7 @@ STATIC mp_obj_t bufwriter_flush(mp_obj_t self_in) {
         assert(out_sz == self->len);
         self->len = 0;
         if (err != 0) {
-            mp_raise_OSError(err);
+            return mp_raise_OSError_o(err);
         }
     }
 
@@ -149,28 +152,37 @@ STATIC mp_obj_t resource_stream(mp_obj_t package_in, mp_obj_t path_in) {
 
         // TODO lookup __import__ and call that instead of going straight to builtin implementation
         mp_obj_t pkg = mp_builtin___import__(5, args);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
         mp_obj_t dest[2];
         mp_load_method_maybe(pkg, MP_QSTR___path__, dest);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (dest[0] == MP_OBJ_NULL) {
-            mp_raise_TypeError(NULL);
+            return mp_raise_TypeError_o(NULL);
         }
 
         const char *path = mp_obj_str_get_data(dest[0], &len);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         vstr_add_strn(&path_buf, path, len);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         vstr_add_byte(&path_buf, '/');
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     const char *path = mp_obj_str_get_data(path_in, &len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     vstr_add_strn(&path_buf, path, len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     len = path_buf.len;
     const char *data = mp_find_frozen_str(path_buf.buf, &len);
     if (data != NULL) {
         mp_obj_stringio_t *o = m_new_obj(mp_obj_stringio_t);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         m_rs_push_ptr(o);
         o->base.type = &mp_type_bytesio;
         o->vstr = m_new_obj(vstr_t);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         vstr_init_fixed_buf(o->vstr, len + 1, (char*)data);
         o->vstr->len = len;
         o->pos = 0;
@@ -179,6 +191,7 @@ STATIC mp_obj_t resource_stream(mp_obj_t package_in, mp_obj_t path_in) {
     }
 
     mp_obj_t path_out = mp_obj_new_str(path_buf.buf, path_buf.len, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_obj(path_out);
     mp_obj_t o = mp_builtin_open(1, &path_out, (mp_map_t*)&mp_const_empty_map);
     m_rs_pop_obj(path_out);

@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/runtime.h"
 
 #if MICROPY_PY_BUILTINS_PROPERTY
@@ -47,8 +46,10 @@ STATIC mp_obj_t property_make_new(const mp_obj_type_t *type, size_t n_args, size
     };
     mp_arg_val_t vals[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all_kw_array(n_args, n_kw, args, MP_ARRAY_SIZE(allowed_args), allowed_args, vals);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     mp_obj_property_t *o = m_new_obj(mp_obj_property_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     o->proxy[0] = vals[ARG_fget].u_obj;
     o->proxy[1] = vals[ARG_fset].u_obj;
@@ -59,6 +60,7 @@ STATIC mp_obj_t property_make_new(const mp_obj_type_t *type, size_t n_args, size
 
 STATIC mp_obj_t property_getter(mp_obj_t self_in, mp_obj_t getter) {
     mp_obj_property_t *p2 = m_new_obj(mp_obj_property_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     *p2 = *(mp_obj_property_t*)MP_OBJ_TO_PTR(self_in);
     p2->proxy[0] = getter;
     return MP_OBJ_FROM_PTR(p2);
@@ -68,6 +70,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(property_getter_obj, property_getter);
 
 STATIC mp_obj_t property_setter(mp_obj_t self_in, mp_obj_t setter) {
     mp_obj_property_t *p2 = m_new_obj(mp_obj_property_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     *p2 = *(mp_obj_property_t*)MP_OBJ_TO_PTR(self_in);
     p2->proxy[1] = setter;
     return MP_OBJ_FROM_PTR(p2);
@@ -77,6 +80,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(property_setter_obj, property_setter);
 
 STATIC mp_obj_t property_deleter(mp_obj_t self_in, mp_obj_t deleter) {
     mp_obj_property_t *p2 = m_new_obj(mp_obj_property_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     *p2 = *(mp_obj_property_t*)MP_OBJ_TO_PTR(self_in);
     p2->proxy[2] = deleter;
     return MP_OBJ_FROM_PTR(p2);

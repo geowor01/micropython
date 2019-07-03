@@ -30,6 +30,7 @@
 #include "py/runtime.h"
 #include "py/builtin.h"
 #include "py/objmodule.h"
+#include "py/mpstate.h"
 
 #if MICROPY_PY_BUILTINS_HELP
 
@@ -61,6 +62,7 @@ STATIC void mp_help_add_from_map(mp_obj_t list, const mp_map_t *map) {
     for (size_t i = 0; i < map->alloc; i++) {
         if (MP_MAP_SLOT_IS_FILLED(map, i)) {
             mp_obj_list_append(list, map->table[i].key);
+            RETURN_ON_EXCEPTION()
         }
     }
 }
@@ -70,8 +72,9 @@ STATIC void mp_help_add_from_names(mp_obj_t list, const char *name) {
     while (*name) {
         size_t l = strlen(name);
         // name should end in '.py' and we strip it off
-        mp_obj_t s = mp_obj_new_str(name, l - 3, false);
-        mp_obj_list_append_rs(list, s);
+        char *string =  mp_obj_new_str(name, l - 3, false);
+        RETURN_ON_EXCEPTION()
+        mp_obj_list_append_rs(list, string);
         name += l + 1;
     }
 }
@@ -79,26 +82,32 @@ STATIC void mp_help_add_from_names(mp_obj_t list, const char *name) {
 
 STATIC void mp_help_print_modules(void) {
     mp_obj_t list = mp_obj_new_list(0, NULL);
+    RETURN_ON_EXCEPTION()
     m_rs_push_obj_ptr(list);
 
     mp_help_add_from_map(list, &mp_builtin_module_map);
+    RETURN_ON_EXCEPTION()
 
     #if MICROPY_MODULE_WEAK_LINKS
     mp_help_add_from_map(list, &mp_builtin_module_weak_links_map);
+    RETURN_ON_EXCEPTION()
     #endif
 
     #if MICROPY_MODULE_FROZEN_STR
     extern const char mp_frozen_str_names[];
     mp_help_add_from_names(list, mp_frozen_str_names);
+    RETURN_ON_EXCEPTION()
     #endif
 
     #if MICROPY_MODULE_FROZEN_MPY
     extern const char mp_frozen_mpy_names[];
     mp_help_add_from_names(list, mp_frozen_mpy_names);
+    RETURN_ON_EXCEPTION()
     #endif
 
     // sort the list so it's printed in alphabetical order
     mp_obj_list_sort(1, &list, (mp_map_t*)&mp_const_empty_map);
+    RETURN_ON_EXCEPTION()
 
     // print the list of modules in a column-first order
     #define NUM_COLUMNS (4)
@@ -110,7 +119,9 @@ STATIC void mp_help_print_modules(void) {
     for (unsigned int i = 0; i < num_rows; ++i) {
         unsigned int j = i;
         for (;;) {
-            int l = mp_print_str(MP_PYTHON_PRINTER, mp_obj_str_get_str(items[j]));
+            const char *str = mp_obj_str_get_str(items[j]);
+            RETURN_ON_EXCEPTION()
+            int l = mp_print_str(MP_PYTHON_PRINTER, str);
             j += num_rows;
             if (j >= len) {
                 break;

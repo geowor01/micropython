@@ -57,6 +57,7 @@ STATIC void mp_reader_mem_close(void *data) {
 
 void mp_reader_new_mem(mp_reader_t *reader, const byte *buf, size_t len, size_t free_len) {
     mp_reader_mem_t *rm = m_new_obj(mp_reader_mem_t);
+    RETURN_ON_EXCEPTION()
     rm->free_len = free_len;
     rm->beg = buf;
     rm->cur = buf;
@@ -108,6 +109,7 @@ STATIC void mp_reader_posix_close(void *data) {
 
 void mp_reader_new_file_from_fd(mp_reader_t *reader, int fd, bool close_fd) {
     mp_reader_posix_t *rp = m_new_obj(mp_reader_posix_t);
+    RETURN_ON_EXCEPTION()
     rp->close_fd = close_fd;
     rp->fd = fd;
     int n = read(rp->fd, rp->buf, sizeof(rp->buf));
@@ -115,7 +117,8 @@ void mp_reader_new_file_from_fd(mp_reader_t *reader, int fd, bool close_fd) {
         if (close_fd) {
             close(fd);
         }
-        mp_raise_OSError(errno);
+        mp_raise_OSError_o(errno);
+        return;
     }
     rp->len = n;
     rp->pos = 0;
@@ -127,7 +130,8 @@ void mp_reader_new_file_from_fd(mp_reader_t *reader, int fd, bool close_fd) {
 void mp_reader_new_file(mp_reader_t *reader, const char *filename) {
     int fd = open(filename, O_RDONLY, 0644);
     if (fd < 0) {
-        mp_raise_OSError(errno);
+        mp_raise_OSError_o(errno);
+        return;
     }
     mp_reader_new_file_from_fd(reader, fd, true);
 }

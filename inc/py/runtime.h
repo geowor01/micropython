@@ -80,8 +80,8 @@ int mp_print_mp_int(const mp_print_t *print, mp_obj_t x, int base, int base_char
 void mp_arg_check_num(size_t n_args, size_t n_kw, size_t n_args_min, size_t n_args_max, bool takes_kw);
 void mp_arg_parse_all(size_t n_pos, const mp_obj_t *pos, mp_map_t *kws, size_t n_allowed, const mp_arg_t *allowed, mp_arg_val_t *out_vals);
 void mp_arg_parse_all_kw_array(size_t n_pos, size_t n_kw, const mp_obj_t *args, size_t n_allowed, const mp_arg_t *allowed, mp_arg_val_t *out_vals);
-NORETURN void mp_arg_error_terse_mismatch(void);
-NORETURN void mp_arg_error_unimpl_kw(void);
+mp_obj_t mp_arg_error_terse_mismatch(void);
+mp_obj_t mp_arg_error_unimpl_kw(void);
 
 static inline mp_obj_dict_t *mp_locals_get(void) { return MP_STATE_THREAD(dict_locals); }
 static inline void mp_locals_set(mp_obj_dict_t *d) { MP_STATE_THREAD(dict_locals) = d; }
@@ -145,13 +145,14 @@ mp_obj_t mp_import_name(qstr name, mp_obj_t fromlist, mp_obj_t level);
 mp_obj_t mp_import_from(mp_obj_t module, qstr name);
 void mp_import_all(mp_obj_t module);
 
-NORETURN void mp_raise_msg(const mp_obj_type_t *exc_type, const char *msg);
-//NORETURN void nlr_raise_msg_varg(const mp_obj_type_t *exc_type, const char *fmt, ...);
-NORETURN void mp_raise_ValueError(const char *msg);
-NORETURN void mp_raise_TypeError(const char *msg);
-NORETURN void mp_raise_NotImplementedError(const char *msg);
-NORETURN void mp_raise_OSError(int errno_);
-NORETURN void mp_exc_recursion_depth(void);
+/* raises */
+mp_obj_t mp_raise_o(mp_obj_t exc);
+mp_obj_t mp_raise_msg_o(const mp_obj_type_t *exc_type, const char *msg);
+mp_obj_t mp_raise_ValueError_o(const char *msg);
+mp_obj_t mp_raise_TypeError_o(const char *msg);
+mp_obj_t mp_raise_NotImplementedError_o(const char *msg);
+mp_obj_t mp_raise_OSError_o(int errno_);
+mp_obj_t mp_exc_recursion_depth(void);
 
 #if MICROPY_BUILTIN_METHOD_CHECK_SELF_ARG
 #undef mp_check_self

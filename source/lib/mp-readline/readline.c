@@ -151,7 +151,9 @@ int readline_process_char(int c) {
         } else if (c == '\r') {
             // newline
             mp_hal_stdout_tx_str("\r\n");
-            readline_push_history(vstr_null_terminated_str(rl.line) + rl.orig_line_len);
+            char *str = vstr_null_terminated_str(rl.line);
+            RETURN_ON_EXCEPTION(-1);
+            readline_push_history(str + rl.orig_line_len);
             return 0;
         } else if (c == 27) {
             // escape sequence
@@ -189,6 +191,7 @@ int readline_process_char(int c) {
             // tab magic
             const char *compl_str;
             size_t compl_len = mp_repl_autocomplete(rl.line->buf + rl.orig_line_len, rl.cursor_pos - rl.orig_line_len, &mp_plat_print, &compl_str);
+            RETURN_ON_EXCEPTION(-1);
             if (compl_len == 0) {
                 // no match
             } else if (compl_len == (size_t)(-1)) {
@@ -200,6 +203,7 @@ int readline_process_char(int c) {
                 // one match
                 for (size_t i = 0; i < compl_len; ++i) {
                     vstr_ins_byte(rl.line, rl.cursor_pos + i, *compl_str++);
+                    RETURN_ON_EXCEPTION(-1);
                 }
                 // set redraw parameters
                 redraw_from_cursor = true;
@@ -209,6 +213,7 @@ int readline_process_char(int c) {
         } else if (32 <= c && c <= 126) {
             // printable character
             vstr_ins_char(rl.line, rl.cursor_pos, c);
+            RETURN_ON_EXCEPTION(-1);
             // set redraw parameters
             redraw_from_cursor = true;
             redraw_step_forward = 1;
@@ -242,6 +247,7 @@ up_arrow_key:
                     // set line to history
                     rl.line->len = rl.orig_line_len;
                     vstr_add_str(rl.line, MP_STATE_PORT(readline_hist)[rl.hist_cur]);
+                    RETURN_ON_EXCEPTION(-1);
                     // set redraw parameters
                     redraw_step_back = rl.cursor_pos - rl.orig_line_len;
                     redraw_from_cursor = true;
@@ -259,6 +265,7 @@ down_arrow_key:
                     vstr_cut_tail_bytes(rl.line, rl.line->len - rl.orig_line_len);
                     if (rl.hist_cur >= 0) {
                         vstr_add_str(rl.line, MP_STATE_PORT(readline_hist)[rl.hist_cur]);
+                        RETURN_ON_EXCEPTION(-1);
                     }
                     // set redraw parameters
                     redraw_step_back = rl.cursor_pos - rl.orig_line_len;
@@ -388,6 +395,7 @@ STATIC void readline_auto_indent(void) {
         }
         while (n-- > 0) {
             vstr_add_strn(line, "    ", 4);
+            RETURN_ON_EXCEPTION();
             mp_hal_stdout_tx_strn("    ", 4);
             rl.cursor_pos += 4;
         }
@@ -421,9 +429,11 @@ void readline_init(vstr_t *line, const char *prompt) {
 
 int readline(vstr_t *line, const char *prompt) {
     readline_init(line, prompt);
+    RETURN_ON_EXCEPTION(-1);
     for (;;) {
         int c = mp_hal_stdin_rx_chr();
         int r = readline_process_char(c);
+        RETURN_ON_EXCEPTION(-1);
         if (r >= 0) {
             return r;
         }

@@ -27,7 +27,6 @@
 
 #include <string.h>
 
-#include "py/nlr.h"
 #include "py/obj.h"
 #include "py/runtime0.h"
 #include "py/runtime.h"
@@ -55,8 +54,10 @@ bool mp_seq_get_fast_slice_indexes(mp_uint_t len, mp_obj_t slice, mp_bound_slice
 
     if (ostep != mp_const_none && ostep != MP_OBJ_NEW_SMALL_INT(1)) {
         indexes->step = mp_obj_get_int(ostep);
+        RETURN_ON_EXCEPTION(false)
         if (indexes->step == 0) {
-            mp_raise_ValueError("slice step cannot be zero");
+            mp_raise_ValueError_o("slice step cannot be zero");
+            return false;
         }
     } else {
         indexes->step = 1;
@@ -70,6 +71,7 @@ bool mp_seq_get_fast_slice_indexes(mp_uint_t len, mp_obj_t slice, mp_bound_slice
         }
     } else {
         start = mp_obj_get_int(ostart);
+        RETURN_ON_EXCEPTION(false)
     }
     if (ostop == mp_const_none) {
         if (indexes->step > 0) {
@@ -79,6 +81,7 @@ bool mp_seq_get_fast_slice_indexes(mp_uint_t len, mp_obj_t slice, mp_bound_slice
         }
     } else {
         stop = mp_obj_get_int(ostop);
+        RETURN_ON_EXCEPTION(false)
         if (stop >= 0 && indexes->step < 0) {
             stop += 1;
         }
@@ -133,16 +136,19 @@ mp_obj_t mp_seq_extract_slice(size_t len, const mp_obj_t *seq, mp_bound_slice_t 
     mp_int_t step = indexes->step;
 
     mp_obj_t res = mp_obj_new_list(0, NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_obj_ptr(res);
 
     if (step < 0) {
         while (start >= stop) {
             mp_obj_list_append(res, seq[start]);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             start += step;
         }
     } else {
         while (start < stop) {
             mp_obj_list_append(res, seq[start]);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             start += step;
         }
     }
@@ -216,8 +222,10 @@ bool mp_seq_cmp_objs(mp_uint_t op, const mp_obj_t *items1, size_t len1, const mp
     for (size_t i = 0; i < len; i++) {
         // If current elements equal, can't decide anything - go on
         if (mp_obj_equal(items1[i], items2[i])) {
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             continue;
         }
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
         // Othewise, if they are not equal, we can have final decision based on them
         if (op == MP_BINARY_OP_EQUAL) {
@@ -253,8 +261,10 @@ mp_obj_t mp_seq_index_obj(const mp_obj_t *items, size_t len, size_t n_args, cons
 
     if (n_args >= 3) {
         start = mp_get_index(type, len, args[2], true);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (n_args >= 4) {
             stop = mp_get_index(type, len, args[3], true);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
     }
 
@@ -263,9 +273,10 @@ mp_obj_t mp_seq_index_obj(const mp_obj_t *items, size_t len, size_t n_args, cons
             // Common sense says this cannot overflow small int
             return MP_OBJ_NEW_SMALL_INT(i);
         }
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
-    mp_raise_ValueError("object not in sequence");
+    return mp_raise_ValueError_o("object not in sequence");
 }
 
 mp_obj_t mp_seq_count_obj(const mp_obj_t *items, size_t len, mp_obj_t value) {
@@ -274,6 +285,7 @@ mp_obj_t mp_seq_count_obj(const mp_obj_t *items, size_t len, mp_obj_t value) {
          if (mp_obj_equal(items[i], value)) {
               count++;
          }
+         RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     // Common sense says this cannot overflow small int

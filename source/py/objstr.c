@@ -28,7 +28,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include <limits.h>
 #include <assert.h>
 #include "py/mpconfig.h"
@@ -44,7 +43,7 @@
 STATIC mp_obj_t str_modulo_format(mp_obj_t pattern, size_t n_args, const mp_obj_t *args, mp_obj_t dict);
 
 STATIC mp_obj_t mp_obj_new_bytes_iterator(mp_obj_t str, mp_obj_iter_buf_t *iter_buf);
-STATIC NORETURN void bad_implicit_conversion(mp_obj_t self_in);
+STATIC mp_obj_t bad_implicit_conversion(mp_obj_t self_in);
 
 /******************************************************************************/
 /* str                                                                        */
@@ -140,11 +139,12 @@ STATIC void str_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t
 mp_obj_t mp_obj_str_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
 #if MICROPY_CPYTHON_COMPAT
     if (n_kw != 0) {
-        mp_arg_error_unimpl_kw();
+        return mp_arg_error_unimpl_kw();
     }
 #endif
 
     mp_arg_check_num(n_args, n_kw, 0, 3, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     switch (n_args) {
         case 0:
@@ -155,6 +155,7 @@ mp_obj_t mp_obj_str_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_
             mp_print_t print;
             m_rs_push_ind(&vstr.buf);
             vstr_init_print(&vstr, 16, &print);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_obj_print_helper(&print, args[0], PRINT_STR);
             m_rs_pop_ind(&vstr.buf);
             return mp_obj_new_str_from_vstr(type, &vstr);
@@ -169,12 +170,14 @@ mp_obj_t mp_obj_str_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_
                     str_hash = qstr_compute_hash(str_data, str_len);
                 }
                 mp_obj_str_t *o = MP_OBJ_TO_PTR(mp_obj_new_str_of_type(type, NULL, str_len));
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 o->data = str_data;
                 o->hash = str_hash;
                 return MP_OBJ_FROM_PTR(o);
             } else {
                 mp_buffer_info_t bufinfo;
                 mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 return mp_obj_new_str(bufinfo.buf, bufinfo.len, false);
             }
     }
@@ -185,7 +188,7 @@ STATIC mp_obj_t bytes_make_new(const mp_obj_type_t *type_in, size_t n_args, size
 
     #if MICROPY_CPYTHON_COMPAT
     if (n_kw != 0) {
-        mp_arg_error_unimpl_kw();
+        return mp_arg_error_unimpl_kw();
     }
     #else
     (void)n_kw;
@@ -205,6 +208,7 @@ STATIC mp_obj_t bytes_make_new(const mp_obj_type_t *type_in, size_t n_args, size
             str_hash = qstr_compute_hash(str_data, str_len);
         }
         mp_obj_str_t *o = MP_OBJ_TO_PTR(mp_obj_new_str_of_type(&mp_type_bytes, NULL, str_len));
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         o->data = str_data;
         o->hash = str_hash;
         return MP_OBJ_FROM_PTR(o);
@@ -221,6 +225,7 @@ STATIC mp_obj_t bytes_make_new(const mp_obj_type_t *type_in, size_t n_args, size
         }
         vstr_t vstr;
         vstr_init_len(&vstr, len);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         memset(vstr.buf, 0, len);
         return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
     }
@@ -228,40 +233,49 @@ STATIC mp_obj_t bytes_make_new(const mp_obj_type_t *type_in, size_t n_args, size
     // check if argument has the buffer protocol
     mp_buffer_info_t bufinfo;
     if (mp_get_buffer(args[0], &bufinfo, MP_BUFFER_READ)) {
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         return mp_obj_new_str_of_type(&mp_type_bytes, bufinfo.buf, bufinfo.len);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     vstr_t vstr;
     // Try to create array of exact len if initializer len is known
     mp_obj_t len_in = mp_obj_len_maybe(args[0]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (len_in == MP_OBJ_NULL) {
         vstr_init(&vstr, 16);
     } else {
         mp_int_t len = MP_OBJ_SMALL_INT_VALUE(len_in);
         vstr_init(&vstr, len);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_ind(&vstr.buf);
 
     mp_obj_iter_buf_t iter_buf;
     mp_obj_t iterable = mp_getiter(args[0], &iter_buf);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_obj(iterable);
     mp_obj_t item;
     while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         mp_int_t val = mp_obj_get_int(item);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         #if MICROPY_FULL_CHECKS
         if (val < 0 || val > 255) {
-            mp_raise_ValueError("bytes value out of range");
+            return mp_raise_ValueError_o("bytes value out of range");
         }
         #endif
         vstr_add_byte(&vstr, val);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     m_rs_pop_obj(iterable);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     m_rs_pop_ind(&vstr.buf);
     return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
 
 wrong_args:
-    mp_raise_TypeError("wrong number of arguments");
+    return mp_raise_TypeError_o("wrong number of arguments");
 }
 
 // like strstr but with specified length and allows \0 bytes
@@ -303,6 +317,7 @@ mp_obj_t mp_obj_str_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
         if (MP_OBJ_IS_TYPE(rhs_in, &mp_type_tuple)) {
             // TODO: Support tuple subclasses?
             mp_obj_tuple_get(rhs_in, &n_args, &args);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         } else if (MP_OBJ_IS_TYPE(rhs_in, &mp_type_dict)) {
             dict = rhs_in;
         }
@@ -319,6 +334,7 @@ mp_obj_t mp_obj_str_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
         if (!mp_obj_get_int_maybe(rhs_in, &n)) {
             return MP_OBJ_NULL; // op not supported
         }
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (n <= 0) {
             if (lhs_type == &mp_type_str) {
                 return MP_OBJ_NEW_QSTR(MP_QSTR_); // empty str
@@ -328,7 +344,9 @@ mp_obj_t mp_obj_str_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
         }
         vstr_t vstr;
         vstr_init_len(&vstr, lhs_len * n);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         mp_seq_multiply(lhs_data, sizeof(*lhs_data), lhs_len, n, vstr.buf);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         return mp_obj_new_str_from_vstr(lhs_type, &vstr);
     }
 
@@ -358,12 +376,13 @@ mp_obj_t mp_obj_str_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
         if (!mp_get_buffer(rhs_in, &bufinfo, MP_BUFFER_READ)) {
             return MP_OBJ_NULL; // op not supported
         }
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         rhs_data = bufinfo.buf;
         rhs_len = bufinfo.len;
     } else {
         // LHS is str and RHS has an incompatible type
         // (except if operation is EQUAL, but that's handled by mp_obj_equal)
-        bad_implicit_conversion(rhs_in);
+        return bad_implicit_conversion(rhs_in);
     }
 
     switch (op) {
@@ -378,6 +397,7 @@ mp_obj_t mp_obj_str_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
 
             vstr_t vstr;
             vstr_init_len(&vstr, lhs_len + rhs_len);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             memcpy(vstr.buf, lhs_data, lhs_len);
             memcpy(vstr.buf + lhs_len, rhs_data, rhs_len);
             return mp_obj_new_str_from_vstr(lhs_type, &vstr);
@@ -404,6 +424,7 @@ mp_obj_t mp_obj_str_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
 const byte *str_index_to_ptr(const mp_obj_type_t *type, const byte *self_data, size_t self_len,
                              mp_obj_t index, bool is_slice) {
     size_t index_val = mp_get_index(type, self_len, index, is_slice);
+    RETURN_ON_EXCEPTION(NULL)
     return self_data + index_val;
 }
 #endif
@@ -418,12 +439,14 @@ STATIC mp_obj_t bytes_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
         if (MP_OBJ_IS_TYPE(index, &mp_type_slice)) {
             mp_bound_slice_t slice;
             if (!mp_seq_get_fast_slice_indexes(self_len, index, &slice)) {
-                mp_raise_NotImplementedError("only slices with step=1 (aka None) are supported");
+                return mp_raise_NotImplementedError_o("only slices with step=1 (aka None) are supported");
             }
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             return mp_obj_new_str_of_type(type, self_data + slice.start, slice.stop - slice.start);
         }
 #endif
         size_t index_val = mp_get_index(type, self_len, index, false);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         // If we have unicode enabled the type will always be bytes, so take the short cut.
         if (MICROPY_PY_BUILTINS_STR_UNICODE || type == &mp_type_bytes) {
             return MP_OBJ_NEW_SMALL_INT(self_data[index_val]);
@@ -450,15 +473,17 @@ STATIC mp_obj_t str_join(mp_obj_t self_in, mp_obj_t arg) {
         // arg is not a list nor a tuple, try to convert it to a list
         // TODO: Try to optimize?
         arg = mp_type_list.make_new(&mp_type_list, 1, 0, &arg);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     m_rs_push_obj_ptr(arg); // in case new list was created above
     mp_obj_get_array(arg, &seq_len, &seq_items);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // count required length
     size_t required_len = 0;
     for (size_t i = 0; i < seq_len; i++) {
         if (mp_obj_get_type(seq_items[i]) != self_type) {
-            mp_raise_TypeError(
+            return mp_raise_TypeError_o(
                 "join expects a list of str/bytes objects consistent with self object");
         }
         if (i > 0) {
@@ -471,6 +496,7 @@ STATIC mp_obj_t str_join(mp_obj_t self_in, mp_obj_t arg) {
     // make joined string
     vstr_t vstr;
     vstr_init_len(&vstr, required_len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     byte *data = (byte*)vstr.buf;
     for (size_t i = 0; i < seq_len; i++) {
         if (i > 0) {
@@ -497,10 +523,12 @@ mp_obj_t mp_obj_str_split(size_t n_args, const mp_obj_t *args) {
         sep = args[1];
         if (n_args > 2) {
             splits = mp_obj_get_int(args[2]);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
     }
 
     mp_obj_t res = mp_obj_new_list(0, NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_obj_ptr(res);
     GET_STR_DATA_LEN(args[0], s, len);
     const byte *top = s + len;
@@ -513,7 +541,10 @@ mp_obj_t mp_obj_str_split(size_t n_args, const mp_obj_t *args) {
         while (s < top && splits != 0) {
             const byte *start = s;
             while (s < top && !unichar_isspace(*s)) s++;
-            mp_obj_list_append_rs(res, mp_obj_new_str_of_type(self_type, start, s - start));
+            char *str = mp_obj_new_str_of_type(self_type, start, s - start);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            mp_obj_list_append_rs(res, str);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             if (s >= top) {
                 break;
             }
@@ -524,20 +555,24 @@ mp_obj_t mp_obj_str_split(size_t n_args, const mp_obj_t *args) {
         }
 
         if (s < top) {
-            mp_obj_list_append_rs(res, mp_obj_new_str_of_type(self_type, s, top - s));
+            char *str = mp_obj_new_str_of_type(self_type, s, top - s);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            mp_obj_list_append_rs(res, str);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
 
     } else {
         // sep given
         if (mp_obj_get_type(sep) != self_type) {
-            bad_implicit_conversion(sep);
+            return bad_implicit_conversion(sep);
         }
 
         size_t sep_len;
         const char *sep_str = mp_obj_str_get_data(sep, &sep_len);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
         if (sep_len == 0) {
-            mp_raise_ValueError("empty separator");
+            return mp_raise_ValueError_o("empty separator");
         }
 
         for (;;) {
@@ -551,7 +586,10 @@ mp_obj_t mp_obj_str_split(size_t n_args, const mp_obj_t *args) {
                 }
                 s++;
             }
-            mp_obj_list_append_rs(res, mp_obj_new_str_of_type(self_type, start, s - start));
+            char *str = mp_obj_new_str_of_type(self_type, start, s - start);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            mp_obj_list_append_rs(res, str);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             if (s >= top) {
                 break;
             }
@@ -577,9 +615,11 @@ STATIC mp_obj_t str_splitlines(size_t n_args, const mp_obj_t *pos_args, mp_map_t
     // parse args
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     const mp_obj_type_t *self_type = mp_obj_get_type(pos_args[0]);
     mp_obj_t res = mp_obj_new_list(0, NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_obj_ptr(res);
 
     GET_STR_DATA_LEN(pos_args[0], s, len);
@@ -606,7 +646,10 @@ STATIC mp_obj_t str_splitlines(size_t n_args, const mp_obj_t *pos_args, mp_map_t
         if (args[ARG_keepends].u_bool) {
             sub_len += match;
         }
-        mp_obj_list_append_rs(res, mp_obj_new_str_of_type(self_type, start, sub_len));
+        char *str = mp_obj_new_str_of_type(self_type, start, sub_len);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        mp_obj_list_append_rs(res, str);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         s += match;
     }
 
@@ -627,6 +670,7 @@ STATIC mp_obj_t str_rsplit(size_t n_args, const mp_obj_t *args) {
     GET_STR_DATA_LEN(args[0], s, len);
 
     mp_int_t splits = mp_obj_get_int(args[2]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (splits < 0) {
         // Negative limit means no limit, so delegate to split().
         return mp_obj_str_split(n_args, args);
@@ -636,17 +680,19 @@ STATIC mp_obj_t str_rsplit(size_t n_args, const mp_obj_t *args) {
     // Preallocate list to the max expected # of elements, as we
     // will fill it from the end.
     mp_obj_list_t *res = MP_OBJ_TO_PTR(mp_obj_new_list(splits + 1, NULL));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_ptr(res);
     mp_int_t idx = splits;
 
     if (sep == mp_const_none) {
-        mp_raise_NotImplementedError("rsplit(None,n)");
+        return mp_raise_NotImplementedError_o("rsplit(None,n)");
     } else {
         size_t sep_len;
         const char *sep_str = mp_obj_str_get_data(sep, &sep_len);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
         if (sep_len == 0) {
-            mp_raise_ValueError("empty separator");
+            return mp_raise_ValueError_o("empty separator");
         }
 
         const byte *beg = s;
@@ -663,9 +709,11 @@ STATIC mp_obj_t str_rsplit(size_t n_args, const mp_obj_t *args) {
             }
             if (s < beg || splits == 0) {
                 res->items[idx] = mp_obj_new_str_of_type(self_type, beg, last - beg);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 break;
             }
             res->items[idx--] = mp_obj_new_str_of_type(self_type, s + sep_len, last - s - sep_len);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             last = s;
             if (splits > 0) {
                 splits--;
@@ -691,7 +739,7 @@ STATIC mp_obj_t str_finder(size_t n_args, const mp_obj_t *args, int direction, b
 
     // check argument type
     if (mp_obj_get_type(args[1]) != self_type) {
-        bad_implicit_conversion(args[1]);
+        return bad_implicit_conversion(args[1]);
     }
 
     GET_STR_DATA_LEN(args[0], haystack, haystack_len);
@@ -701,9 +749,11 @@ STATIC mp_obj_t str_finder(size_t n_args, const mp_obj_t *args, int direction, b
     const byte *end = haystack + haystack_len;
     if (n_args >= 3 && args[2] != mp_const_none) {
         start = str_index_to_ptr(self_type, haystack, haystack_len, args[2], true);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     if (n_args >= 4 && args[3] != mp_const_none) {
         end = str_index_to_ptr(self_type, haystack, haystack_len, args[3], true);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     if (end < start) {
@@ -714,7 +764,7 @@ STATIC mp_obj_t str_finder(size_t n_args, const mp_obj_t *args, int direction, b
     if (p == NULL) {
         // not found
         if (is_index) {
-            mp_raise_ValueError("substring not found");
+            return mp_raise_ValueError_o("substring not found");
         } else {
             return MP_OBJ_NEW_SMALL_INT(-1);
         }
@@ -759,10 +809,12 @@ STATIC mp_obj_t str_startswith(size_t n_args, const mp_obj_t *args) {
     if (prefix == NULL) {
         crash_micropython("passing startswith a non-string object");
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     const byte *start = str;
     if (n_args > 2) {
         start = str_index_to_ptr(self_type, str, str_len, args[2], true);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     if (prefix_len + (start - str) > str_len) {
         return mp_const_false;
@@ -779,9 +831,10 @@ STATIC mp_obj_t str_endswith(size_t n_args, const mp_obj_t *args) {
     if (suffix == NULL) {
         crash_micropython("passing endswith a non-string object");
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     if (n_args > 2) {
-        mp_raise_NotImplementedError("start/end indices");
+        return mp_raise_NotImplementedError_o("start/end indices");
     }
 
     if (suffix_len > str_len) {
@@ -806,7 +859,7 @@ STATIC mp_obj_t str_uni_strip(int type, size_t n_args, const mp_obj_t *args) {
         chars_to_del_len = sizeof(whitespace);
     } else {
         if (mp_obj_get_type(args[1]) != self_type) {
-            bad_implicit_conversion(args[1]);
+            return bad_implicit_conversion(args[1]);
         }
         GET_STR_DATA_LEN(args[1], s, l);
         chars_to_del = s;
@@ -883,12 +936,14 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(str_rstrip_obj, 1, 2, str_rstrip);
 STATIC mp_obj_t str_center(mp_obj_t str_in, mp_obj_t width_in) {
     GET_STR_DATA_LEN(str_in, str, str_len);
     mp_uint_t width = mp_obj_get_int(width_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (str_len >= width) {
         return str_in;
     }
 
     vstr_t vstr;
     vstr_init_len(&vstr, width);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     memset(vstr.buf, ' ', width);
     int left = (width - str_len) / 2;
     memcpy(vstr.buf + left, str, str_len);
@@ -941,12 +996,14 @@ STATIC mp_obj_t arg_as_int(mp_obj_t arg) {
 }
 
 #if MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE
-STATIC NORETURN void terse_str_format_value_error(void) {
-    mp_raise_ValueError("bad format string");
+STATIC mp_obj_t terse_str_format_value_error(void) {
+    return mp_raise_ValueError_o("bad format string");
 }
 #else
 // define to nothing to improve coverage
-#define terse_str_format_value_error()
+STATIC mp_obj_t terse_str_format_value_error(void) {
+    return MP_OBJ_NULL;
+}
 #endif
 
 STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *arg_i, size_t n_args, const mp_obj_t *args, mp_map_t *kwargs) {
@@ -954,28 +1011,33 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
     mp_print_t print;
     m_rs_push_ind(&vstr.buf);
     vstr_init_print(&vstr, 16, &print);
+    RETURN_ON_EXCEPTION(vstr)
 
     for (; str < top; str++) {
         if (*str == '}') {
             str++;
             if (str < top && *str == '}') {
                 vstr_add_byte(&vstr, '}');
+                RETURN_ON_EXCEPTION(vstr)
                 continue;
             }
             if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                 terse_str_format_value_error();
             } else {
-                mp_raise_ValueError("single '}' encountered in format string");
+                mp_raise_ValueError_o("single '}' encountered in format string");
             }
+            return vstr;
         }
         if (*str != '{') {
             vstr_add_byte(&vstr, *str);
+            RETURN_ON_EXCEPTION(vstr)
             continue;
         }
 
         str++;
         if (str < top && *str == '{') {
             vstr_add_byte(&vstr, '{');
+            RETURN_ON_EXCEPTION(vstr)
             continue;
         }
 
@@ -1004,16 +1066,17 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                     terse_str_format_value_error();
                 } else if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_NORMAL) {
-                    mp_raise_ValueError("bad conversion specifier");
+                    mp_raise_ValueError_o("bad conversion specifier");
                 } else {
                     if (str >= top) {
-                        mp_raise_ValueError(
+                        mp_raise_ValueError_o(
                             "end of format while looking for conversion specifier");
                     } else {
-                        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
+                        mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
                             "unknown conversion specifier %c", *str));
                     }
                 }
+                return vstr;
             }
         }
 
@@ -1042,15 +1105,17 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
             if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                 terse_str_format_value_error();
             } else {
-                mp_raise_ValueError("unmatched '{' in format");
+                mp_raise_ValueError_o("unmatched '{' in format");
             }
+            return vstr;
         }
         if (*str != '}') {
             if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                 terse_str_format_value_error();
             } else {
-                mp_raise_ValueError("expected ':' after format specifier");
+                mp_raise_ValueError_o("expected ':' after format specifier");
             }
+            return vstr;
         }
 
         mp_obj_t arg = mp_const_none;
@@ -1062,13 +1127,15 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                         terse_str_format_value_error();
                     } else {
-                        mp_raise_ValueError(
+                        mp_raise_ValueError_o(
                             "can't switch from automatic field numbering to manual field specification");
                     }
+                    return vstr;
                 }
                 field_name = str_to_int(field_name, field_name_top, &index);
                 if ((uint)index >= n_args - 1) {
-                    mp_raise_msg(&mp_type_IndexError, "tuple index out of range");
+                    mp_raise_msg_o(&mp_type_IndexError, "tuple index out of range");
+                    return vstr;
                 }
                 arg = args[index + 1];
                 *arg_i = -1;
@@ -1076,31 +1143,37 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 const char *lookup;
                 for (lookup = field_name; lookup < field_name_top && *lookup != '.' && *lookup != '['; lookup++);
                 mp_obj_t field_q = mp_obj_new_str(field_name, lookup - field_name, true/*?*/);
+                RETURN_ON_EXCEPTION(vstr)
                 field_name = lookup;
                 m_rs_push_obj(field_q);
                 mp_map_elem_t *key_elem = mp_map_lookup(kwargs, field_q, MP_MAP_LOOKUP);
+                RETURN_ON_EXCEPTION(vstr)
                 if (key_elem == NULL) {
                     // TODO need to hold on to field_q until after exc is created
                     m_rs_pop_obj(field_q);
-                    nlr_raise(mp_obj_new_exception_arg1(&mp_type_KeyError, field_q));
+                    mp_raise_o(mp_obj_new_exception_arg1(&mp_type_KeyError, field_q));
+                    return vstr;
                 }
                 m_rs_pop_obj(field_q);
                 arg = key_elem->value;
             }
             if (field_name < field_name_top) {
-                mp_raise_NotImplementedError("attributes not supported yet");
+                mp_raise_NotImplementedError_o("attributes not supported yet");
+                return vstr;
             }
         } else {
             if (*arg_i < 0) {
                 if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                     terse_str_format_value_error();
                 } else {
-                    mp_raise_ValueError(
+                    mp_raise_ValueError_o(
                         "can't switch from manual field specification to automatic field numbering");
                 }
+                return vstr;
             }
             if ((uint)*arg_i >= n_args - 1) {
-                mp_raise_msg(&mp_type_IndexError, "tuple index out of range");
+                mp_raise_msg_o(&mp_type_IndexError, "tuple index out of range");
+                return vstr;
             }
             arg = args[(*arg_i) + 1];
             (*arg_i)++;
@@ -1120,9 +1193,11 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
             mp_print_t arg_print;
             m_rs_push_ind(&arg_vstr.buf);
             vstr_init_print(&arg_vstr, 16, &arg_print);
+            RETURN_ON_EXCEPTION(vstr)
             mp_obj_print_helper(&arg_print, arg, print_kind);
             m_rs_pop_ind(&arg_vstr.buf);
             arg = mp_obj_new_str_from_vstr(&mp_type_str, &arg_vstr);
+            RETURN_ON_EXCEPTION(vstr)
         }
 
         // only really needed if conversion is done above
@@ -1148,10 +1223,13 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
 
             // recursively call the formatter to format any nested specifiers
             MP_STACK_CHECK();
+            RETURN_ON_EXCEPTION(vstr)
             vstr_t format_spec_vstr = mp_obj_str_format_helper(format_spec, str, arg_i, n_args, args, kwargs);
+            RETURN_ON_EXCEPTION(vstr)
             m_rs_push_ind(&format_spec_vstr.buf);
             const char *s = vstr_null_terminated_str(&format_spec_vstr);
             m_rs_pop_ind(&format_spec_vstr.buf);
+            RETURN_ON_EXCEPTION(vstr)
             const char *stop = s + format_spec_vstr.len;
             if (isalignment(*s)) {
                 align = *s++;
@@ -1195,8 +1273,9 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                     terse_str_format_value_error();
                 } else {
-                    mp_raise_ValueError("invalid format specifier");
+                    mp_raise_ValueError_o("invalid format specifier");
                 }
+                return vstr;
             }
             vstr_clear(&format_spec_vstr);
         }
@@ -1216,16 +1295,18 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                     terse_str_format_value_error();
                 } else {
-                    mp_raise_ValueError("sign not allowed in string format specifier");
+                    mp_raise_ValueError_o("sign not allowed in string format specifier");
                 }
+                return vstr;
             }
             if (type == 'c') {
                 if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                     terse_str_format_value_error();
                 } else {
-                    mp_raise_ValueError(
+                    mp_raise_ValueError_o(
                         "sign not allowed with integer format specifier 'c'");
                 }
+                return vstr;
             }
         }
 
@@ -1245,6 +1326,7 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 case 'c':
                 {
                     char ch = mp_obj_get_int(arg);
+                    RETURN_ON_EXCEPTION(vstr)
                     mp_print_strn(&print, &ch, 1, flags, fill, width);
                     m_rs_pop_obj(arg);
                     continue;
@@ -1287,10 +1369,11 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                         terse_str_format_value_error();
                     } else {
-                        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
+                        mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
                             "unknown format code '%c' for object of type '%s'",
                             type, mp_obj_get_type_str(arg)));
                     }
+                    return vstr;
             }
         }
 
@@ -1340,8 +1423,12 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 case 'F':
                 case 'g':
                 case 'G':
-                    mp_print_float(&print, mp_obj_get_float(arg), type, flags, fill, width, precision);
+                {
+                    mp_float_t temp = mp_obj_get_float(arg);
+                    RETURN_ON_EXCEPTION(vstr)
+                    mp_print_float(&print, temp, type, flags, fill, width, precision);
                     break;
+                }
 
                 case '%':
                     flags |= PF_FLAG_ADD_PERCENT;
@@ -1350,7 +1437,11 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                     #else
                     #define F100 100.0
                     #endif
-                    mp_print_float(&print, mp_obj_get_float(arg) * F100, 'f', flags, fill, width, precision);
+                    {
+                        mp_float_t temp = mp_obj_get_float(arg);
+                        RETURN_ON_EXCEPTION(vstr)
+                        mp_print_float(&print, temp * F100, 'f', flags, fill, width, precision);
+                    }
                     #undef F100
                     break;
 #endif
@@ -1359,10 +1450,11 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                         terse_str_format_value_error();
                     } else {
-                        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
+                        mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
                             "unknown format code '%c' for object of type 'float'",
                             type, mp_obj_get_type_str(arg)));
                     }
+                    return vstr;
             }
         } else {
             // arg doesn't look like a number
@@ -1371,9 +1463,10 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                     terse_str_format_value_error();
                 } else {
-                    mp_raise_ValueError(
+                    mp_raise_ValueError_o(
                         "'=' alignment not allowed in string format specifier");
                 }
+                return vstr;
             }
 
             switch (type) {
@@ -1381,6 +1474,7 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                 case 's': {
                     size_t slen;
                     const char *s = mp_obj_str_get_data(arg, &slen);
+                    RETURN_ON_EXCEPTION(vstr)
                     if (precision < 0) {
                         precision = slen;
                     }
@@ -1395,10 +1489,11 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
                     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
                         terse_str_format_value_error();
                     } else {
-                        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
+                        mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
                             "unknown format code '%c' for object of type 'str'",
                             type, mp_obj_get_type_str(arg)));
                     }
+                    return vstr;
             }
         }
         m_rs_pop_obj(arg);
@@ -1414,6 +1509,7 @@ mp_obj_t mp_obj_str_format(size_t n_args, const mp_obj_t *args, mp_map_t *kwargs
     GET_STR_DATA_LEN(args[0], str, len);
     int arg_i = 0;
     vstr_t vstr = mp_obj_str_format_helper((const char*)str, (const char*)str + len, &arg_i, n_args, args, kwargs);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_str_from_vstr(&mp_type_str, &vstr);
 }
 MP_DEFINE_CONST_FUN_OBJ_KW(str_format_obj, 1, mp_obj_str_format);
@@ -1429,11 +1525,13 @@ STATIC mp_obj_t str_modulo_format(mp_obj_t pattern, size_t n_args, const mp_obj_
     mp_print_t print;
     m_rs_push_ind(&vstr.buf);
     vstr_init_print(&vstr, 16, &print);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     for (const byte *top = str + len; str < top; str++) {
         mp_obj_t arg = MP_OBJ_NULL;
         if (*str != '%') {
             vstr_add_byte(&vstr, *str);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             continue;
         }
         if (++str >= top) {
@@ -1441,28 +1539,31 @@ STATIC mp_obj_t str_modulo_format(mp_obj_t pattern, size_t n_args, const mp_obj_
         }
         if (*str == '%') {
             vstr_add_byte(&vstr, '%');
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             continue;
         }
 
         // Dictionary value lookup
         if (*str == '(') {
             if (dict == MP_OBJ_NULL) {
-                mp_raise_TypeError("format requires a dict");
+                return mp_raise_TypeError_o("format requires a dict");
             }
             arg_i = 1; // we used up the single dict argument
             const byte *key = ++str;
             while (*str != ')') {
                 if (str >= top) {
                     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-                        terse_str_format_value_error();
+                        return terse_str_format_value_error();
                     } else {
-                        mp_raise_ValueError("incomplete format key");
+                        return mp_raise_ValueError_o("incomplete format key");
                     }
                 }
                 ++str;
             }
             mp_obj_t k_obj = mp_obj_new_str((const char*)key, str - key, true);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             arg = mp_obj_dict_get(dict, k_obj);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             str++;
         }
 
@@ -1492,6 +1593,7 @@ STATIC mp_obj_t str_modulo_format(mp_obj_t pattern, size_t n_args, const mp_obj_
             } else {
                 str = (const byte*)str_to_int((const char*)str, (const char*)top, &width);
             }
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
         int prec = -1;
         if (str < top && *str == '.') {
@@ -1506,15 +1608,16 @@ STATIC mp_obj_t str_modulo_format(mp_obj_t pattern, size_t n_args, const mp_obj_
                     prec = 0;
                     str = (const byte*)str_to_int((const char*)str, (const char*)top, &prec);
                 }
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             }
         }
 
         if (str >= top) {
 incomplete_format:
             if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-                terse_str_format_value_error();
+                return terse_str_format_value_error();
             } else {
-                mp_raise_ValueError("incomplete format");
+                return mp_raise_ValueError_o("incomplete format");
             }
         }
 
@@ -1522,7 +1625,7 @@ incomplete_format:
         if (arg == MP_OBJ_NULL) {
             if (arg_i >= n_args) {
 not_enough_args:
-                mp_raise_TypeError("not enough arguments for format string");
+                return mp_raise_TypeError_o("not enough arguments for format string");
             }
             arg = args[arg_i++];
         }
@@ -1531,15 +1634,17 @@ not_enough_args:
                 if (MP_OBJ_IS_STR(arg)) {
                     size_t slen;
                     const char *s = mp_obj_str_get_data(arg, &slen);
+                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                     if (slen != 1) {
-                        mp_raise_TypeError("%%c requires int or char");
+                        return mp_raise_TypeError_o("%%c requires int or char");
                     }
                     mp_print_strn(&print, s, 1, flags, ' ', width);
                 } else if (arg_looks_integer(arg)) {
                     char ch = mp_obj_get_int(arg);
+                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                     mp_print_strn(&print, &ch, 1, flags, ' ', width);
                 } else {
-                    mp_raise_TypeError("integer required");
+                    return mp_raise_TypeError_o("integer required");
                 }
                 break;
 
@@ -1559,8 +1664,12 @@ not_enough_args:
             case 'F':
             case 'g':
             case 'G':
-                mp_print_float(&print, mp_obj_get_float(arg), *str, flags, fill, width, prec);
+            {
+                mp_float_t temp = mp_obj_get_float(arg);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+                mp_print_float(&print, temp, *str, flags, fill, width, prec);
                 break;
+            }
 #endif
 
             case 'o':
@@ -1577,6 +1686,7 @@ not_enough_args:
                 mp_print_t arg_print;
                 m_rs_push_ind(&arg_vstr.buf);
                 vstr_init_print(&arg_vstr, 16, &arg_print);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 mp_print_kind_t print_kind = (*str == 'r' ? PRINT_REPR : PRINT_STR);
                 if (print_kind == PRINT_STR && is_bytes && MP_OBJ_IS_TYPE(arg, &mp_type_bytes)) {
                     // If we have something like b"%s" % b"1", bytes arg should be
@@ -1604,9 +1714,9 @@ not_enough_args:
 
             default:
                 if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-                    terse_str_format_value_error();
+                    return terse_str_format_value_error();
                 } else {
-                    nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
+                    return mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
                         "unsupported format character '%c' (0x%x) at index %d",
                         *str, *str, str - start_str));
                 }
@@ -1614,7 +1724,7 @@ not_enough_args:
     }
 
     if (arg_i != n_args) {
-        mp_raise_TypeError("not all arguments converted during string formatting");
+        return mp_raise_TypeError_o("not all arguments converted during string formatting");
     }
 
     m_rs_pop_ind(&vstr.buf);
@@ -1629,6 +1739,7 @@ STATIC mp_obj_t str_replace(size_t n_args, const mp_obj_t *args) {
     mp_int_t max_rep = -1;
     if (n_args == 4) {
         max_rep = mp_obj_get_int(args[3]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (max_rep == 0) {
             return args[0];
         } else if (max_rep < 0) {
@@ -1643,11 +1754,11 @@ STATIC mp_obj_t str_replace(size_t n_args, const mp_obj_t *args) {
     const mp_obj_type_t *self_type = mp_obj_get_type(args[0]);
 
     if (mp_obj_get_type(args[1]) != self_type) {
-        bad_implicit_conversion(args[1]);
+        return bad_implicit_conversion(args[1]);
     }
 
     if (mp_obj_get_type(args[2]) != self_type) {
-        bad_implicit_conversion(args[2]);
+        return bad_implicit_conversion(args[2]);
     }
 
     // extract string data
@@ -1716,6 +1827,7 @@ STATIC mp_obj_t str_replace(size_t n_args, const mp_obj_t *args) {
             } else {
                 // substr found, allocate new string
                 vstr_init_len(&vstr, replaced_str_index);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 data = (byte*)vstr.buf;
                 m_rs_push_ptr(data);
                 assert(data != NULL);
@@ -1738,7 +1850,7 @@ STATIC mp_obj_t str_count(size_t n_args, const mp_obj_t *args) {
 
     // check argument type
     if (mp_obj_get_type(args[1]) != self_type) {
-        bad_implicit_conversion(args[1]);
+        return bad_implicit_conversion(args[1]);
     }
 
     GET_STR_DATA_LEN(args[0], haystack, haystack_len);
@@ -1748,9 +1860,11 @@ STATIC mp_obj_t str_count(size_t n_args, const mp_obj_t *args) {
     const byte *end = haystack + haystack_len;
     if (n_args >= 3 && args[2] != mp_const_none) {
         start = str_index_to_ptr(self_type, haystack, haystack_len, args[2], true);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     if (n_args >= 4 && args[3] != mp_const_none) {
         end = str_index_to_ptr(self_type, haystack, haystack_len, args[3], true);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     // if needle_len is zero then we count each gap between characters as an occurrence
@@ -1778,14 +1892,14 @@ STATIC mp_obj_t str_partitioner(mp_obj_t self_in, mp_obj_t arg, int direction) {
     mp_check_self(MP_OBJ_IS_STR_OR_BYTES(self_in));
     mp_obj_type_t *self_type = mp_obj_get_type(self_in);
     if (self_type != mp_obj_get_type(arg)) {
-        bad_implicit_conversion(arg);
+        return bad_implicit_conversion(arg);
     }
 
     GET_STR_DATA_LEN(self_in, str, str_len);
     GET_STR_DATA_LEN(arg, sep, sep_len);
 
     if (sep_len == 0) {
-        mp_raise_ValueError("empty separator");
+        return mp_raise_ValueError_o("empty separator");
     }
 
     mp_obj_t result[3];
@@ -1809,10 +1923,12 @@ STATIC mp_obj_t str_partitioner(mp_obj_t self_in, mp_obj_t arg, int direction) {
     if (position_ptr != NULL) {
         size_t position = position_ptr - str;
         result[0] = mp_obj_new_str_of_type(self_type, str, position);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         m_rs_push_obj(result[0]);
         result[1] = arg;
         result[2] = mp_obj_new_str_of_type(self_type, str + position + sep_len, str_len - position - sep_len);
         m_rs_push_obj(result[2]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     mp_obj_t o = mp_obj_new_tuple(3, result);
@@ -1839,6 +1955,7 @@ STATIC mp_obj_t str_caseconv(unichar (*op)(unichar), mp_obj_t self_in) {
     GET_STR_DATA_LEN(self_in, self_data, self_len);
     vstr_t vstr;
     vstr_init_len(&vstr, self_len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     byte *data = (byte*)vstr.buf;
     for (size_t i = 0; i < self_len; i++) {
         *data++ = op(*self_data++);
@@ -2044,6 +2161,7 @@ const mp_obj_str_t mp_const_empty_bytes_obj = {{&mp_type_bytes}, 0, 0, NULL};
 // the data is copied across.
 mp_obj_t mp_obj_new_str_of_type(const mp_obj_type_t *type, const byte* data, size_t len) {
     mp_obj_str_t *o = m_new_obj(mp_obj_str_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     o->len = len;
     if (data) {
@@ -2051,6 +2169,7 @@ mp_obj_t mp_obj_new_str_of_type(const mp_obj_type_t *type, const byte* data, siz
         m_rs_push_ptr(o);
         byte *p = m_new(byte, len + 1);
         m_rs_pop_ptr(o);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         o->data = p;
         memcpy(p, data, len * sizeof(byte));
         p[len] = '\0'; // for now we add null for compatibility with C ASCIIZ strings
@@ -2077,6 +2196,7 @@ mp_obj_t mp_obj_new_str_from_vstr(const mp_obj_type_t *type, vstr_t *vstr) {
 
     // make a new str/bytes object
     mp_obj_str_t *o = m_new_obj(mp_obj_str_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     o->len = vstr->len;
     o->hash = qstr_compute_hash((byte*)vstr->buf, vstr->len);
@@ -2086,6 +2206,7 @@ mp_obj_t mp_obj_new_str_from_vstr(const mp_obj_type_t *type, vstr_t *vstr) {
         m_rs_push_ptr(o);
         o->data = (byte*)m_renew(char, vstr->buf, vstr->alloc, vstr->len + 1);
         m_rs_pop_ptr(o);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     ((byte*)o->data)[o->len] = '\0'; // add null byte
     m_rs_pop_ptr(vstr->buf);
@@ -2138,12 +2259,12 @@ bool mp_obj_str_equal(mp_obj_t s1, mp_obj_t s2) {
     }
 }
 
-STATIC void bad_implicit_conversion(mp_obj_t self_in) {
+STATIC mp_obj_t bad_implicit_conversion(mp_obj_t self_in) {
     if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-        mp_raise_TypeError("can't convert to str implicitly");
+        return mp_raise_TypeError_o("can't convert to str implicitly");
     } else {
         const qstr src_name = mp_obj_get_type(self_in)->name;
-        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+        return mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
             "can't convert '%q' object to %q implicitly",
             src_name, src_name == MP_QSTR_str ? MP_QSTR_bytes : MP_QSTR_str));
     }
@@ -2159,6 +2280,7 @@ qstr mp_obj_str_get_qstr(mp_obj_t self_in) {
         return qstr_from_strn((char*)self->data, self->len);
     } else {
         bad_implicit_conversion(self_in);
+        return MP_QSTR_NULL;
     }
 }
 
@@ -2171,6 +2293,7 @@ const char *mp_obj_str_get_str(mp_obj_t self_in) {
         return (const char*)s;
     } else {
         bad_implicit_conversion(self_in);
+        return NULL;
     }
 }
 
@@ -2181,6 +2304,7 @@ const char *mp_obj_str_get_data(mp_obj_t self_in, size_t *len) {
         return (const char*)s;
     } else {
         bad_implicit_conversion(self_in);
+        return NULL;
     }
 }
 
@@ -2211,6 +2335,7 @@ STATIC mp_obj_t str_it_iternext(mp_obj_t self_in) {
     GET_STR_DATA_LEN(self->str, str, len);
     if (self->cur < len) {
         mp_obj_t o_out = mp_obj_new_str((const char*)str + self->cur, 1, true);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         self->cur += 1;
         return o_out;
     } else {

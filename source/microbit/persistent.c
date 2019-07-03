@@ -26,7 +26,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "py/nlr.h"
 #include "py/obj.h"
 #include "py/gc.h"
 #include "microbit/filesystem.h"
@@ -44,7 +43,7 @@ void persistent_write_byte_unchecked(const uint8_t *dest, const uint8_t val) {
 #if DEBUG_PERSISTENT
     if (((~(*dest)) & val) != 0) {
         DEBUG(("PERSISTENCE DEBUG: ERROR: Unchecked write of byte %u to %lx which contains %u\r\n", val, (uint32_t)dest, *dest));
-        mp_raise_msg(&mp_type_Exception, "Internal error: Attempting illegal write.");
+        assert(false);
     }
 #endif
     DEBUG(("PERSISTENCE DEBUG: Write unchecked byte %u to %lx, previous value %u\r\n", val, (uint32_t)dest, *dest));
@@ -59,7 +58,7 @@ void persistent_write_unchecked(const void *dest, const void *src, uint32_t len)
     for(uint32_t i = 0; i < len; i++) {
         if ((~address[i] & data[i]) != 0) {
             DEBUG(("PERSISTENCE DEBUG: ERROR: Unchecked write of byte %u to %lx which contains %u\r\n", data[i], (uint32_t)&address[i], address[i]));
-            mp_raise_msg(&mp_type_Exception, "Internal error: Attempting illegal write.");
+            assert(false);
         }
     }
 #endif

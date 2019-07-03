@@ -53,17 +53,21 @@ STATIC mp_obj_t enumerate_make_new(const mp_obj_type_t *type, size_t n_args, siz
     } arg_vals;
     mp_arg_parse_all_kw_array(n_args, n_kw, args,
         MP_ARRAY_SIZE(allowed_args), allowed_args, (mp_arg_val_t*)&arg_vals);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // create enumerate object
     mp_obj_enumerate_t *o = m_new_obj(mp_obj_enumerate_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     m_rs_push_ptr(o);
     o->iter = mp_getiter(arg_vals.iterable.u_obj, NULL);
     m_rs_pop_ptr(o);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->cur = arg_vals.start.u_int;
 #else
     (void)n_kw;
     mp_obj_enumerate_t *o = m_new_obj(mp_obj_enumerate_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     // MicroPython appears to assume that args[0] is a float when no argument is passed,
     // and an integer when in a function, crashing when inside a try block.
@@ -73,8 +77,10 @@ STATIC mp_obj_t enumerate_make_new(const mp_obj_type_t *type, size_t n_args, siz
     }
     m_rs_push_ptr(o);
     o->iter = mp_getiter(args[0], NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->cur = n_args > 1 ? mp_obj_get_int(args[1]) : 0;
     m_rs_pop_ptr(o);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 #endif
 
     return MP_OBJ_FROM_PTR(o);
@@ -92,6 +98,7 @@ STATIC mp_obj_t enumerate_iternext(mp_obj_t self_in) {
     assert(MP_OBJ_IS_TYPE(self_in, &mp_type_enumerate));
     mp_obj_enumerate_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_t next = mp_iternext(self->iter);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (next == MP_OBJ_STOP_ITERATION) {
         return MP_OBJ_STOP_ITERATION;
     } else {

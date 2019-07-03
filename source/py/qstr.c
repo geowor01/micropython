@@ -81,6 +81,8 @@
 #define QSTR_EXIT()
 #endif
 
+#define RETURN_EXIT_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { QSTR_EXIT(); return x; }
+
 // this must match the equivalent function in makeqstrdata.py
 mp_uint_t qstr_compute_hash(const byte *data, size_t len) {
     // djb2 algorithm; see http://www.cse.yorku.ca/~oz/hash.html
@@ -161,6 +163,7 @@ STATIC qstr qstr_add(const byte *q_ptr) {
         if (pool == NULL) {
             QSTR_EXIT();
             m_malloc_fail(MP_STATE_VM(last_pool)->alloc * 2);
+            return MP_QSTR_NULL;
         }
         pool->prev = MP_STATE_VM(last_pool);
         pool->total_prev_len = MP_STATE_VM(last_pool)->total_prev_len + MP_STATE_VM(last_pool)->len;
@@ -234,6 +237,7 @@ qstr qstr_from_strn(const char *str, size_t len) {
                 if (MP_STATE_VM(qstr_last_chunk) == NULL) {
                     QSTR_EXIT();
                     m_malloc_fail(n_bytes);
+                    return MP_QSTR_NULL;
                 }
                 al = n_bytes;
             }
@@ -254,6 +258,7 @@ qstr qstr_from_strn(const char *str, size_t len) {
         m_rs_push_ptr(MP_STATE_VM(qstr_last_chunk)); // in case qstr_add allocates before it uses q_ptr if q_ptr==MP_STATE_VM(qstr_last_chunk) is newly allocated
         q = qstr_add(q_ptr);
         m_rs_pop_ptr(MP_STATE_VM(qstr_last_chunk));
+        RETURN_EXIT_ON_EXCEPTION(MP_QSTR_NULL)
     }
     QSTR_EXIT();
     return q;
@@ -262,6 +267,7 @@ qstr qstr_from_strn(const char *str, size_t len) {
 byte *qstr_build_start(size_t len, byte **q_ptr) {
     assert(len < (1 << (8 * MICROPY_QSTR_BYTES_IN_LEN)));
     *q_ptr = m_new(byte, MICROPY_QSTR_BYTES_IN_HASH + MICROPY_QSTR_BYTES_IN_LEN + len + 1);
+    RETURN_ON_EXCEPTION(NULL)
     Q_SET_LENGTH(*q_ptr, len);
     return Q_GET_DATA(*q_ptr);
 }
@@ -269,6 +275,7 @@ byte *qstr_build_start(size_t len, byte **q_ptr) {
 qstr qstr_build_end(byte *q_ptr) {
     QSTR_ENTER();
     qstr q = qstr_find_strn((const char*)Q_GET_DATA(q_ptr), Q_GET_LENGTH(q_ptr));
+    RETURN_EXIT_ON_EXCEPTION(MP_QSTR_NULL)
     if (q == 0) {
         size_t len = Q_GET_LENGTH(q_ptr);
         mp_uint_t hash = qstr_compute_hash(Q_GET_DATA(q_ptr), len);
@@ -277,6 +284,7 @@ qstr qstr_build_end(byte *q_ptr) {
         m_rs_push_ptr(MP_STATE_VM(qstr_last_chunk)); // in case qstr_add allocates before it uses q_ptr if q_ptr==MP_STATE_VM(qstr_last_chunk) is newly allocated
         q = qstr_add(q_ptr);
         m_rs_pop_ptr(MP_STATE_VM(qstr_last_chunk));
+        RETURN_EXIT_ON_EXCEPTION(MP_QSTR_NULL)
     } else {
         m_del(byte, q_ptr, Q_GET_ALLOC(q_ptr));
     }

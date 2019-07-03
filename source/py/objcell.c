@@ -25,6 +25,7 @@
  */
 
 #include "py/obj.h"
+#include "py/mpstate.h"
 
 typedef struct _mp_obj_cell_t {
     mp_obj_base_t base;
@@ -65,6 +66,7 @@ STATIC const mp_obj_type_t mp_type_cell = {
 
 mp_obj_t mp_obj_new_cell(mp_obj_t obj) {
     mp_obj_cell_t *o = m_new_obj(mp_obj_cell_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_cell;
     o->obj = obj;
     return MP_OBJ_FROM_PTR(o);

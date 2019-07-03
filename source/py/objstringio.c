@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "py/nlr.h"
 #include "py/objstr.h"
 #include "py/objstringio.h"
 #include "py/runtime.h"
@@ -39,7 +38,7 @@
 #if MICROPY_CPYTHON_COMPAT
 STATIC void check_stringio_is_open(const mp_obj_stringio_t *o) {
     if (o->vstr == NULL) {
-        mp_raise_ValueError("I/O operation on closed file");
+        mp_raise_ValueError_o("I/O operation on closed file");
     }
 }
 #else
@@ -56,6 +55,7 @@ STATIC mp_uint_t stringio_read(mp_obj_t o_in, void *buf, mp_uint_t size, int *er
     (void)errcode;
     mp_obj_stringio_t *o = MP_OBJ_TO_PTR(o_in);
     check_stringio_is_open(o);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (o->vstr->len <= o->pos) {  // read to EOF, or seeked to EOF or beyond
         return 0;
     }
@@ -71,6 +71,7 @@ STATIC mp_uint_t stringio_read(mp_obj_t o_in, void *buf, mp_uint_t size, int *er
 STATIC void stringio_copy_on_write(mp_obj_stringio_t *o) {
     const void *buf = o->vstr->buf;
     o->vstr->buf = m_new(char, o->vstr->len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     memcpy(o->vstr->buf, buf, o->vstr->len);
     o->vstr->fixed_buf = false;
     o->ref_obj = MP_OBJ_NULL;
@@ -80,9 +81,11 @@ STATIC mp_uint_t stringio_write(mp_obj_t o_in, const void *buf, mp_uint_t size, 
     (void)errcode;
     mp_obj_stringio_t *o = MP_OBJ_TO_PTR(o_in);
     check_stringio_is_open(o);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     if (o->vstr->fixed_buf) {
         stringio_copy_on_write(o);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     mp_uint_t new_pos = o->pos + size;
@@ -97,6 +100,7 @@ STATIC mp_uint_t stringio_write(mp_obj_t o_in, const void *buf, mp_uint_t size, 
         o->vstr->len = o->vstr->alloc;
         // ... and add more
         vstr_add_len(o->vstr, new_pos - o->vstr->alloc);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     // If there was a seek past EOF, clear the hole
     if (o->pos > org_len) {
@@ -155,6 +159,7 @@ STATIC mp_uint_t stringio_ioctl(mp_obj_t o_in, mp_uint_t request, uintptr_t arg,
 STATIC mp_obj_t stringio_getvalue(mp_obj_t self_in) {
     mp_obj_stringio_t *self = MP_OBJ_TO_PTR(self_in);
     check_stringio_is_open(self);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     // TODO: Try to avoid copying string
     return mp_obj_new_str_of_type(STREAM_TO_CONTENT_TYPE(self), (byte*)self->vstr->buf, self->vstr->len);
 }
@@ -183,6 +188,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(stringio___exit___obj, 4, 4, stringio
 
 STATIC mp_obj_stringio_t *stringio_new(const mp_obj_type_t *type) {
     mp_obj_stringio_t *o = m_new_obj(mp_obj_stringio_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     o->pos = 0;
     o->ref_obj = MP_OBJ_NULL;
@@ -197,16 +203,20 @@ STATIC mp_obj_t stringio_make_new(const mp_obj_type_t *type_in, size_t n_args, s
     mp_buffer_info_t bufinfo;
 
     mp_obj_stringio_t *o = stringio_new(type_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_ptr(o);
 
     if (n_args > 0) {
         if (MP_OBJ_IS_INT(args[0])) {
             sz = mp_obj_get_int(args[0]);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         } else {
             mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_READ);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
             if (MP_OBJ_IS_STR_OR_BYTES(args[0])) {
                 o->vstr = m_new_obj(vstr_t);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 vstr_init_fixed_buf(o->vstr, bufinfo.len, bufinfo.buf);
                 o->vstr->len = bufinfo.len;
                 o->ref_obj = args[0];
@@ -223,6 +233,7 @@ STATIC mp_obj_t stringio_make_new(const mp_obj_type_t *type_in, size_t n_args, s
 
     if (initdata) {
         stringio_write(MP_OBJ_FROM_PTR(o), bufinfo.buf, bufinfo.len, NULL);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         // Cur ptr is always at the beginning of buffer at the construction
         o->pos = 0;
     }

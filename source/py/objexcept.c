@@ -63,9 +63,11 @@ void mp_init_emergency_exception_buf(void) {
 
 mp_obj_t mp_alloc_emergency_exception_buf(mp_obj_t size_in) {
     mp_int_t size = mp_obj_get_int(size_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     void *buf = NULL;
     if (size > 0) {
         buf = m_new(byte, size);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     int old_size = mp_emergency_exception_buf_size;
@@ -112,6 +114,7 @@ STATIC void mp_obj_exception_print(const mp_print_t *print, mp_obj_t o_in, mp_pr
             // try to provide a nice OSError error message
             if (o->base.type == &mp_type_OSError && MP_OBJ_IS_SMALL_INT(o->args->items[0])) {
                 qstr qst = mp_errno_to_str(o->args->items[0]);
+                RETURN_ON_EXCEPTION()
                 if (qst != MP_QSTR_NULL) {
                     mp_printf(print, "[Errno %d] %q", MP_OBJ_SMALL_INT_VALUE(o->args->items[0]), qst);
                     return;
@@ -119,6 +122,7 @@ STATIC void mp_obj_exception_print(const mp_print_t *print, mp_obj_t o_in, mp_pr
             }
             #endif
             mp_obj_print_helper(print, o->args->items[0], PRINT_STR);
+            RETURN_ON_EXCEPTION()
             return;
         }
     }
@@ -127,6 +131,7 @@ STATIC void mp_obj_exception_print(const mp_print_t *print, mp_obj_t o_in, mp_pr
 
 mp_obj_t mp_obj_exception_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, MP_OBJ_FUN_ARGS_MAX, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_exception_t *o = m_new_obj_var_maybe(mp_obj_exception_t, mp_obj_t, 0);
     if (o == NULL) {
         // Couldn't allocate heap memory; use local data instead.
@@ -135,6 +140,7 @@ mp_obj_t mp_obj_exception_make_new(const mp_obj_type_t *type, size_t n_args, siz
         o->args = (mp_obj_tuple_t*)&mp_const_empty_tuple_obj;
     } else {
         o->args = MP_OBJ_TO_PTR(mp_obj_new_tuple(n_args, args));
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     o->base.type = type;
     o->traceback_data = NULL;
@@ -177,6 +183,7 @@ STATIC void exception_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
 STATIC mp_obj_t exc___init__(size_t n_args, const mp_obj_t *args) {
     mp_obj_exception_t *self = MP_OBJ_TO_PTR(args[0]);
     mp_obj_t argst = mp_obj_new_tuple(n_args - 1, args + 1);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     self->args = MP_OBJ_TO_PTR(argst);
     return mp_const_none;
 }
@@ -370,21 +377,25 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
         o->base.type = exc_type;
         o->traceback_data = NULL;
         o->args = MP_OBJ_TO_PTR(mp_obj_new_tuple(1, NULL));
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
         assert(fmt != NULL);
         {
             if (strchr(fmt, '%') == NULL) {
                 // no formatting substitutions, avoid allocating vstr.
                 o->args->items[0] = mp_obj_new_str(fmt, strlen(fmt), false);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             } else {
                 // render exception message and store as .args[0]
                 va_list ap;
                 vstr_t vstr;
                 vstr_init(&vstr, 16);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 va_start(ap, fmt);
                 vstr_vprintf(&vstr, fmt, ap);
                 va_end(ap);
                 o->args->items[0] = mp_obj_new_str_from_vstr(&mp_type_str, &vstr);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             }
         }
     }

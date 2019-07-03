@@ -155,6 +155,7 @@ STATIC void next_char(mp_lexer_t *lex) {
 STATIC void indent_push(mp_lexer_t *lex, size_t indent) {
     if (lex->num_indent_level >= lex->alloc_indent_level) {
         lex->indent_level = m_renew(uint16_t, lex->indent_level, lex->alloc_indent_level, lex->alloc_indent_level + MICROPY_ALLOC_LEXEL_INDENT_INC);
+        RETURN_ON_EXCEPTION()
         lex->alloc_indent_level += MICROPY_ALLOC_LEXEL_INDENT_INC;
     }
     lex->indent_level[lex->num_indent_level++] = indent;
@@ -294,6 +295,7 @@ STATIC void parse_string_literal(mp_lexer_t *lex, bool is_raw) {
         if (is_char(lex, quote_char)) {
             n_closing += 1;
             vstr_add_char(&lex->vstr, CUR_CHAR(lex));
+            RETURN_ON_EXCEPTION()
         } else {
             n_closing = 0;
             if (is_char(lex, '\\')) {
@@ -302,6 +304,7 @@ STATIC void parse_string_literal(mp_lexer_t *lex, bool is_raw) {
                 if (is_raw) {
                     // raw strings allow escaping of quotes, but the backslash is also emitted
                     vstr_add_char(&lex->vstr, '\\');
+                    RETURN_ON_EXCEPTION()
                 } else {
                     switch (c) {
                         // note: "c" can never be MP_LEXER_EOF because next_char
@@ -322,6 +325,7 @@ STATIC void parse_string_literal(mp_lexer_t *lex, bool is_raw) {
                             if (lex->tok_kind == MP_TOKEN_BYTES) {
                                 // b'\u1234' == b'\\u1234'
                                 vstr_add_char(&lex->vstr, '\\');
+                                RETURN_ON_EXCEPTION()
                                 break;
                             }
                             // Otherwise fall through.
@@ -341,8 +345,8 @@ STATIC void parse_string_literal(mp_lexer_t *lex, bool is_raw) {
                             // 3MB of text; even gzip-compressed and with minimal structure, it'll take
                             // roughly half a meg of storage. This form of Unicode escape may be added
                             // later on, but it's definitely not a priority right now. -- CJA 20140607
-                            mp_raise_NotImplementedError("unicode name escapes");
-                            break;
+                            mp_raise_NotImplementedError_o("unicode name escapes");
+                            return;
                         default:
                             if (c >= '0' && c <= '7') {
                                 // Octal sequence, 1-3 chars
@@ -356,6 +360,7 @@ STATIC void parse_string_literal(mp_lexer_t *lex, bool is_raw) {
                             } else {
                                 // unrecognised escape character; CPython lets this through verbatim as '\' and then the character
                                 vstr_add_char(&lex->vstr, '\\');
+                                RETURN_ON_EXCEPTION()
                             }
                             break;
                     }
@@ -371,10 +376,12 @@ STATIC void parse_string_literal(mp_lexer_t *lex, bool is_raw) {
                             // this raises a generic SyntaxError; could provide more info
                             lex->tok_kind = MP_TOKEN_INVALID;
                         }
+                        RETURN_ON_EXCEPTION()
                     } else {
                         // without unicode everything is just added as an 8-bit byte
                         if (c < 0x100) {
                             vstr_add_byte(&lex->vstr, c);
+                            RETURN_ON_EXCEPTION()
                         } else {
                             // 8-bit character out of range
                             // this raises a generic SyntaxError; could provide more info
@@ -386,6 +393,7 @@ STATIC void parse_string_literal(mp_lexer_t *lex, bool is_raw) {
                 // Add the "character" as a byte so that we remain 8-bit clean.
                 // This way, strings are parsed correctly whether or not they contain utf-8 chars.
                 vstr_add_byte(&lex->vstr, CUR_CHAR(lex));
+                RETURN_ON_EXCEPTION()
             }
         }
         next_char(lex);
@@ -454,6 +462,7 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
         if (num_spaces == indent_top(lex)) {
         } else if (num_spaces > indent_top(lex)) {
             indent_push(lex, num_spaces);
+            RETURN_ON_EXCEPTION()
             lex->emit_dent += 1;
         } else {
             while (num_spaces < indent_top(lex)) {
@@ -522,6 +531,7 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
 
             // Parse the literal
             parse_string_literal(lex, is_raw);
+            RETURN_ON_EXCEPTION()
 
             // Skip whitespace so we can check if there's another string following
             skip_whitespace(lex, true);
@@ -533,11 +543,13 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
 
         // get first char (add as byte to remain 8-bit clean and support utf-8)
         vstr_add_byte(&lex->vstr, CUR_CHAR(lex));
+        RETURN_ON_EXCEPTION()
         next_char(lex);
 
         // get tail chars
         while (!is_end(lex) && is_tail_of_identifier(lex)) {
             vstr_add_byte(&lex->vstr, CUR_CHAR(lex));
+            RETURN_ON_EXCEPTION()
             next_char(lex);
         }
 
@@ -546,6 +558,7 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
         // so the parser gives a syntax error on, eg, x.__debug__.  Otherwise, we
         // need to check for this special token in many places in the compiler.
         const char *s = vstr_null_terminated_str(&lex->vstr);
+        RETURN_ON_EXCEPTION()
         for (size_t i = 0; i < MP_ARRAY_SIZE(tok_kw); i++) {
             int cmp = strcmp(s, tok_kw[i]);
             if (cmp == 0) {
@@ -573,6 +586,7 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
 
         // get first char
         vstr_add_char(&lex->vstr, CUR_CHAR(lex));
+        RETURN_ON_EXCEPTION()
         next_char(lex);
 
         // get tail chars
@@ -580,9 +594,11 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
             if (!forced_integer && is_char_or(lex, 'e', 'E')) {
                 lex->tok_kind = MP_TOKEN_FLOAT_OR_IMAG;
                 vstr_add_char(&lex->vstr, 'e');
+                RETURN_ON_EXCEPTION()
                 next_char(lex);
                 if (is_char(lex, '+') || is_char(lex, '-')) {
                     vstr_add_char(&lex->vstr, CUR_CHAR(lex));
+                    RETURN_ON_EXCEPTION()
                     next_char(lex);
                 }
             } else if (is_letter(lex) || is_digit(lex) || is_char(lex, '.')) {
@@ -590,6 +606,7 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
                     lex->tok_kind = MP_TOKEN_FLOAT_OR_IMAG;
                 }
                 vstr_add_char(&lex->vstr, CUR_CHAR(lex));
+                RETURN_ON_EXCEPTION()
                 next_char(lex);
             } else {
                 break;
@@ -668,6 +685,7 @@ void mp_lexer_to_next(mp_lexer_t *lex) {
 
 mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader) {
     mp_lexer_t *lex = m_new_obj(mp_lexer_t);
+    RETURN_ON_EXCEPTION(NULL)
     m_rs_push_ptr(lex);
 
     lex->source_name = src_name;
@@ -679,7 +697,9 @@ mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader) {
     lex->alloc_indent_level = MICROPY_ALLOC_LEXER_INDENT_INIT;
     lex->num_indent_level = 1;
     lex->indent_level = m_new(uint16_t, lex->alloc_indent_level);
+    RETURN_ON_EXCEPTION(NULL)
     vstr_init(&lex->vstr, 32);
+    RETURN_ON_EXCEPTION(NULL)
 
     // store sentinel for first indentation level
     lex->indent_level[0] = 0;
@@ -693,6 +713,7 @@ mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader) {
 
     // preload first token
     mp_lexer_to_next(lex);
+    RETURN_ON_EXCEPTION(NULL)
 
     // Check that the first token is in the first column.  If it's not then we
     // convert the token kind to INDENT so that the parser gives a syntax error.
@@ -707,6 +728,7 @@ mp_lexer_t *mp_lexer_new(qstr src_name, mp_reader_t reader) {
 mp_lexer_t *mp_lexer_new_from_str_len(qstr src_name, const char *str, size_t len, size_t free_len) {
     mp_reader_t reader;
     mp_reader_new_mem(&reader, (const byte*)str, len, free_len);
+    RETURN_ON_EXCEPTION(NULL)
     m_rs_push_ptr(reader.data);
     mp_lexer_t *lex = mp_lexer_new(src_name, reader);
     m_rs_pop_ptr(reader.data);
@@ -718,7 +740,10 @@ mp_lexer_t *mp_lexer_new_from_str_len(qstr src_name, const char *str, size_t len
 mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
     mp_reader_t reader;
     mp_reader_new_file(&reader, filename);
+    RETURN_ON_EXCEPTION(NULL)
     m_rs_push_ptr(reader.data);
+    qstr q = qstr_from_str(filename);
+    RETURN_ON_EXCEPTION(NULL)
     mp_lexer_t *lex = mp_lexer_new(qstr_from_str(filename), reader);
     m_rs_pop_ptr(reader.data);
     return lex;
@@ -729,6 +754,7 @@ mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
 mp_lexer_t *mp_lexer_new_from_fd(qstr filename, int fd, bool close_fd) {
     mp_reader_t reader;
     mp_reader_new_file_from_fd(&reader, fd, close_fd);
+    RETURN_ON_EXCEPTION(NULL)
     return mp_lexer_new(filename, reader);
 }
 

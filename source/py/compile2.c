@@ -177,6 +177,7 @@ STATIC void compile_decrease_except_level(compiler_t *comp) {
 
 STATIC void scope_new_and_link(compiler_t *comp, size_t scope_idx, scope_kind_t kind, const byte *p, uint emit_options) {
     scope_t *scope = scope_new(kind, p, comp->source_file, emit_options);
+    RETURN_ON_EXCEPTION()
     scope->parent = comp->scope_cur;
     comp->scopes[scope_idx] = scope;
 }
@@ -200,6 +201,7 @@ STATIC void compile_generic_all_nodes(compiler_t *comp, const byte *p, const byt
     while (p != ptop) {
         //printf("NODE: %02x %02x %02x %02x\n", p[0], p[1], p[2], p[3]);
         p = compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
     }
 }
 
@@ -243,10 +245,12 @@ STATIC void c_tuple(compiler_t *comp, const byte *p, const byte *p_list, const b
     int total = 0;
     if (p != NULL) {
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         total += 1;
     }
     while (p_list != p_list_top) {
         p_list = compile_node(comp, p_list);
+        RETURN_ON_EXCEPTION()
         total += 1;
     }
     EMIT_ARG(build_tuple, total);
@@ -287,13 +291,16 @@ STATIC const byte *c_if_cond(compiler_t *comp, const byte *p, bool jump_if, int 
                 uint label2 = comp_next_label(comp);
                 while (pt_next(p2) != ptop) {
                     p2 = c_if_cond(comp, p2, !jump_if, label2);
+                    RETURN_ON_EXCEPTION(NULL)
                 }
                 p2 = c_if_cond(comp, p2, jump_if, label);
+                RETURN_ON_EXCEPTION(NULL)
                 EMIT_ARG(label_assign, label2);
             } else {
             and_or_logic2:
                 while (p2 != ptop) {
                     p2 = c_if_cond(comp, p2, jump_if, label);
+                    RETURN_ON_EXCEPTION(NULL)
                 }
             }
             return p2;
@@ -325,6 +332,7 @@ STATIC const byte *c_if_cond(compiler_t *comp, const byte *p, bool jump_if, int 
 
     // nothing special, fall back to default compiling for node and jump
     p = compile_node(comp, p);
+    RETURN_ON_EXCEPTION(NULL)
     EMIT_ARG(pop_jump_if, jump_if, label);
     return p;
 }
@@ -338,6 +346,7 @@ STATIC void c_assign_atom_expr(compiler_t *comp, const byte *p_orig, assign_kind
 
     if (assign_kind != ASSIGN_AUG_STORE) {
         compile_node(comp, p0);
+        RETURN_ON_EXCEPTION()
     }
 
     const byte *p1 = pt_next(p0);
@@ -358,6 +367,7 @@ STATIC void c_assign_atom_expr(compiler_t *comp, const byte *p_orig, assign_kind
             }
             if (assign_kind != ASSIGN_AUG_STORE) {
                 compile_node(comp, p1);
+                RETURN_ON_EXCEPTION()
             }
             p1 = p1next;
         }
@@ -370,6 +380,7 @@ STATIC void c_assign_atom_expr(compiler_t *comp, const byte *p_orig, assign_kind
             EMIT(store_subscr);
         } else {
             compile_node(comp, pt_rule_first(p1));
+            RETURN_ON_EXCEPTION()
             if (assign_kind == ASSIGN_AUG_LOAD) {
                 EMIT(dup_top_two);
                 EMIT(load_subscr);
@@ -430,6 +441,7 @@ STATIC void c_assign_tuple(compiler_t *comp, const byte *p_head, const byte *p_t
         } else {
             c_assign(comp, p_head, ASSIGN_STORE);
         }
+        RETURN_ON_EXCEPTION()
     }
     for (const byte *p = p_tail; p != p_tail_top; p = pt_next(p)) {
         if (p == p_star) {
@@ -437,6 +449,7 @@ STATIC void c_assign_tuple(compiler_t *comp, const byte *p_head, const byte *p_t
         } else {
             c_assign(comp, p, ASSIGN_STORE);
         }
+        RETURN_ON_EXCEPTION()
     }
 }
 
@@ -456,6 +469,7 @@ STATIC void c_assign(compiler_t *comp, const byte *p, assign_kind_t assign_kind)
                 compile_load_id(comp, arg);
                 break;
         }
+        RETURN_ON_EXCEPTION()
     } else if (!pt_is_any_rule(p)) {
         compile_syntax_error(comp, p, "can't assign to literal");
     } else {
@@ -677,11 +691,13 @@ STATIC void compile_funcdef_lambdef_param(compiler_t *comp, const byte *p) {
 
                 // compile value then key, then store it to the dict
                 compile_node(comp, p_equal);
+                RETURN_ON_EXCEPTION()
                 EMIT_ARG(load_const_str, q_id);
                 EMIT(store_map);
             } else {
                 comp->num_default_params += 1;
                 compile_node(comp, p_equal);
+                RETURN_ON_EXCEPTION()
             }
         }
 
@@ -733,6 +749,7 @@ STATIC qstr compile_funcdef_helper(compiler_t *comp, const byte *p, uint emit_op
     if (comp->pass == MP_PASS_SCOPE) {
         // create a new scope for this function
         scope_new_and_link(comp, scope_idx, SCOPE_FUNCTION, p, emit_options);
+        RETURN_ON_EXCEPTION(MP_QSTR_NULL)
     }
 
     p = pt_next(p); // skip function name
@@ -756,6 +773,7 @@ STATIC qstr compile_classdef_helper(compiler_t *comp, const byte *p, uint emit_o
     if (comp->pass == MP_PASS_SCOPE) {
         // create a new scope for this class
         scope_new_and_link(comp, scope_idx, SCOPE_CLASS, p, emit_options);
+        RETURN_ON_EXCEPTION(MP_QSTR_NULL)
     }
 
     EMIT(load_build_class);
@@ -776,6 +794,7 @@ STATIC qstr compile_classdef_helper(compiler_t *comp, const byte *p, uint emit_o
         p_parents = NULL;
     }
     compile_trailer_paren_helper(comp, p_parents, false, 2);
+    RETURN_ON_EXCEPTION(MP_QSTR_NULL)
 
     // return its name (the 'C' in class C(...):")
     return cscope->simple_name;
@@ -844,6 +863,7 @@ STATIC void compile_decorated(compiler_t *comp, const byte *p, const byte *ptop)
 
             // compile the decorator function
             p = compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
             while (p != ptop_dotted_name) {
                 assert(pt_is_any_id(p)); // should be
                 qstr qst;
@@ -855,6 +875,7 @@ STATIC void compile_decorated(compiler_t *comp, const byte *p, const byte *ptop)
             if (!pt_is_null_with_top(p, ptop_decorator)) {
                 // call the decorator function with the arguments in nodes[1]
                 compile_node(comp, p);
+                RETURN_ON_EXCEPTION()
             }
         }
 
@@ -870,6 +891,7 @@ STATIC void compile_decorated(compiler_t *comp, const byte *p, const byte *ptop)
         assert(pt_is_rule(ptop, PN_classdef)); // should be
         body_name = compile_classdef_helper(comp, p, emit_options);
     }
+    RETURN_ON_EXCEPTION()
 
     // call each decorator
     while (num_non_built_in_decorators-- > 0) {
@@ -883,6 +905,7 @@ STATIC void compile_decorated(compiler_t *comp, const byte *p, const byte *ptop)
 STATIC void compile_funcdef(compiler_t *comp, const byte *p, const byte *ptop) {
     (void)ptop;
     qstr fname = compile_funcdef_helper(comp, p, comp->scope_cur->emit_options);
+    RETURN_ON_EXCEPTION()
     // store function object into function name
     compile_store_id(comp, fname);
 }
@@ -897,6 +920,7 @@ STATIC void c_del_stmt(compiler_t *comp, const byte *p) {
         const byte *p0 = pt_rule_extract_top(p, &ptop);
 
         const byte *p1 = compile_node(comp, p0); // base of the power node
+        RETURN_ON_EXCEPTION()
 
         if (pt_is_rule(p1, PN_atom_expr_trailers)) {
             const byte *p1top;
@@ -907,6 +931,7 @@ STATIC void c_del_stmt(compiler_t *comp, const byte *p) {
                     break;
                 }
                 compile_node(comp, p1);
+                RETURN_ON_EXCEPTION()
                 p1 = p1next;
             }
             // p1 now points to final trailer for delete
@@ -915,6 +940,7 @@ STATIC void c_del_stmt(compiler_t *comp, const byte *p) {
         const byte *p2;
         if (pt_is_rule(p1, PN_trailer_bracket)) {
             p2 = compile_node(comp, pt_rule_first(p1));
+            RETURN_ON_EXCEPTION()
             EMIT(delete_subscr);
         } else if (pt_is_rule(p1, PN_trailer_period)) {
             qstr id;
@@ -937,6 +963,7 @@ STATIC void c_del_stmt(compiler_t *comp, const byte *p) {
             // or, simplify the logic here my making the parser simplify everything to a list
             const byte *p0 = pt_rule_first(p);
             c_del_stmt(comp, p0);
+            RETURN_ON_EXCEPTION()
 
             const byte *p1 = pt_next(p0);
             if (pt_is_rule(p1, PN_testlist_comp_3b)) {
@@ -948,6 +975,7 @@ STATIC void c_del_stmt(compiler_t *comp, const byte *p) {
                 p1 = pt_rule_extract_top(p1, &ptop);
                 while (p1 != ptop) {
                     c_del_stmt(comp, p1);
+                    RETURN_ON_EXCEPTION()
                     p1 = pt_next(p1);
                 }
             } else if (pt_is_rule(p1, PN_comp_for)) {
@@ -977,6 +1005,7 @@ STATIC void compile_break_stmt(compiler_t *comp, const byte *p, const byte *ptop
     (void)ptop;
     if (comp->break_label == INVALID_LABEL) {
         compile_syntax_error(comp, p, "'break' outside loop");
+        RETURN_ON_EXCEPTION()
     }
     assert(comp->cur_except_level >= comp->break_continue_except_level);
     EMIT_ARG(break_loop, comp->break_label, comp->cur_except_level - comp->break_continue_except_level);
@@ -986,6 +1015,7 @@ STATIC void compile_continue_stmt(compiler_t *comp, const byte *p, const byte *p
     (void)ptop;
     if (comp->continue_label == INVALID_LABEL) {
         compile_syntax_error(comp, p, "'continue' outside loop");
+        RETURN_ON_EXCEPTION()
     }
     assert(comp->cur_except_level >= comp->break_continue_except_level);
     EMIT_ARG(continue_loop, comp->continue_label, comp->cur_except_level - comp->break_continue_except_level);
@@ -1015,6 +1045,7 @@ STATIC void compile_return_stmt(compiler_t *comp, const byte *p, const byte *pto
     #endif
     } else {
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
     }
     EMIT(return_value);
 }
@@ -1022,6 +1053,7 @@ STATIC void compile_return_stmt(compiler_t *comp, const byte *p, const byte *pto
 STATIC void compile_yield_stmt(compiler_t *comp, const byte *p, const byte *ptop) {
     (void)ptop;
     compile_node(comp, p);
+    RETURN_ON_EXCEPTION()
     EMIT(pop_top);
 }
 
@@ -1033,11 +1065,14 @@ STATIC void compile_raise_stmt(compiler_t *comp, const byte *p, const byte *ptop
         // raise x from y
         p = pt_rule_first(p);
         p = compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(raise_varargs, 2);
     } else {
         // raise x
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(raise_varargs, 1);
     }
 }
@@ -1086,6 +1121,7 @@ STATIC void do_import_name(compiler_t *comp, const byte *p, qstr *q_base) {
         // build string
         byte *q_ptr;
         byte *str_dest = qstr_build_start(len, &q_ptr);
+        RETURN_ON_EXCEPTION()
         for (const byte *p2 = p; p2 != ptop;) {
             if (p2 > p) {
                 *str_dest++ = '.';
@@ -1098,6 +1134,7 @@ STATIC void do_import_name(compiler_t *comp, const byte *p, qstr *q_base) {
             str_dest += str_src_len;
         }
         qstr q_full = qstr_build_end(q_ptr);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(import_name, q_full);
         if (is_as) {
             for (const byte *p2 = pt_next(p); p2 != ptop;) {
@@ -1114,6 +1151,7 @@ STATIC void compile_dotted_as_name(compiler_t *comp, const byte *p) {
     EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE); // not importing from anything
     qstr q_base;
     do_import_name(comp, p, &q_base);
+    RETURN_ON_EXCEPTION()
     compile_store_id(comp, q_base);
 }
 
@@ -1169,6 +1207,7 @@ STATIC void compile_import_from(compiler_t *comp, const byte *p, const byte *pto
         // do the import
         qstr dummy_q;
         do_import_name(comp, p_import_source, &dummy_q);
+        RETURN_ON_EXCEPTION()
         EMIT(import_star);
 
     } else {
@@ -1188,6 +1227,7 @@ STATIC void compile_import_from(compiler_t *comp, const byte *p, const byte *pto
         // do the import
         qstr dummy_q;
         do_import_name(comp, p_import_source, &dummy_q);
+        RETURN_ON_EXCEPTION()
         for (const byte *p_list = p; p_list < ptop;) {
             assert(pt_is_rule(p_list, PN_import_as_name));
             const byte *p_list_top;
@@ -1202,6 +1242,7 @@ STATIC void compile_import_from(compiler_t *comp, const byte *p, const byte *pto
                 p_list = pt_extract_id(p_list, &id3);
                 compile_store_id(comp, id3);
             }
+            RETURN_ON_EXCEPTION()
         }
         EMIT(pop_top);
     }
@@ -1210,6 +1251,7 @@ STATIC void compile_import_from(compiler_t *comp, const byte *p, const byte *pto
 STATIC void compile_declare_global(compiler_t *comp, const byte *p_for_err, qstr qst) {
     bool added;
     id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, qst, &added);
+    RETURN_ON_EXCEPTION()
     if (!added && id_info->kind != ID_INFO_KIND_GLOBAL_EXPLICIT) {
         compile_syntax_error(comp, p_for_err, "identifier redefined as global");
         return;
@@ -1231,6 +1273,7 @@ STATIC void compile_global_stmt(compiler_t *comp, const byte *p, const byte *pto
             qstr qst;
             p = pt_extract_id(p, &qst);
             compile_declare_global(comp, p_orig, qst);
+            RETURN_ON_EXCEPTION()
         }
     }
 }
@@ -1238,8 +1281,10 @@ STATIC void compile_global_stmt(compiler_t *comp, const byte *p, const byte *pto
 STATIC void compile_declare_nonlocal(compiler_t *comp, const byte *p_for_err, qstr qst) {
     bool added;
     id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, qst, &added);
+    RETURN_ON_EXCEPTION()
     if (added) {
         scope_find_local_and_close_over(comp->scope_cur, id_info, qst);
+        RETURN_ON_EXCEPTION()
         if (id_info->kind == ID_INFO_KIND_GLOBAL_IMPLICIT) {
             compile_syntax_error(comp, p_for_err, "no binding for nonlocal found");
         }
@@ -1260,6 +1305,7 @@ STATIC void compile_nonlocal_stmt(compiler_t *comp, const byte *p, const byte *p
             qstr qst;
             p = pt_extract_id(p, &qst);
             compile_declare_nonlocal(comp, p_orig, qst);
+            RETURN_ON_EXCEPTION()
         }
     }
 }
@@ -1272,10 +1318,12 @@ STATIC void compile_assert_stmt(compiler_t *comp, const byte *p, const byte *pto
 
     uint l_end = comp_next_label(comp);
     p = c_if_cond(comp, p, true, l_end);
+    RETURN_ON_EXCEPTION()
     EMIT_LOAD_GLOBAL(MP_QSTR_AssertionError); // we load_global instead of load_id, to be consistent with CPython
     if (!pt_is_null_with_top(p, ptop)) {
         // assertion message
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(call_function, 1, 0, 0);
     }
     EMIT_ARG(raise_varargs, 1);
@@ -1295,8 +1343,10 @@ STATIC void compile_if_stmt(compiler_t *comp, const byte *p, const byte *ptop) {
         uint l_fail = comp_next_label(comp);
         bool if_true = node_is_const_true(p);
         p = c_if_cond(comp, p, false, l_fail); // if condition
+        RETURN_ON_EXCEPTION()
 
         p = compile_node(comp, p); // if block
+        RETURN_ON_EXCEPTION()
 
         // optimisation: skip everything else when "if True"
         if (if_true) {
@@ -1333,8 +1383,10 @@ STATIC void compile_if_stmt(compiler_t *comp, const byte *p, const byte *ptop) {
                 uint l_fail = comp_next_label(comp);
                 bool elif_true = node_is_const_true(p);
                 p = c_if_cond(comp, p, false, l_fail); // elif condition
+                RETURN_ON_EXCEPTION()
 
                 p = compile_node(comp, p); // elif block
+                RETURN_ON_EXCEPTION()
 
                 // optimisation: skip everything else when "elif True"
                 if (elif_true) {
@@ -1352,6 +1404,7 @@ STATIC void compile_if_stmt(compiler_t *comp, const byte *p, const byte *ptop) {
         // compile else block (if any)
         if (p != ptop) {
             compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
         }
     }
 
@@ -1387,8 +1440,10 @@ STATIC void compile_while_stmt(compiler_t *comp, const byte *p, const byte *ptop
         }
         EMIT_ARG(label_assign, top_label);
         compile_node(comp, p_body); // body
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(label_assign, continue_label);
         c_if_cond(comp, p, true, top_label); // condition
+        RETURN_ON_EXCEPTION()
     }
 
     // break/continue apply to outer loop (if any) in the else block
@@ -1396,6 +1451,7 @@ STATIC void compile_while_stmt(compiler_t *comp, const byte *p, const byte *ptop
 
     if (p_else != ptop) {
         compile_node(comp, p_else); // else
+        RETURN_ON_EXCEPTION()
     }
 
     EMIT_ARG(label_assign, break_label);
@@ -1430,10 +1486,12 @@ STATIC void compile_for_stmt_optimised_range(compiler_t *comp, const byte *pn_va
     bool end_on_stack = !pt_is_small_int(pn_end);
     if (end_on_stack) {
         compile_node(comp, pn_end);
+        RETURN_ON_EXCEPTION()
     }
 
     // compile: start
     compile_node(comp, pn_start);
+    RETURN_ON_EXCEPTION()
 
     EMIT_ARG(jump, entry_label);
     EMIT_ARG(label_assign, top_label);
@@ -1441,9 +1499,11 @@ STATIC void compile_for_stmt_optimised_range(compiler_t *comp, const byte *pn_va
     // duplicate next value and store it to var
     EMIT(dup_top);
     c_assign(comp, pn_var, ASSIGN_STORE);
+    RETURN_ON_EXCEPTION()
 
     // compile body
     compile_node(comp, pn_body);
+    RETURN_ON_EXCEPTION()
 
     EMIT_ARG(label_assign, continue_label);
 
@@ -1460,6 +1520,7 @@ STATIC void compile_for_stmt_optimised_range(compiler_t *comp, const byte *pn_va
     } else {
         EMIT(dup_top);
         compile_node(comp, pn_end);
+        RETURN_ON_EXCEPTION()
     }
     if (step >= 0) {
         EMIT_ARG(binary_op, MP_BINARY_OP_LESS);
@@ -1481,6 +1542,7 @@ STATIC void compile_for_stmt_optimised_range(compiler_t *comp, const byte *pn_va
             EMIT(pop_top);
         }
         compile_node(comp, pn_else);
+        RETURN_ON_EXCEPTION()
         end_label = comp_next_label(comp);
         EMIT_ARG(jump, end_label);
         EMIT_ARG(adjust_stack_size, 1 + end_on_stack);
@@ -1577,11 +1639,14 @@ optimise_fail:;
 
     const byte *p_it = pt_next(p);
     const byte *p_body = compile_node(comp, p_it); // iterator
+    RETURN_ON_EXCEPTION()
     EMIT_ARG(get_iter, true);
     EMIT_ARG(label_assign, continue_label);
     EMIT_ARG(for_iter, pop_label);
     c_assign(comp, p, ASSIGN_STORE); // variable
+    RETURN_ON_EXCEPTION()
     const byte *p_else = compile_node(comp, p_body); // body
+    RETURN_ON_EXCEPTION()
     if (!EMIT(last_emit_was_return_value)) {
         EMIT_ARG(jump, continue_label);
     }
@@ -1593,6 +1658,7 @@ optimise_fail:;
 
     if (p_else != ptop) {
         compile_node(comp, p_else); // else
+        RETURN_ON_EXCEPTION()
     }
 
     EMIT_ARG(label_assign, break_label);
@@ -1605,8 +1671,10 @@ STATIC void compile_try_except(compiler_t *comp, const byte *p_body, const byte 
 
     EMIT_ARG(setup_except, l1);
     compile_increase_except_level(comp);
+    RETURN_ON_EXCEPTION()
 
     compile_node(comp, p_body); // body
+    RETURN_ON_EXCEPTION()
     EMIT(pop_block);
     EMIT_ARG(jump, success_label); // jump over exception handler
 
@@ -1628,6 +1696,7 @@ STATIC void compile_try_except(compiler_t *comp, const byte *p_body, const byte 
             // this is a catch all exception handler
             if (pt_next(pt_next(p_except)) != p_except_top) {
                 compile_syntax_error(comp, p_except, "default 'except:' must be last");
+                RETURN_ON_EXCEPTION()
                 compile_decrease_except_level(comp);
                 return;
             }
@@ -1641,6 +1710,7 @@ STATIC void compile_try_except(compiler_t *comp, const byte *p_body, const byte 
             }
             EMIT(dup_top);
             compile_node(comp, p_exception_expr);
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(binary_op, MP_BINARY_OP_EXCEPTION_MATCH);
             EMIT_ARG(pop_jump_if, false, end_finally_label);
         }
@@ -1652,6 +1722,7 @@ STATIC void compile_try_except(compiler_t *comp, const byte *p_body, const byte 
             EMIT(pop_top);
         } else {
             compile_store_id(comp, qstr_exception_local);
+            RETURN_ON_EXCEPTION()
         }
 
         uint l3 = 0;
@@ -1659,8 +1730,10 @@ STATIC void compile_try_except(compiler_t *comp, const byte *p_body, const byte 
             l3 = comp_next_label(comp);
             EMIT_ARG(setup_finally, l3);
             compile_increase_except_level(comp);
+            RETURN_ON_EXCEPTION()
         }
         p_except = compile_node(comp, p_except);
+        RETURN_ON_EXCEPTION()
         if (qstr_exception_local != 0) {
             EMIT(pop_block);
         }
@@ -1670,9 +1743,12 @@ STATIC void compile_try_except(compiler_t *comp, const byte *p_body, const byte 
             EMIT_ARG(label_assign, l3);
             EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE);
             compile_store_id(comp, qstr_exception_local);
+            RETURN_ON_EXCEPTION()
             compile_delete_id(comp, qstr_exception_local);
+            RETURN_ON_EXCEPTION()
 
             compile_decrease_except_level(comp);
+            RETURN_ON_EXCEPTION()
             EMIT(end_finally);
         }
         EMIT_ARG(jump, l2);
@@ -1681,12 +1757,14 @@ STATIC void compile_try_except(compiler_t *comp, const byte *p_body, const byte 
     }
 
     compile_decrease_except_level(comp);
+    RETURN_ON_EXCEPTION()
     EMIT(end_finally);
     EMIT(end_except_handler);
 
     EMIT_ARG(label_assign, success_label);
     if (p_else != NULL) {
         compile_node(comp, p_else); // else block
+        RETURN_ON_EXCEPTION()
     }
     EMIT_ARG(label_assign, l2);
 }
@@ -1698,21 +1776,26 @@ STATIC void compile_try_finally(compiler_t *comp, const byte *p_body, const byte
 
     EMIT_ARG(setup_finally, l_finally_block);
     compile_increase_except_level(comp);
+    RETURN_ON_EXCEPTION()
 
     if (p_except == NULL) {
         assert(p_else == NULL);
         EMIT_ARG(adjust_stack_size, 3); // stack adjust for possible UNWIND_JUMP state
         compile_node(comp, p_body);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(adjust_stack_size, -3);
     } else {
         compile_try_except(comp, p_body, p_except, p_except_top, p_else);
+        RETURN_ON_EXCEPTION()
     }
     EMIT(pop_block);
     EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE);
     EMIT_ARG(label_assign, l_finally_block);
     compile_node(comp, pt_rule_first(p_finally));
+    RETURN_ON_EXCEPTION()
 
     compile_decrease_except_level(comp);
+    RETURN_ON_EXCEPTION()
     EMIT(end_finally);
 }
 
@@ -1756,21 +1839,27 @@ STATIC void compile_with_stmt_helper(compiler_t *comp, const byte *n_pre, const 
             // this pre-bit is of the form "a as b"
             const byte *p = pt_rule_first(n_pre);
             p = compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(setup_with, l_end);
             c_assign(comp, p, ASSIGN_STORE);
+            RETURN_ON_EXCEPTION()
             n_pre = pt_next(n_pre);
         } else {
             // this pre-bit is just an expression
             n_pre = compile_node(comp, n_pre);
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(setup_with, l_end);
             EMIT(pop_top);
         }
         compile_increase_except_level(comp);
+        RETURN_ON_EXCEPTION()
         // compile additional pre-bits and the body
         compile_with_stmt_helper(comp, n_pre, p_body);
+        RETURN_ON_EXCEPTION()
         // finish this with block
         EMIT_ARG(with_cleanup, l_end);
         compile_decrease_except_level(comp);
+        RETURN_ON_EXCEPTION()
         EMIT(end_finally);
     }
 }
@@ -1790,7 +1879,9 @@ STATIC void compile_expr_stmt(compiler_t *comp, const byte *p, const byte *ptop)
         if (comp->is_repl && comp->scope_cur->kind == SCOPE_MODULE) {
             // for REPL, evaluate then print the expression
             compile_load_id(comp, MP_QSTR___repl_print__);
+            RETURN_ON_EXCEPTION()
             compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(call_function, 1, 0, 0);
             EMIT(pop_top);
 
@@ -1806,11 +1897,13 @@ STATIC void compile_expr_stmt(compiler_t *comp, const byte *p, const byte *ptop)
             #endif
             {
                 compile_node(comp, p); // just an expression
+                RETURN_ON_EXCEPTION()
                 EMIT(pop_top); // discard last result since this is a statement and leaves nothing on the stack
             }
         }
     } else if (pt_is_rule(p_n1, PN_expr_stmt_augassign)) {
         c_assign(comp, p, ASSIGN_AUG_LOAD); // lhs load for aug assign
+        RETURN_ON_EXCEPTION()
         p_n1 = pt_rule_first(p_n1);
         assert(pt_is_any_tok(p_n1));
         byte tok;
@@ -1831,8 +1924,10 @@ STATIC void compile_expr_stmt(compiler_t *comp, const byte *p, const byte *ptop)
             case MP_TOKEN_DEL_DBL_STAR_EQUAL: default: op = MP_BINARY_OP_INPLACE_POWER; break;
         }
         compile_node(comp, p_n1); // rhs
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(binary_op, op);
         c_assign(comp, p, ASSIGN_AUG_STORE); // lhs store for aug assign
+        RETURN_ON_EXCEPTION()
     } else if (pt_is_rule(p_n1, PN_expr_stmt_assign_list)) {
         const byte *p_n1_top;
         p_n1 = pt_rule_extract_top(p_n1, &p_n1_top);
@@ -1841,17 +1936,20 @@ STATIC void compile_expr_stmt(compiler_t *comp, const byte *p, const byte *ptop)
             p_rhs = pp;
         }
         compile_node(comp, p_rhs); // rhs
+        RETURN_ON_EXCEPTION()
         // following CPython, we store left-most first
         //if (num rhs > 1) { always true?
             EMIT(dup_top);
         //}
         c_assign(comp, p, ASSIGN_STORE); // lhs store
+        RETURN_ON_EXCEPTION()
         for (const byte *pp = p_n1; pp != p_rhs;) {
             const byte *pp_next = pt_next(pp);
             if (pp_next != p_rhs) {
                 EMIT(dup_top);
             }
             c_assign(comp, pp, ASSIGN_STORE); // middle store
+            RETURN_ON_EXCEPTION()
             pp = pp_next;
         }
     } else {
@@ -1902,7 +2000,9 @@ STATIC void compile_expr_stmt(compiler_t *comp, const byte *p, const byte *ptop)
         {
             //no_optimisation:
             compile_node(comp, p_n1); // rhs
+            RETURN_ON_EXCEPTION()
             c_assign(comp, p, ASSIGN_STORE); // lhs store
+            RETURN_ON_EXCEPTION()
         }
     }
 }
@@ -1916,11 +2016,14 @@ STATIC void compile_test_if_expr(compiler_t *comp, const byte *p, const byte *pt
     uint l_fail = comp_next_label(comp);
     uint l_end = comp_next_label(comp);
     p_test_if_else = c_if_cond(comp, p_test_if_else, false, l_fail); // condition
+    RETURN_ON_EXCEPTION()
     compile_node(comp, p); // success value
+    RETURN_ON_EXCEPTION()
     EMIT_ARG(jump, l_end);
     EMIT_ARG(label_assign, l_fail);
     EMIT_ARG(adjust_stack_size, -1); // adjust stack size
     compile_node(comp, p_test_if_else); // failure value
+    RETURN_ON_EXCEPTION()
     EMIT_ARG(label_assign, l_end);
 }
 
@@ -1932,6 +2035,7 @@ STATIC void compile_lambdef(compiler_t *comp, const byte *p, const byte *ptop) {
     if (comp->pass == MP_PASS_SCOPE) {
         // create a new scope for this lambda
         scope_new_and_link(comp, scope_idx, SCOPE_LAMBDA, p, comp->scope_cur->emit_options);
+        RETURN_ON_EXCEPTION()
     }
 
     // get the scope for this lambda
@@ -1945,6 +2049,7 @@ STATIC void compile_or_and_test(compiler_t *comp, const byte *p, const byte *pto
     uint l_end = comp_next_label(comp);
     while (p != ptop) {
         p = compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         if (p != ptop) {
             EMIT_ARG(jump_if_or_pop, cond, l_end);
         }
@@ -1963,12 +2068,14 @@ STATIC void compile_and_test(compiler_t *comp, const byte *p, const byte *ptop) 
 STATIC void compile_not_test_2(compiler_t *comp, const byte *p, const byte *ptop) {
     (void)ptop;
     compile_node(comp, p);
+    RETURN_ON_EXCEPTION()
     EMIT_ARG(unary_op, MP_UNARY_OP_NOT);
 }
 
 STATIC void compile_comparison(compiler_t *comp, const byte *p, const byte *ptop) {
     int num_nodes = pt_num_nodes(p, ptop);
     p = compile_node(comp, p);
+    RETURN_ON_EXCEPTION()
     bool multi = (num_nodes > 3);
     uint l_fail = 0;
     if (multi) {
@@ -2003,6 +2110,7 @@ STATIC void compile_comparison(compiler_t *comp, const byte *p, const byte *ptop
         }
 
         p = compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
 
         if (i + 2 < num_nodes) {
             EMIT(dup_top);
@@ -2033,8 +2141,10 @@ STATIC void compile_star_expr(compiler_t *comp, const byte *p, const byte *ptop)
 
 STATIC void c_binary_op(compiler_t *comp, const byte *p, const byte *ptop, mp_binary_op_t binary_op) {
     p = compile_node(comp, p);
+    RETURN_ON_EXCEPTION()
     while (p != ptop) {
         p = compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(binary_op, binary_op);
     }
 }
@@ -2053,10 +2163,12 @@ STATIC void compile_and_expr(compiler_t *comp, const byte *p, const byte *ptop) 
 
 STATIC void compile_term(compiler_t *comp, const byte *p, const byte *ptop) {
     p = compile_node(comp, p);
+    RETURN_ON_EXCEPTION()
     while (p != ptop) {
         byte tok;
         p = pt_tok_extract(p, &tok);
         p = compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         mp_binary_op_t op;
         switch (tok) {
             case MP_TOKEN_OP_PLUS:      op = MP_BINARY_OP_ADD; break;
@@ -2080,6 +2192,7 @@ STATIC void compile_factor_2(compiler_t *comp, const byte *p, const byte *ptop) 
     byte tok;
     p = pt_tok_extract(p, &tok);
     compile_node(comp, p);
+    RETURN_ON_EXCEPTION()
     if (tok == MP_TOKEN_OP_PLUS) {
         EMIT_ARG(unary_op, MP_UNARY_OP_POSITIVE);
     } else if (tok == MP_TOKEN_OP_MINUS) {
@@ -2095,6 +2208,7 @@ STATIC void compile_atom_expr_normal(compiler_t *comp, const byte *p, const byte
 
     // compile the subject of the expression
     p = compile_node(comp, p);
+    RETURN_ON_EXCEPTION()
 
     // get the array of trailers, it may be a single item or a list
     if (pt_is_rule(p, PN_atom_expr_trailers)) {
@@ -2110,6 +2224,7 @@ STATIC void compile_atom_expr_normal(compiler_t *comp, const byte *p, const byte
 
         // load the class for super to search for a parent
         compile_load_id(comp, MP_QSTR___class__);
+        RETURN_ON_EXCEPTION()
 
         // look for first argument to function (assumes it's "self")
         bool found = false;
@@ -2118,6 +2233,7 @@ STATIC void compile_atom_expr_normal(compiler_t *comp, const byte *p, const byte
             if (id->flags & ID_FLAG_IS_PARAM) {
                 // first argument found; load it
                 compile_load_id(comp, id->qst);
+                RETURN_ON_EXCEPTION()
                 found = true;
                 break;
             }
@@ -2143,6 +2259,7 @@ STATIC void compile_atom_expr_normal(compiler_t *comp, const byte *p, const byte
                 p_paren = pt_rule_first(p_paren);
             }
             compile_trailer_paren_helper(comp, p_paren, true, 0);
+            RETURN_ON_EXCEPTION()
             p = pt_next(p);
             p = pt_next(p);
             p = pt_next(p);
@@ -2168,16 +2285,19 @@ STATIC void compile_atom_expr_normal(compiler_t *comp, const byte *p, const byte
             pt_extract_id(p_period, &method_name);
             EMIT_ARG(load_method, method_name, false);
             compile_trailer_paren_helper(comp, p_paren, true, 0);
+            RETURN_ON_EXCEPTION()
             p = pt_next(p_next);
         } else {
             // node is one of: trailer_paren, trailer_bracket, trailer_period
             p = compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
         }
     }
 }
 
 STATIC void compile_power(compiler_t *comp, const byte *p, const byte *ptop) {
     compile_generic_all_nodes(comp, p, ptop); // 2 nodes, arguments of power
+    RETURN_ON_EXCEPTION()
     EMIT_ARG(binary_op, MP_BINARY_OP_POWER);
 }
 
@@ -2224,6 +2344,7 @@ STATIC void compile_trailer_paren_helper(compiler_t *comp, const byte *p_arglist
             if (pt_is_rule(p2, PN_comp_for)) {
                 // list comprehension argument
                 compile_comprehension(comp, p, SCOPE_GEN_EXPR);
+                RETURN_ON_EXCEPTION()
                 n_positional++;
                 p = pt_next(pt_next(p));
             } else {
@@ -2236,6 +2357,7 @@ STATIC void compile_trailer_paren_helper(compiler_t *comp, const byte *p_arglist
                 p = pt_extract_id(p, &kw);
                 EMIT_ARG(load_const_str, kw);
                 p = compile_node(comp, p);
+                RETURN_ON_EXCEPTION()
                 n_keyword += 1;
             }
         } else {
@@ -2248,6 +2370,7 @@ STATIC void compile_trailer_paren_helper(compiler_t *comp, const byte *p_arglist
                 return;
             }
             p = compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
             n_positional++;
         }
     }
@@ -2259,11 +2382,13 @@ STATIC void compile_trailer_paren_helper(compiler_t *comp, const byte *p_arglist
             EMIT(load_null);
         } else {
             compile_node(comp, p_star_args);
+            RETURN_ON_EXCEPTION()
         }
         if (p_dblstar_args == NULL) {
             EMIT(load_null);
         } else {
             compile_node(comp, p_dblstar_args);
+            RETURN_ON_EXCEPTION()
         }
     }
 
@@ -2287,6 +2412,7 @@ STATIC void compile_comprehension(compiler_t *comp, const byte *p, scope_kind_t 
     if (comp->pass == MP_PASS_SCOPE) {
         // create a new scope for this comprehension
         scope_new_and_link(comp, scope_idx, kind, p, comp->scope_cur->emit_options);
+        RETURN_ON_EXCEPTION()
     }
 
     // get the scope for this comprehension
@@ -2296,6 +2422,7 @@ STATIC void compile_comprehension(compiler_t *comp, const byte *p, scope_kind_t 
     close_over_variables_etc(comp, this_scope, 0, 0);
 
     compile_node(comp, pt_next(p_comp_for)); // source of the iterator
+    RETURN_ON_EXCEPTION()
     if (kind == SCOPE_GEN_EXPR) {
         EMIT_ARG(get_iter, false);
     }
@@ -2334,20 +2461,26 @@ STATIC void compile_atom_bracket(compiler_t *comp, const byte *p, const byte *pt
             // list of one item with trailing comma (3b); or list of many items (3c)
             p3 = pt_rule_first(p3);
             compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
             compile_generic_all_nodes(comp, p3, ptop);
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(build_list, 1 + pt_num_nodes(p3, ptop));
         } else if (pt_is_rule(p3, PN_comp_for)) {
             // list comprehension
             compile_comprehension(comp, p, SCOPE_LIST_COMP);
+            RETURN_ON_EXCEPTION()
         } else {
             // list with 2 items
             p = compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
             compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(build_list, 2);
         }
     } else {
         // list with 1 item
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(build_list, 1);
     }
 }
@@ -2360,6 +2493,7 @@ STATIC void compile_atom_brace(compiler_t *comp, const byte *p, const byte *ptop
         // dict with one element
         EMIT_ARG(build_map, 1);
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT(store_map);
     } else if (pt_is_rule(p, PN_dictorsetmaker)) {
         p = pt_rule_first(p);
@@ -2380,11 +2514,13 @@ STATIC void compile_atom_brace(compiler_t *comp, const byte *p, const byte *ptop
                 // a dictionary
                 EMIT_ARG(build_map, 1 + pt_num_nodes(p1, p1_top));
                 compile_node(comp, p);
+                RETURN_ON_EXCEPTION()
                 EMIT(store_map);
                 is_dict = true;
             } else {
                 // a set
                 compile_node(comp, p); // 1st value of set
+                RETURN_ON_EXCEPTION()
                 is_dict = false;
             }
 
@@ -2392,6 +2528,7 @@ STATIC void compile_atom_brace(compiler_t *comp, const byte *p, const byte *ptop
             for (const byte *p_elem = p1; p_elem != p1_top;) {
                 bool is_key_value = pt_is_rule(p_elem, PN_dictorsetmaker_item);
                 p_elem = compile_node(comp, p_elem);
+                RETURN_ON_EXCEPTION()
                 if (is_dict) {
                     if (!is_key_value) {
                         // TODO what is the correct p for error node?
@@ -2424,11 +2561,13 @@ STATIC void compile_atom_brace(compiler_t *comp, const byte *p, const byte *ptop
                 // a set comprehension
                 compile_comprehension(comp, p, SCOPE_SET_COMP);
             }
+            RETURN_ON_EXCEPTION()
         }
     } else {
         // set with one element
         #if MICROPY_PY_BUILTINS_SET
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(build_set, 1);
         #else
         assert(0);
@@ -2447,6 +2586,7 @@ STATIC void compile_trailer_bracket(compiler_t *comp, const byte *p, const byte 
     (void)ptop;
     // object who's index we want is on top of stack
     compile_node(comp, p); // the index
+    RETURN_ON_EXCEPTION()
     EMIT(load_subscr);
 }
 
@@ -2473,11 +2613,13 @@ STATIC void compile_subscript_3_helper(compiler_t *comp, const byte *p, const by
         } else {
             // [?::x]
             compile_node(comp, pt_rule_first(p));
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(build_slice, 3);
         }
     } else if (pt_is_rule(p, PN_subscript_3d)) {
         p = pt_rule_first(p);
         p = compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         assert(pt_is_rule(p, PN_sliceop)); // should always be
         p = pt_rule_first(p);
         if (p == ptop) {
@@ -2486,17 +2628,20 @@ STATIC void compile_subscript_3_helper(compiler_t *comp, const byte *p, const by
         } else {
             // [?:x:x]
             compile_node(comp, p);
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(build_slice, 3);
         }
     } else {
         // [?:x]
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(build_slice, 2);
     }
 }
 
 STATIC void compile_subscript_2(compiler_t *comp, const byte *p, const byte *ptop) {
     p = compile_node(comp, p); // start of slice
+    RETURN_ON_EXCEPTION()
     p = pt_rule_first(p); // skip header of subscript_3
     compile_subscript_3_helper(comp, p, ptop);
 }
@@ -2511,12 +2656,14 @@ STATIC void compile_dictorsetmaker_item(compiler_t *comp, const byte *p, const b
     (void)ptop;
     // if this is called then we are compiling a dict key:value pair
     compile_node(comp, pt_next(p)); // value
+    RETURN_ON_EXCEPTION()
     compile_node(comp, p); // key
 }
 
 STATIC void compile_classdef(compiler_t *comp, const byte *p, const byte *ptop) {
     (void)ptop;
     qstr cname = compile_classdef_helper(comp, p, comp->scope_cur->emit_options);
+    RETURN_ON_EXCEPTION()
     // store class object into class name
     compile_store_id(comp, cname);
 }
@@ -2532,11 +2679,13 @@ STATIC void compile_yield_expr(compiler_t *comp, const byte *p, const byte *ptop
     } else if (pt_is_rule(p, PN_yield_arg_from)) {
         p = pt_rule_first(p);
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(get_iter, false);
         EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE);
         EMIT(yield_from);
     } else {
         compile_node(comp, p);
+        RETURN_ON_EXCEPTION()
         EMIT(yield_value);
     }
 }
@@ -2583,7 +2732,9 @@ STATIC const byte *compile_node(compiler_t *comp, const byte *p) {
             if (comp->pass != MP_PASS_EMIT) {
                 EMIT_ARG(load_const_obj, mp_const_none);
             } else {
-                EMIT_ARG(load_const_obj, mp_obj_new_int_from_ll(arg));
+                mp_int_t temp = mp_obj_new_int_from_ll(arg);
+                RETURN_ON_EXCEPTION(NULL)
+                EMIT_ARG(load_const_obj, temp);
             }
         }
         #else
@@ -2614,6 +2765,7 @@ STATIC const byte *compile_node(compiler_t *comp, const byte *p) {
             size_t len;
             const byte *data = qstr_data(qst, &len);
             mp_obj_t o = mp_obj_new_bytes(data, len);
+            RETURN_ON_EXCEPTION(NULL)
             EMIT_ARG(load_const_obj, o);
         }
         return pt_next(p);
@@ -2621,6 +2773,7 @@ STATIC const byte *compile_node(compiler_t *comp, const byte *p) {
         qstr qst;
         p = pt_extract_id(p, &qst);
         compile_load_id(comp, qst);
+        RETURN_ON_EXCEPTION(NULL)
         return p;
     } else if (*p == MP_PT_CONST_OBJECT) {
         size_t idx;
@@ -2636,6 +2789,7 @@ STATIC const byte *compile_node(compiler_t *comp, const byte *p) {
         compile_function_t f = compile_function[rule_id];
         assert(f != NULL);
         f(comp, p, ptop);
+        RETURN_ON_EXCEPTION(NULL)
         if (comp->compile_error != MP_OBJ_NULL && comp->compile_error_line == 0) {
             // add line info for the error in case it didn't have a line number
             comp->compile_error_line = src_line;
@@ -2706,6 +2860,7 @@ STATIC void compile_scope_func_lambda_param(compiler_t *comp, const byte *p, pn_
     if (param_name != MP_QSTR_NULL) {
         bool added;
         id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, param_name, &added);
+        RETURN_ON_EXCEPTION()
         if (!added) {
             compile_syntax_error(comp, p, "name reused for argument");
             return;
@@ -2775,12 +2930,14 @@ STATIC void compile_scope_comp_iter(compiler_t *comp, const byte *p_comp_for, co
     EMIT_ARG(label_assign, l_top);
     EMIT_ARG(for_iter, l_end);
     c_assign(comp, p_comp_for, ASSIGN_STORE);
+    RETURN_ON_EXCEPTION()
     const byte *p_iter = pt_next(pt_next(p_comp_for));
 
     tail_recursion:
     if (p_iter == p_comp_for_top) {
         // no more nested if/for; compile inner expression
         compile_node(comp, p_inner_expr);
+        RETURN_ON_EXCEPTION()
         if (comp->scope_cur->kind == SCOPE_GEN_EXPR) {
             EMIT(yield_value);
             EMIT(pop_top);
@@ -2791,6 +2948,7 @@ STATIC void compile_scope_comp_iter(compiler_t *comp, const byte *p_comp_for, co
         // if condition
         const byte *p0 = pt_rule_extract_top(p_iter, &p_comp_for_top);
         p_iter = c_if_cond(comp, p0, false, l_top);
+        RETURN_ON_EXCEPTION()
         goto tail_recursion;
     } else {
         assert(pt_is_rule(p_iter, PN_comp_for)); // should be
@@ -2799,8 +2957,10 @@ STATIC void compile_scope_comp_iter(compiler_t *comp, const byte *p_comp_for, co
         const byte *p0 = pt_rule_extract_top(p_iter, &ptop);
         p0 = pt_next(p0); // skip scope index
         compile_node(comp, pt_next(p0));
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(get_iter, true);
         compile_scope_comp_iter(comp, p0, ptop, p_inner_expr, for_depth + 1);
+        RETURN_ON_EXCEPTION()
     }
 
     EMIT_ARG(jump, l_top);
@@ -2871,12 +3031,14 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
     if (pt_is_rule(scope->pn, PN_eval_input)) {
         assert(scope->kind == SCOPE_MODULE);
         compile_node(comp, pt_rule_first(scope->pn)); // compile the expression
+        RETURN_ON_EXCEPTION()
         EMIT(return_value);
     } else if (scope->kind == SCOPE_MODULE) {
         if (!comp->is_repl) {
             //check_for_doc_string(comp, scope->pn);
         }
         compile_node(comp, scope->pn);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE);
         EMIT(return_value);
     } else if (scope->kind == SCOPE_FUNCTION) {
@@ -2916,6 +3078,7 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
         p = pt_next(p); // skip return annotation
 
         compile_node(comp, p); // function body
+        RETURN_ON_EXCEPTION()
 
         // emit return if it wasn't the last opcode
         if (!EMIT(last_emit_was_return_value)) {
@@ -2935,6 +3098,7 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
         p = pt_next(p); // skip arg list
 
         compile_node(comp, p); // lambda body
+        RETURN_ON_EXCEPTION()
 
         // if the lambda is a generator, then we return None, not the result of the expression of the lambda
         if (scope->scope_flags & MP_SCOPE_FLAG_GENERATOR) {
@@ -2957,6 +3121,7 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
         if (comp->pass == MP_PASS_SCOPE) {
             bool added;
             id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, qstr_arg, &added);
+            RETURN_ON_EXCEPTION()
             assert(added);
             id_info->kind = ID_INFO_KIND_LOCAL;
             scope->num_pos_args = 1;
@@ -2978,14 +3143,17 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
             // TODO static assert that MP_OBJ_ITER_BUF_NSLOTS == 4
             EMIT(load_null);
             compile_load_id(comp, qstr_arg);
+            RETURN_ON_EXCEPTION()
             EMIT(load_null);
             EMIT(load_null);
         } else {
             compile_load_id(comp, qstr_arg);
+            RETURN_ON_EXCEPTION()
             EMIT_ARG(get_iter, true);
         }
 
         compile_scope_comp_iter(comp, p_comp_for, p_comp_for_top, p, 0);
+        RETURN_ON_EXCEPTION()
 
         if (scope->kind == SCOPE_GEN_EXPR) {
             EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE);
@@ -2997,6 +3165,7 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
         if (comp->pass == MP_PASS_SCOPE) {
             bool added;
             id_info_t *id_info = scope_find_or_add_id(scope, MP_QSTR___class__, &added);
+            RETURN_ON_EXCEPTION()
             assert(added);
             id_info->kind = ID_INFO_KIND_LOCAL;
         }
@@ -3007,13 +3176,17 @@ STATIC void compile_scope(compiler_t *comp, scope_t *scope, pass_kind_t pass) {
         assert(class_name == scope->simple_name);
 
         compile_load_id(comp, MP_QSTR___name__);
+        RETURN_ON_EXCEPTION()
         compile_store_id(comp, MP_QSTR___module__);
+        RETURN_ON_EXCEPTION()
         EMIT_ARG(load_const_str, scope->simple_name);
         compile_store_id(comp, MP_QSTR___qualname__);
+        RETURN_ON_EXCEPTION()
 
         const byte *p = pt_next(pt_next(scope->pn)); // skip name, bases
         //check_for_doc_string(comp, p);
         compile_node(comp, p); // class body
+        RETURN_ON_EXCEPTION()
 
         id_info_t *id = scope_find(scope, MP_QSTR___class__);
         assert(id != NULL);
@@ -3079,6 +3252,7 @@ STATIC void compile_scope_inline_asm(compiler_t *comp, scope_t *scope, pass_kind
             }
         } else {
             compile_syntax_error(comp, p, "return annotation must be an identifier");
+            RETURN_ON_EXCEPTION()
         }
     }
     p = pt_next(p); // move past function return annotation
@@ -3306,14 +3480,17 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
     // create the array of scopes
     comp->num_scopes = pt_small_int_value(pt_next(parse_tree->root));
     comp->scopes = m_new0(scope_t*, comp->num_scopes);
+    RETURN_ON_EXCEPTION(NULL)
 
     // create the module scope
     // leaves it on root stack
     scope_new_and_link(comp, 0, SCOPE_MODULE, parse_tree->root, emit_opt);
+    RETURN_ON_EXCEPTION(NULL)
     m_rs_push_ptr(comp->scopes[0]);
 
     // create standard emitter; it's used at least for MP_PASS_SCOPE
     emit_t *emit_bc = emit_bc_new();
+    RETURN_ON_EXCEPTION(NULL)
     m_rs_push_ptr(emit_bc);
 
     // compile pass 1
@@ -3336,6 +3513,7 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
         if (s->raw_code != NULL) { continue; } // scope already did pass 1
         keep_going = true;
         s->raw_code = mp_emit_glue_new_raw_code();
+        RETURN_ON_EXCEPTION(NULL)
         if (false) {
         #if MICROPY_EMIT_INLINE_ASM
         } else if (s->emit_options == MP_EMIT_OPT_ASM) {
@@ -3344,6 +3522,7 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
         } else {
             compile_scope(comp, s, MP_PASS_SCOPE);
         }
+        RETURN_ON_EXCEPTION(NULL)
 
         // update maximim number of labels needed
         if (comp->next_label > max_num_labels) {
@@ -3357,10 +3536,12 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
         scope_t *s = comp->scopes[i];
         if (s == NULL) { continue; } // TODO scope for nested comp_for's are not used
         scope_compute_things(s);
+        RETURN_ON_EXCEPTION(NULL)
     }
 
     // set max number of labels now that it's calculated
     emit_bc_set_max_num_labels(emit_bc, max_num_labels);
+    RETURN_ON_EXCEPTION(NULL)
 
     // compile pass 2 and 3
 #if MICROPY_EMIT_NATIVE
@@ -3381,14 +3562,17 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
             comp->emit = NULL;
             comp->emit_inline_asm_method_table = &ASM_EMITTER(method_table);
             compile_scope_inline_asm(comp, s, MP_PASS_CODE_SIZE);
+            RETURN_ON_EXCEPTION(NULL)
             #if MICROPY_EMIT_INLINE_XTENSA
             // Xtensa requires an extra pass to compute size of l32r const table
             // TODO this can be improved by calculating it during SCOPE pass
             // but that requires some other structural changes to the asm emitters
             compile_scope_inline_asm(comp, s, MP_PASS_CODE_SIZE);
+            RETURN_ON_EXCEPTION(NULL)
             #endif
             if (comp->compile_error == MP_OBJ_NULL) {
                 compile_scope_inline_asm(comp, s, MP_PASS_EMIT);
+                RETURN_ON_EXCEPTION(NULL)
             }
         #endif
 
@@ -3437,15 +3621,18 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
 
             // need a pass to compute stack size
             compile_scope(comp, s, MP_PASS_STACK_SIZE);
+            RETURN_ON_EXCEPTION(NULL)
 
             // second last pass: compute code size
             if (comp->compile_error == MP_OBJ_NULL) {
                 compile_scope(comp, s, MP_PASS_CODE_SIZE);
+                RETURN_ON_EXCEPTION(NULL)
             }
 
             // final pass: emit code
             if (comp->compile_error == MP_OBJ_NULL) {
                 compile_scope(comp, s, MP_PASS_EMIT);
+                RETURN_ON_EXCEPTION(NULL)
             }
         }
     }
@@ -3500,7 +3687,8 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
     m_del(scope_t*, comp->scopes, comp->num_scopes);
 
     if (comp->compile_error != MP_OBJ_NULL) {
-        nlr_raise(comp->compile_error);
+        mp_raise_o(comp->compile_error);
+        return NULL;
     } else {
         return outer_raw_code;
     }
@@ -3509,6 +3697,7 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
 // parse_tree->chunk is on the top of the root stack
 mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, uint emit_opt, bool is_repl) {
     mp_raw_code_t *rc = mp_compile_to_raw_code(parse_tree, source_file, emit_opt, is_repl);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     // return function that executes the outer module
     m_rs_push_ptr(rc);
     mp_obj_t f = mp_make_function_from_raw_code(rc, MP_OBJ_NULL, MP_OBJ_NULL);

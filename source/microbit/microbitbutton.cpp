@@ -52,6 +52,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_button_is_pressed_obj, microbit_button_is_pre
 mp_obj_t microbit_button_get_presses(mp_obj_t self_in) {
     microbit_button_obj_t *self = (microbit_button_obj_t*)self_in;
     mp_obj_t n_presses = mp_obj_new_int(pressed[self->index] >> 1);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     pressed[self->index] &= 1;
     return n_presses;
 }
@@ -61,6 +62,7 @@ mp_obj_t microbit_button_was_pressed(mp_obj_t self_in) {
     microbit_button_obj_t *self = (microbit_button_obj_t*)self_in;
     mp_int_t presses = pressed[self->index];
     mp_obj_t result = mp_obj_new_bool(presses & 1);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     pressed[self->index] = presses & -2;
     return result;
 }

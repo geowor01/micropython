@@ -64,6 +64,7 @@ static void microbit_display_exception(mp_obj_t exc_in) {
         vstr_t vstr;
         mp_print_t print;
         vstr_init_print(&vstr, 50, &print);
+        RETURN_ON_EXCEPTION()
         #if MICROPY_ENABLE_SOURCE_LINE
         if (n >= 3) {
             mp_printf(&print, "line %u ", values[1]);
@@ -78,7 +79,9 @@ static void microbit_display_exception(mp_obj_t exc_in) {
         }
         // Allow ctrl-C to stop the scrolling message
         mp_hal_set_interrupt_char(CHAR_CTRL_C);
-        mp_hal_display_string(vstr_null_terminated_str(&vstr));
+        char *string = vstr_null_terminated_str(&vstr);
+        RETURN_ON_EXCEPTION()
+        mp_hal_display_string(string);
         vstr_clear(&vstr);
         mp_hal_set_interrupt_char(-1);
         // This is a variant of mp_handle_pending that swallows exceptions
@@ -92,33 +95,39 @@ static void microbit_display_exception(mp_obj_t exc_in) {
 }
 
 static void do_lexer(mp_lexer_t *lex) {
-    if (lex == NULL) {
+    if (lex == NULL || MP_STATE_THREAD(cur_exc) != NULL) {
+        MP_STATE_THREAD(cur_exc) = NULL;
         printf("MemoryError: lexer could not allocate memory\n");
         return;
     }
 
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
+    {
         qstr source_name = lex->source_name;
         mp_parse_tree_t parse_tree = mp_parse(lex, MP_PARSE_FILE_INPUT);
-        m_rs_assert(parse_tree.chunk);
-        mp_obj_t module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, false);
-        mp_hal_set_interrupt_char(3); // allow ctrl-C to interrupt us
-        mp_call_function_0(module_fun);
-        mp_hal_set_interrupt_char(-1); // disable interrupt
-        nlr_pop();
-    } else {
-        // uncaught exception
-        mp_hal_set_interrupt_char(-1); // disable interrupt
+        if (MP_STATE_THREAD(cur_exc) == NULL) {
+            m_rs_assert(parse_tree.chunk);
+            mp_obj_t module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, false);
+            if (MP_STATE_THREAD(cur_exc) == NULL) {
+                mp_hal_set_interrupt_char(3); // allow ctrl-C to interrupt us
+                mp_call_function_0(module_fun);
+                mp_hal_set_interrupt_char(-1);
+            }
+        }
+        if (MP_STATE_THREAD(cur_exc) != NULL) {
+            mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
+            MP_STATE_THREAD(cur_exc) = NULL;
+            // uncaught exception
+            mp_hal_set_interrupt_char(-1); // disable interrupt
 
-        // print exception to stdout
-        mp_obj_print_exception(&mp_plat_print, (mp_obj_t)nlr.ret_val);
+            // print exception to stdout
+            mp_obj_print_exception(&mp_plat_print, the_exc);
 
-        // print exception to the display, but not if it's SystemExit or KeyboardInterrupt
-        mp_obj_type_t *exc_type = mp_obj_get_type((mp_obj_t)nlr.ret_val);
-        if (!mp_obj_is_subclass_fast(exc_type, &mp_type_SystemExit)
-            && !mp_obj_is_subclass_fast(exc_type, &mp_type_KeyboardInterrupt)) {
-            microbit_display_exception(nlr.ret_val);
+            // print exception to the display, but not if it's SystemExit or KeyboardInterrupt
+            mp_obj_type_t *exc_type = mp_obj_get_type(the_exc);
+            if (!mp_obj_is_subclass_fast(exc_type, &mp_type_SystemExit)
+                && !mp_obj_is_subclass_fast(exc_type, &mp_type_KeyboardInterrupt)) {
+                microbit_display_exception(the_exc);
+            }
         }
     }
 }
@@ -250,12 +259,6 @@ mp_import_stat_t mp_import_stat(const char *path) {
     return MP_IMPORT_STAT_NO_EXIST;
 }
 
-NORETURN void nlr_jump_fail(void *val) {
-    (void)val;
-    for (;;) {
-    }
-}
-
 // We need to override this function so that the linker does not pull in
 // unnecessary code and static RAM usage for unused system exit functionality.
 // There can be large static data structures to store the exit functions.
@@ -269,10 +272,7 @@ void gc_collect(void) {
 
     // WARNING: This gc_collect implementation doesn't try to get root
     // pointers from CPU registers, and thus may function incorrectly.
-    jmp_buf dummy;
-    if (setjmp(dummy) == 0) {
-        longjmp(dummy, 1);
-    }
+    int dummy;
     gc_collect_start();
     gc_collect_root((void **)stack_top, ((mp_uint_t)(void*)(&dummy + 1) - (mp_uint_t)stack_top) / sizeof(mp_uint_t));
     gc_collect_end();

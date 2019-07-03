@@ -29,6 +29,7 @@
 
 #include "py/rootstack.h"
 #include "py/mpz.h"
+#include "py/mpstate.h"
 
 #if MICROPY_LONGINT_IMPL == MICROPY_LONGINT_IMPL_MPZ
 
@@ -674,42 +675,6 @@ void mpz_deinit(mpz_t *z) {
     }
 }
 
-#if 0
-these functions are unused
-
-mpz_t *mpz_zero(void) {
-    mpz_t *z = m_new_obj(mpz_t);
-    mpz_init_zero(z);
-    return z;
-}
-
-mpz_t *mpz_from_int(mp_int_t val) {
-    mpz_t *z = mpz_zero();
-    mpz_set_from_int(z, val);
-    return z;
-}
-
-mpz_t *mpz_from_ll(long long val, bool is_signed) {
-    mpz_t *z = mpz_zero();
-    mpz_set_from_ll(z, val, is_signed);
-    return z;
-}
-
-#if MICROPY_PY_BUILTINS_FLOAT
-mpz_t *mpz_from_float(mp_float_t val) {
-    mpz_t *z = mpz_zero();
-    mpz_set_from_float(z, val);
-    return z;
-}
-#endif
-
-mpz_t *mpz_from_str(const char *str, size_t len, bool neg, unsigned int base) {
-    mpz_t *z = mpz_zero();
-    mpz_set_from_str(z, str, len, neg, base);
-    return z;
-}
-#endif
-
 STATIC void mpz_free(mpz_t *z) {
     if (z != NULL) {
         m_del(mpz_dig_t, z->dig, z->alloc);
@@ -727,12 +692,14 @@ STATIC void mpz_need_dig(mpz_t *z, size_t need) {
         // be expecting a buffer with at least "need" bytes (but it shouldn't happen)
         assert(!z->fixed_dig);
         z->dig = m_renew(mpz_dig_t, z->dig, z->alloc, need);
+        RETURN_ON_EXCEPTION()
         z->alloc = need;
     }
 }
 
 STATIC mpz_t *mpz_clone(const mpz_t *src) {
     mpz_t *z = m_new_obj(mpz_t);
+    RETURN_ON_EXCEPTION(NULL)
     z->neg = src->neg;
     z->fixed_dig = 0;
     z->alloc = src->alloc;
@@ -743,6 +710,7 @@ STATIC mpz_t *mpz_clone(const mpz_t *src) {
         m_rs_push_ptr(z);
         z->dig = m_new(mpz_dig_t, z->alloc);
         m_rs_pop_ptr(z);
+        RETURN_ON_EXCEPTION(NULL)
         memcpy(z->dig, src->dig, src->alloc * sizeof(mpz_dig_t));
     }
     return z;
@@ -753,6 +721,7 @@ STATIC mpz_t *mpz_clone(const mpz_t *src) {
 */
 void mpz_set(mpz_t *dest, const mpz_t *src) {
     mpz_need_dig(dest, src->len);
+    RETURN_ON_EXCEPTION()
     dest->neg = src->neg;
     dest->len = src->len;
     memcpy(dest->dig, src->dig, src->len * sizeof(mpz_dig_t));
@@ -765,6 +734,7 @@ void mpz_set_from_int(mpz_t *z, mp_int_t val) {
     }
 
     mpz_need_dig(z, MPZ_NUM_DIG_FOR_INT);
+    RETURN_ON_EXCEPTION()
 
     mp_uint_t uval;
     if (val < 0) {
@@ -784,6 +754,7 @@ void mpz_set_from_int(mpz_t *z, mp_int_t val) {
 
 void mpz_set_from_ll(mpz_t *z, long long val, bool is_signed) {
     mpz_need_dig(z, MPZ_NUM_DIG_FOR_LL);
+    RETURN_ON_EXCEPTION()
 
     unsigned long long uval;
     if (is_signed && val < 0) {
@@ -821,18 +792,22 @@ typedef uint32_t mp_float_int_t;
     if (u.p.exp == 0) {
         // value == 0 || value < 1
         mpz_set_from_int(z, 0);
+        RETURN_ON_EXCEPTION()
     } else if (u.p.exp == ((1 << MP_FLOAT_EXP_BITS) - 1)) {
         // u.p.frc == 0 indicates inf, else NaN
         // should be handled by caller
         mpz_set_from_int(z, 0);
+        RETURN_ON_EXCEPTION()
     } else {
         const int adj_exp = (int)u.p.exp - MP_FLOAT_EXP_BIAS;
         if (adj_exp < 0) {
             // value < 1 , truncates to 0
             mpz_set_from_int(z, 0);
+            RETURN_ON_EXCEPTION()
         } else if (adj_exp == 0) {
             // 1 <= value < 2 , so truncates to 1
             mpz_set_from_int(z, 1);
+            RETURN_ON_EXCEPTION()
         } else {
             // 2 <= value
             const int dig_cnt = (adj_exp + 1 + (DIG_SIZE - 1)) / DIG_SIZE;
@@ -849,6 +824,7 @@ typedef uint32_t mp_float_int_t;
                 dig_ind = (adj_exp - MP_FLOAT_FRAC_BITS) / DIG_SIZE;
             }
             mpz_need_dig(z, dig_cnt);
+            RETURN_ON_EXCEPTION()
             z->len = dig_cnt;
             if (dig_ind != 0) {
                 memset(z->dig, 0, dig_ind * sizeof(mpz_dig_t));
@@ -880,6 +856,7 @@ size_t mpz_set_from_str(mpz_t *z, const char *str, size_t len, bool neg, unsigne
     const char *top = str + len;
 
     mpz_need_dig(z, len * 8 / DIG_SIZE + 1);
+    RETURN_ON_EXCEPTION(0)
 
     if (neg) {
         z->neg = 1;
@@ -917,6 +894,7 @@ void mpz_set_from_bytes(mpz_t *z, bool big_endian, size_t len, const byte *buf) 
     }
 
     mpz_need_dig(z, (len * 8 + DIG_SIZE - 1) / DIG_SIZE);
+    RETURN_ON_EXCEPTION()
 
     mpz_dig_t d = 0;
     int num_bits = 0;
@@ -942,22 +920,6 @@ void mpz_set_from_bytes(mpz_t *z, bool big_endian, size_t len, const byte *buf) 
     z->len = mpn_remove_trailing_zeros(z->dig, z->dig + z->len);
 }
 
-#if 0
-these functions are unused
-
-bool mpz_is_pos(const mpz_t *z) {
-    return z->len > 0 && z->neg == 0;
-}
-
-bool mpz_is_odd(const mpz_t *z) {
-    return z->len > 0 && (z->dig[0] & 1) != 0;
-}
-
-bool mpz_is_even(const mpz_t *z) {
-    return z->len == 0 || (z->dig[0] & 1) == 0;
-}
-#endif
-
 int mpz_cmp(const mpz_t *z1, const mpz_t *z2) {
     // to catch comparison of -0 with +0
     if (z1->len == 0 && z2->len == 0) {
@@ -974,111 +936,13 @@ int mpz_cmp(const mpz_t *z1, const mpz_t *z2) {
     return cmp;
 }
 
-#if 0
-// obsolete
-// compares mpz with an integer that fits within DIG_SIZE bits
-mp_int_t mpz_cmp_sml_int(const mpz_t *z, mp_int_t sml_int) {
-    mp_int_t cmp;
-    if (z->neg == 0) {
-        if (sml_int < 0) return 1;
-        if (sml_int == 0) {
-            if (z->len == 0) return 0;
-            return 1;
-        }
-        if (z->len == 0) return -1;
-        assert(sml_int < (1 << DIG_SIZE));
-        if (z->len != 1) return 1;
-        cmp = z->dig[0] - sml_int;
-    } else {
-        if (sml_int > 0) return -1;
-        if (sml_int == 0) {
-            if (z->len == 0) return 0;
-            return -1;
-        }
-        if (z->len == 0) return 1;
-        assert(sml_int > -(1 << DIG_SIZE));
-        if (z->len != 1) return -1;
-        cmp = -z->dig[0] - sml_int;
-    }
-    if (cmp < 0) return -1;
-    if (cmp > 0) return 1;
-    return 0;
-}
-#endif
-
-#if 0
-these functions are unused
-
-/* returns abs(z)
-*/
-mpz_t *mpz_abs(const mpz_t *z) {
-    mpz_t *z2 = mpz_clone(z);
-    z2->neg = 0;
-    return z2;
-}
-
-/* returns -z
-*/
-mpz_t *mpz_neg(const mpz_t *z) {
-    mpz_t *z2 = mpz_clone(z);
-    z2->neg = 1 - z2->neg;
-    return z2;
-}
-
-/* returns lhs + rhs
-   can have lhs, rhs the same
-*/
-mpz_t *mpz_add(const mpz_t *lhs, const mpz_t *rhs) {
-    mpz_t *z = mpz_zero();
-    mpz_add_inpl(z, lhs, rhs);
-    return z;
-}
-
-/* returns lhs - rhs
-   can have lhs, rhs the same
-*/
-mpz_t *mpz_sub(const mpz_t *lhs, const mpz_t *rhs) {
-    mpz_t *z = mpz_zero();
-    mpz_sub_inpl(z, lhs, rhs);
-    return z;
-}
-
-/* returns lhs * rhs
-   can have lhs, rhs the same
-*/
-mpz_t *mpz_mul(const mpz_t *lhs, const mpz_t *rhs) {
-    mpz_t *z = mpz_zero();
-    mpz_mul_inpl(z, lhs, rhs);
-    return z;
-}
-
-/* returns lhs ** rhs
-   can have lhs, rhs the same
-*/
-mpz_t *mpz_pow(const mpz_t *lhs, const mpz_t *rhs) {
-    mpz_t *z = mpz_zero();
-    mpz_pow_inpl(z, lhs, rhs);
-    return z;
-}
-
-/* computes new integers in quo and rem such that:
-       quo * rhs + rem = lhs
-       0 <= rem < rhs
-   can have lhs, rhs the same
-*/
-void mpz_divmod(const mpz_t *lhs, const mpz_t *rhs, mpz_t **quo, mpz_t **rem) {
-    *quo = mpz_zero();
-    *rem = mpz_zero();
-    mpz_divmod_inpl(*quo, *rem, lhs, rhs);
-}
-#endif
-
 /* computes dest = abs(z)
    can have dest, z the same
 */
 void mpz_abs_inpl(mpz_t *dest, const mpz_t *z) {
     if (dest != z) {
         mpz_set(dest, z);
+        RETURN_ON_EXCEPTION()
     }
     dest->neg = 0;
 }
@@ -1089,6 +953,7 @@ void mpz_abs_inpl(mpz_t *dest, const mpz_t *z) {
 void mpz_neg_inpl(mpz_t *dest, const mpz_t *z) {
     if (dest != z) {
         mpz_set(dest, z);
+        RETURN_ON_EXCEPTION()
     }
     dest->neg = 1 - dest->neg;
 }
@@ -1099,9 +964,11 @@ void mpz_neg_inpl(mpz_t *dest, const mpz_t *z) {
 void mpz_not_inpl(mpz_t *dest, const mpz_t *z) {
     if (dest != z) {
         mpz_set(dest, z);
+        RETURN_ON_EXCEPTION()
     }
     if (dest->len == 0) {
         mpz_need_dig(dest, 1);
+        RETURN_ON_EXCEPTION()
         dest->dig[0] = 1;
         dest->len = 1;
         dest->neg = 1;
@@ -1111,6 +978,7 @@ void mpz_not_inpl(mpz_t *dest, const mpz_t *z) {
         dest->len = mpn_sub(dest->dig, dest->dig, dest->len, &k, 1);
     } else {
         mpz_need_dig(dest, dest->len + 1);
+        RETURN_ON_EXCEPTION()
         mpz_dig_t k = 1;
         dest->len = mpn_add(dest->dig, dest->dig, dest->len, &k, 1);
         dest->neg = 1;
@@ -1123,8 +991,10 @@ void mpz_not_inpl(mpz_t *dest, const mpz_t *z) {
 void mpz_shl_inpl(mpz_t *dest, const mpz_t *lhs, mp_uint_t rhs) {
     if (lhs->len == 0 || rhs == 0) {
         mpz_set(dest, lhs);
+        RETURN_ON_EXCEPTION()
     } else {
         mpz_need_dig(dest, lhs->len + (rhs + DIG_SIZE - 1) / DIG_SIZE);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_shl(dest->dig, lhs->dig, lhs->len, rhs);
         dest->neg = lhs->neg;
     }
@@ -1136,8 +1006,10 @@ void mpz_shl_inpl(mpz_t *dest, const mpz_t *lhs, mp_uint_t rhs) {
 void mpz_shr_inpl(mpz_t *dest, const mpz_t *lhs, mp_uint_t rhs) {
     if (lhs->len == 0 || rhs == 0) {
         mpz_set(dest, lhs);
+        RETURN_ON_EXCEPTION()
     } else {
         mpz_need_dig(dest, lhs->len);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_shr(dest->dig, lhs->dig, lhs->len, rhs);
         dest->neg = lhs->neg;
         if (dest->neg) {
@@ -1180,9 +1052,11 @@ void mpz_add_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
 
     if (lhs->neg == rhs->neg) {
         mpz_need_dig(dest, lhs->len + 1);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_add(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len);
     } else {
         mpz_need_dig(dest, lhs->len);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_sub(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len);
     }
 
@@ -1204,9 +1078,11 @@ void mpz_sub_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
 
     if (lhs->neg != rhs->neg) {
         mpz_need_dig(dest, lhs->len + 1);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_add(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len);
     } else {
         mpz_need_dig(dest, lhs->len);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_sub(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len);
     }
 
@@ -1232,10 +1108,12 @@ void mpz_and_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
 
     if ((0 == lhs->neg) && (0 == rhs->neg)) {
         mpz_need_dig(dest, lhs->len);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_and(dest->dig, lhs->dig, rhs->dig, rhs->len);
         dest->neg = 0;
     } else {
         mpz_need_dig(dest, lhs->len + 1);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_and_neg(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len,
                                  lhs->neg == rhs->neg, 0 != lhs->neg, 0 != rhs->neg);
         dest->neg = lhs->neg & rhs->neg;
@@ -1244,6 +1122,7 @@ void mpz_and_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
     #else
 
     mpz_need_dig(dest, lhs->len + (lhs->neg || rhs->neg));
+    RETURN_ON_EXCEPTION()
     dest->len = mpn_and_neg(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len,
                              (lhs->neg == rhs->neg) ? lhs->neg : 0, lhs->neg, rhs->neg);
     dest->neg = lhs->neg & rhs->neg;
@@ -1266,10 +1145,12 @@ void mpz_or_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
 
     if ((0 == lhs->neg) && (0 == rhs->neg)) {
         mpz_need_dig(dest, lhs->len);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_or(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len);
         dest->neg = 0;
     } else {
         mpz_need_dig(dest, lhs->len + 1);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_or_neg(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len,
                                  0 != lhs->neg, 0 != rhs->neg);
         dest->neg = 1;
@@ -1278,6 +1159,7 @@ void mpz_or_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
     #else
 
     mpz_need_dig(dest, lhs->len + (lhs->neg || rhs->neg));
+    RETURN_ON_EXCEPTION()
     dest->len = mpn_or_neg(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len,
                              (lhs->neg || rhs->neg), lhs->neg, rhs->neg);
     dest->neg = lhs->neg | rhs->neg;
@@ -1300,6 +1182,7 @@ void mpz_xor_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
 
     if (lhs->neg == rhs->neg) {
         mpz_need_dig(dest, lhs->len);
+        RETURN_ON_EXCEPTION()
         if (lhs->neg == 0) {
             dest->len = mpn_xor(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len);
         } else {
@@ -1308,6 +1191,7 @@ void mpz_xor_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
         dest->neg = 0;
     } else {
         mpz_need_dig(dest, lhs->len + 1);
+        RETURN_ON_EXCEPTION()
         dest->len = mpn_xor_neg(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len, 1,
                                 0 == lhs->neg, 0 == rhs->neg);
         dest->neg = 1;
@@ -1316,6 +1200,7 @@ void mpz_xor_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
     #else
 
     mpz_need_dig(dest, lhs->len + (lhs->neg || rhs->neg));
+    RETURN_ON_EXCEPTION()
     dest->len = mpn_xor_neg(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len,
                              (lhs->neg != rhs->neg), 0 == lhs->neg, 0 == rhs->neg);
     dest->neg = lhs->neg ^ rhs->neg;
@@ -1335,15 +1220,18 @@ void mpz_mul_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
     mpz_t *temp = NULL;
     if (lhs == dest) {
         lhs = temp = mpz_clone(lhs);
+        RETURN_ON_EXCEPTION()
         if (rhs == dest) {
             rhs = lhs;
         }
     } else if (rhs == dest) {
         rhs = temp = mpz_clone(rhs);
+        RETURN_ON_EXCEPTION()
     }
     m_rs_push_ptr(temp);
 
     mpz_need_dig(dest, lhs->len + rhs->len); // min mem l+r-1, max mem l+r
+    RETURN_ON_EXCEPTION()
     memset(dest->dig, 0, dest->alloc * sizeof(mpz_dig_t));
     dest->len = mpn_mul(dest->dig, lhs->dig, lhs->len, rhs->dig, rhs->len);
 
@@ -1374,19 +1262,23 @@ void mpz_pow_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs) {
     mpz_t *x = mpz_clone(lhs);
     m_rs_push_ptr(x);
     mpz_t *n = mpz_clone(rhs);
+    RETURN_ON_EXCEPTION()
     m_rs_push_ptr(n);
 
     mpz_set_from_int(dest, 1);
+    RETURN_ON_EXCEPTION()
 
     while (n->len > 0) {
         if ((n->dig[0] & 1) != 0) {
             mpz_mul_inpl(dest, dest, x);
+            RETURN_ON_EXCEPTION()
         }
         n->len = mpn_shr(n->dig, n->dig, n->len, 1);
         if (n->len == 0) {
             break;
         }
         mpz_mul_inpl(x, x, x);
+        RETURN_ON_EXCEPTION()
     }
 
     m_rs_pop_ptr(n);
@@ -1414,22 +1306,29 @@ void mpz_pow3_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs, const mpz_t 
     mpz_t *n = mpz_clone(rhs);
     m_rs_push_ptr(n);
     mpz_t *quo = m_new_obj(mpz_t);
+    RETURN_ON_EXCEPTION()
     m_rs_push_ptr(quo);
     mpz_init_zero(quo);
+    RETURN_ON_EXCEPTION()
 
     mpz_set_from_int(dest, 1);
+    RETURN_ON_EXCEPTION()
 
     while (n->len > 0) {
         if ((n->dig[0] & 1) != 0) {
             mpz_mul_inpl(dest, dest, x);
+            RETURN_ON_EXCEPTION()
             mpz_divmod_inpl(quo, dest, dest, mod);
+            RETURN_ON_EXCEPTION()
         }
         n->len = mpn_shr(n->dig, n->dig, n->len, 1);
         if (n->len == 0) {
             break;
         }
         mpz_mul_inpl(x, x, x);
+        RETURN_ON_EXCEPTION()
         mpz_divmod_inpl(quo, x, x, mod);
+        RETURN_ON_EXCEPTION()
     }
 
     m_rs_pop_ptr(quo);
@@ -1442,86 +1341,6 @@ void mpz_pow3_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs, const mpz_t 
     mpz_free(n);
 }
 
-#if 0
-these functions are unused
-
-/* computes gcd(z1, z2)
-   based on Knuth's modified gcd algorithm (I think?)
-   gcd(z1, z2) >= 0
-   gcd(0, 0) = 0
-   gcd(z, 0) = abs(z)
-*/
-mpz_t *mpz_gcd(const mpz_t *z1, const mpz_t *z2) {
-    if (z1->len == 0) {
-        mpz_t *a = mpz_clone(z2);
-        a->neg = 0;
-        return a;
-    } else if (z2->len == 0) {
-        mpz_t *a = mpz_clone(z1);
-        a->neg = 0;
-        return a;
-    }
-
-    mpz_t *a = mpz_clone(z1);
-    mpz_t *b = mpz_clone(z2);
-    mpz_t c; mpz_init_zero(&c);
-    a->neg = 0;
-    b->neg = 0;
-
-    for (;;) {
-        if (mpz_cmp(a, b) < 0) {
-            if (a->len == 0) {
-                mpz_free(a);
-                mpz_deinit(&c);
-                return b;
-            }
-            mpz_t *t = a; a = b; b = t;
-        }
-        if (!(b->len >= 2 || (b->len == 1 && b->dig[0] > 1))) { // compute b > 0; could be mpz_cmp_small_int(b, 1) > 0
-            break;
-        }
-        mpz_set(&c, b);
-        do {
-            mpz_add_inpl(&c, &c, &c);
-        } while (mpz_cmp(&c, a) <= 0);
-        c.len = mpn_shr(c.dig, c.dig, c.len, 1);
-        mpz_sub_inpl(a, a, &c);
-    }
-
-    mpz_deinit(&c);
-
-    if (b->len == 1 && b->dig[0] == 1) { // compute b == 1; could be mpz_cmp_small_int(b, 1) == 0
-        mpz_free(a);
-        return b;
-    } else {
-        mpz_free(b);
-        return a;
-    }
-}
-
-/* computes lcm(z1, z2)
-     = abs(z1) / gcd(z1, z2) * abs(z2)
-  lcm(z1, z1) >= 0
-  lcm(0, 0) = 0
-  lcm(z, 0) = 0
-*/
-mpz_t *mpz_lcm(const mpz_t *z1, const mpz_t *z2) {
-    if (z1->len == 0 || z2->len == 0) {
-        return mpz_zero();
-    }
-
-    mpz_t *gcd = mpz_gcd(z1, z2);
-    mpz_t *quo = mpz_zero();
-    mpz_t *rem = mpz_zero();
-    mpz_divmod_inpl(quo, rem, z1, gcd);
-    mpz_mul_inpl(rem, quo, z2);
-    mpz_free(gcd);
-    mpz_free(quo);
-    rem->neg = 0;
-    return rem;
-}
-#endif
-
 /* computes new integers in quo and rem such that:
        quo * rhs + rem = lhs
        0 <= rem < rhs
@@ -1532,10 +1351,13 @@ void mpz_divmod_inpl(mpz_t *dest_quo, mpz_t *dest_rem, const mpz_t *lhs, const m
     assert(!mpz_is_zero(rhs));
 
     mpz_need_dig(dest_quo, lhs->len + 1); // +1 necessary?
+    RETURN_ON_EXCEPTION()
     memset(dest_quo->dig, 0, (lhs->len + 1) * sizeof(mpz_dig_t));
     dest_quo->len = 0;
     mpz_need_dig(dest_rem, lhs->len + 1); // +1 necessary?
+    RETURN_ON_EXCEPTION()
     mpz_set(dest_rem, lhs);
+    RETURN_ON_EXCEPTION()
     mpn_div(dest_rem->dig, &dest_rem->len, rhs->dig, rhs->len, dest_quo->dig, &dest_quo->len);
 
     // check signs and do Python style modulo
@@ -1543,37 +1365,14 @@ void mpz_divmod_inpl(mpz_t *dest_quo, mpz_t *dest_rem, const mpz_t *lhs, const m
         dest_quo->neg = 1;
         if (!mpz_is_zero(dest_rem)) {
             mpz_t mpzone; mpz_init_from_int(&mpzone, -1);
+            RETURN_ON_EXCEPTION()
             mpz_add_inpl(dest_quo, dest_quo, &mpzone);
+            RETURN_ON_EXCEPTION()
             mpz_add_inpl(dest_rem, dest_rem, rhs);
+            RETURN_ON_EXCEPTION()
         }
     }
 }
-
-#if 0
-these functions are unused
-
-/* computes floor(lhs / rhs)
-   can have lhs, rhs the same
-*/
-mpz_t *mpz_div(const mpz_t *lhs, const mpz_t *rhs) {
-    mpz_t *quo = mpz_zero();
-    mpz_t rem; mpz_init_zero(&rem);
-    mpz_divmod_inpl(quo, &rem, lhs, rhs);
-    mpz_deinit(&rem);
-    return quo;
-}
-
-/* computes lhs % rhs ( >= 0)
-   can have lhs, rhs the same
-*/
-mpz_t *mpz_mod(const mpz_t *lhs, const mpz_t *rhs) {
-    mpz_t quo; mpz_init_zero(&quo);
-    mpz_t *rem = mpz_zero();
-    mpz_divmod_inpl(&quo, rem, lhs, rhs);
-    mpz_deinit(&quo);
-    return rem;
-}
-#endif
 
 // must return actual int value if it fits in mp_int_t
 mp_int_t mpz_hash(const mpz_t *z) {
@@ -1683,15 +1482,6 @@ mp_float_t mpz_as_float(const mpz_t *i) {
 }
 #endif
 
-#if 0
-this function is unused
-char *mpz_as_str(const mpz_t *i, unsigned int base) {
-    char *s = m_new(char, mp_int_format_size(mpz_max_num_bits(i), base, NULL, '\0'));
-    mpz_as_str_inpl(i, base, NULL, 'a', '\0', s);
-    return s;
-}
-#endif
-
 // assumes enough space as calculated by mp_int_format_size
 // returns length of string, not including null byte
 size_t mpz_as_str_inpl(const mpz_t *i, unsigned int base, const char *prefix, char base_char, char comma, char *str) {
@@ -1718,6 +1508,7 @@ size_t mpz_as_str_inpl(const mpz_t *i, unsigned int base, const char *prefix, ch
 
     // make a copy of mpz digits, so we can do the div/mod calculation
     mpz_dig_t *dig = m_new(mpz_dig_t, ilen);
+    RETURN_ON_EXCEPTION(0)
     memcpy(dig, i->dig, ilen * sizeof(mpz_dig_t));
 
     // convert

@@ -27,6 +27,7 @@
 #include <assert.h>
 
 #include "py/emit.h"
+#include "py/mpstate.h"
 
 #if MICROPY_ENABLE_COMPILER
 
@@ -34,6 +35,7 @@ void mp_emit_common_get_id_for_load(scope_t *scope, qstr qst) {
     // name adding/lookup
     bool added;
     id_info_t *id = scope_find_or_add_id(scope, qst, &added);
+    RETURN_ON_EXCEPTION()
     if (added) {
         scope_find_local_and_close_over(scope, id, qst);
     }
@@ -43,6 +45,7 @@ void mp_emit_common_get_id_for_modification(scope_t *scope, qstr qst) {
     // name adding/lookup
     bool added;
     id_info_t *id = scope_find_or_add_id(scope, qst, &added);
+    RETURN_ON_EXCEPTION()
     if (added) {
         if (SCOPE_IS_FUNC_LIKE(scope->kind)) {
             id->kind = ID_INFO_KIND_LOCAL;

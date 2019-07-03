@@ -27,7 +27,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/objtuple.h"
 #include "py/runtime0.h"
 #include "py/runtime.h"
@@ -63,6 +62,7 @@ STATIC mp_obj_t mp_obj_tuple_make_new(const mp_obj_type_t *type_in, size_t n_arg
     (void)type_in;
 
     mp_arg_check_num(n_args, n_kw, 0, 1, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     switch (n_args) {
         case 0:
@@ -81,15 +81,19 @@ STATIC mp_obj_t mp_obj_tuple_make_new(const mp_obj_type_t *type_in, size_t n_arg
             size_t alloc = 4;
             size_t len = 0;
             mp_obj_t *items = m_new(mp_obj_t, alloc);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             m_rs_push_ptr(items);
 
             mp_obj_t iterable = mp_getiter(args[0], NULL);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             m_rs_push_obj(iterable);
             mp_obj_t item;
             while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 if (len >= alloc) {
                     m_rs_push_obj(item);
                     mp_obj_t *newitems = m_renew(mp_obj_t, items, alloc, alloc * 2);
+                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                     alloc *= 2;
                     m_rs_pop_obj(item);
                     m_rs_pop_obj(iterable);
@@ -101,9 +105,11 @@ STATIC mp_obj_t mp_obj_tuple_make_new(const mp_obj_type_t *type_in, size_t n_arg
                 items[len++] = item;
             }
             m_rs_pop_obj(iterable);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
             mp_obj_t tuple = mp_obj_new_tuple(len, items);
             m_rs_pop_ptr(items);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             m_del(mp_obj_t, items, alloc);
 
             return tuple;
@@ -138,6 +144,7 @@ mp_obj_t mp_obj_tuple_unary_op(mp_uint_t op, mp_obj_t self_in) {
             mp_int_t hash = (mp_int_t)mp_const_empty_tuple;
             for (size_t i = 0; i < self->len; i++) {
                 hash += MP_OBJ_SMALL_INT_VALUE(mp_unary_op(MP_UNARY_OP_HASH, self->items[i]));
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             }
             return MP_OBJ_NEW_SMALL_INT(hash);
         }
@@ -156,7 +163,9 @@ mp_obj_t mp_obj_tuple_binary_op(mp_uint_t op, mp_obj_t lhs, mp_obj_t rhs) {
             }
             mp_obj_tuple_t *p = MP_OBJ_TO_PTR(rhs);
             mp_obj_tuple_t *s = MP_OBJ_TO_PTR(mp_obj_new_tuple(o->len + p->len, NULL));
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_seq_cat(s->items, o->items, o->len, p->items, p->len, mp_obj_t);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             return MP_OBJ_FROM_PTR(s);
         }
         case MP_BINARY_OP_MULTIPLY:
@@ -165,11 +174,14 @@ mp_obj_t mp_obj_tuple_binary_op(mp_uint_t op, mp_obj_t lhs, mp_obj_t rhs) {
             if (!mp_obj_get_int_maybe(rhs, &n)) {
                 return MP_OBJ_NULL; // op not supported
             }
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             if (n <= 0) {
                 return mp_const_empty_tuple;
             }
             mp_obj_tuple_t *s = MP_OBJ_TO_PTR(mp_obj_new_tuple(o->len * n, NULL));
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_seq_multiply(o->items, sizeof(*o->items), o->len, n, s->items);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             return MP_OBJ_FROM_PTR(s);
         }
         case MP_BINARY_OP_EQUAL:
@@ -192,14 +204,18 @@ mp_obj_t mp_obj_tuple_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
         if (MP_OBJ_IS_TYPE(index, &mp_type_slice)) {
             mp_bound_slice_t slice;
             if (!mp_seq_get_fast_slice_indexes(self->len, index, &slice)) {
-                mp_raise_NotImplementedError("only slices with step=1 (aka None) are supported");
+                return mp_raise_NotImplementedError_o("only slices with step=1 (aka None) are supported");
             }
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_obj_tuple_t *res = MP_OBJ_TO_PTR(mp_obj_new_tuple(slice.stop - slice.start, NULL));
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_seq_copy(res->items, self->items + slice.start, res->len, mp_obj_t);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             return MP_OBJ_FROM_PTR(res);
         }
 #endif
         size_t index_value = mp_get_index(self->base.type, self->len, index, false);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         return self->items[index_value];
     } else {
         return MP_OBJ_NULL; // op not supported
@@ -247,6 +263,7 @@ mp_obj_t mp_obj_new_tuple(size_t n, const mp_obj_t *items) {
         return mp_const_empty_tuple;
     }
     mp_obj_tuple_t *o = m_new_obj_var(mp_obj_tuple_t, mp_obj_t, n);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_tuple;
     o->len = n;
     if (items) {

@@ -27,6 +27,7 @@
 #include <assert.h>
 
 #include "py/rootstack.h"
+#include "py/mpstate.h"
 #include "py/scope.h"
 
 #if MICROPY_ENABLE_COMPILER
@@ -43,6 +44,7 @@ STATIC const uint8_t scope_simple_name_table[] = {
 
 scope_t *scope_new(scope_kind_t kind, mp_parse_node_t pn, qstr source_file, mp_uint_t emit_options) {
     scope_t *scope = m_new0(scope_t, 1);
+    RETURN_ON_EXCEPTION(NULL)
     scope->kind = kind;
     scope->pn = pn;
     scope->source_file = source_file;
@@ -60,11 +62,13 @@ scope_t *scope_new(scope_kind_t kind, mp_parse_node_t pn, qstr source_file, mp_u
     m_rs_push_ptr(scope);
     #if !MICROPY_USE_SMALL_HEAP_COMPILER
     scope->raw_code = mp_emit_glue_new_raw_code();
+    RETURN_ON_EXCEPTION(NULL)
     #endif
     scope->emit_options = emit_options;
     scope->id_info_alloc = MICROPY_ALLOC_SCOPE_ID_INIT;
     scope->id_info = m_new(id_info_t, scope->id_info_alloc);
     m_rs_pop_ptr(scope);
+    RETURN_ON_EXCEPTION(NULL)
 
     return scope;
 }
@@ -84,7 +88,7 @@ id_info_t *scope_find_or_add_id(scope_t *scope, qstr qst, bool *added) {
     // make sure we have enough memory
     if (scope->id_info_len >= scope->id_info_alloc) {
         scope->id_info = m_renew(id_info_t, scope->id_info, scope->id_info_alloc, scope->id_info_alloc + MICROPY_ALLOC_SCOPE_ID_INC);
-        //m_rs_pop_reachable(scope->id_info);
+        RETURN_ON_EXCEPTION(NULL)
         scope->id_info_alloc += MICROPY_ALLOC_SCOPE_ID_INC;
     }
 
@@ -123,6 +127,7 @@ STATIC void scope_close_over_in_parents(scope_t *scope, qstr qst) {
         assert(s->parent != NULL); // we should not get to the outer scope
         bool added;
         id_info_t *id = scope_find_or_add_id(s, qst, &added);
+        RETURN_ON_EXCEPTION()
         if (added) {
             // variable not previously declared in this scope, so declare it as free and keep searching parents
             id->kind = ID_INFO_KIND_FREE;

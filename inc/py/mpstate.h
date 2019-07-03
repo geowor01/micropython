@@ -31,7 +31,6 @@
 #include "py/mpconfig.h"
 #include "py/mpthread.h"
 #include "py/misc.h"
-#include "py/nlr.h"
 #include "py/obj.h"
 #include "py/objlist.h"
 #include "py/objexcept.h"
@@ -214,8 +213,7 @@ typedef struct _mp_state_thread_t {
     mp_obj_dict_t *dict_locals;
     mp_obj_dict_t *dict_globals;
 
-    // Note: nlr asm code has the offset of this hard-coded
-    nlr_buf_t *nlr_top; // ROOT POINTER
+    mp_obj_base_t *cur_exc;
 
     // Stack top at the start of program
     char *stack_top;
@@ -246,5 +244,7 @@ extern mp_state_thread_t *mp_thread_get_state(void);
 #else
 #define MP_STATE_THREAD(x) (mp_state_ctx.thread.x)
 #endif
+
+#define RETURN_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { return x; }
 
 #endif // MICROPY_INCLUDED_PY_MPSTATE_H

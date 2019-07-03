@@ -36,6 +36,7 @@
 /// Run a garbage collection.
 STATIC mp_obj_t py_gc_collect(void) {
     gc_collect();
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 #if MICROPY_PY_GC_COLLECT_RETVAL
     return MP_OBJ_NEW_SMALL_INT(MP_STATE_MEM(gc_collected));
 #else
@@ -92,6 +93,7 @@ STATIC mp_obj_t gc_threshold(size_t n_args, const mp_obj_t *args) {
         return mp_obj_new_int(MP_STATE_MEM(gc_alloc_threshold) * MICROPY_BYTES_PER_GC_BLOCK);
     }
     mp_int_t val = mp_obj_get_int(args[0]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (val < 0) {
         MP_STATE_MEM(gc_alloc_threshold) = (size_t)-1;
     } else {

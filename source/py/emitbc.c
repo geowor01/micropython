@@ -422,6 +422,7 @@ void mp_emit_bc_end_pass(emit_t *emit) {
         emit->code_info_size = emit->code_info_offset;
         emit->bytecode_size = emit->bytecode_offset;
         emit->code_base = m_new0(byte, emit->code_info_size + emit->bytecode_size);
+        RETURN_ON_EXCEPTION()
 
         #if MICROPY_PERSISTENT_CODE
         emit->const_table = m_new0(mp_uint_t,
@@ -431,6 +432,7 @@ void mp_emit_bc_end_pass(emit_t *emit) {
         emit->const_table = m_new0(mp_uint_t,
             emit->scope->num_pos_args + emit->scope->num_kwonly_args);
         #endif
+        RETURN_ON_EXCEPTION()
 
     } else if (emit->pass == MP_PASS_EMIT) {
         mp_emit_glue_assign_bytecode(emit->scope->raw_code, emit->code_base,

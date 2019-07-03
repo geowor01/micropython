@@ -40,7 +40,9 @@ STATIC mp_obj_t mp_micropython_opt_level(size_t n_args, const mp_obj_t *args) {
     if (n_args == 0) {
         return MP_OBJ_NEW_SMALL_INT(MP_STATE_VM(mp_optimise_value));
     } else {
-        MP_STATE_VM(mp_optimise_value) = mp_obj_get_int(args[0]);
+        mp_int_t o = mp_obj_get_int(args[0]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        MP_STATE_VM(mp_optimise_value) = o;
         return mp_const_none;
     }
 }
@@ -133,7 +135,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_alloc_emergency_exception_buf_obj, mp_alloc_
 
 #if MICROPY_KBD_EXCEPTION
 STATIC mp_obj_t mp_micropython_kbd_intr(mp_obj_t int_chr_in) {
-    mp_hal_set_interrupt_char(mp_obj_get_int(int_chr_in));
+    mp_int_t o = mp_obj_get_int(int_chr_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    mp_hal_set_interrupt_char(o);
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_micropython_kbd_intr_obj, mp_micropython_kbd_intr);
@@ -142,7 +146,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_micropython_kbd_intr_obj, mp_micropython_kbd
 #if MICROPY_ENABLE_SCHEDULER
 STATIC mp_obj_t mp_micropython_schedule(mp_obj_t function, mp_obj_t arg) {
     if (!mp_sched_schedule(function, arg)) {
-        mp_raise_msg(&mp_type_RuntimeError, "schedule stack full");
+        return mp_raise_msg_o(&mp_type_RuntimeError, "schedule stack full");
     }
     return mp_const_none;
 }

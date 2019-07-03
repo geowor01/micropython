@@ -28,7 +28,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/objstr.h"
 #include "py/objlist.h"
 #include "py/runtime0.h"
@@ -121,6 +120,7 @@ const byte *str_index_to_ptr(const mp_obj_type_t *type, const byte *self_data, s
     if (type == &mp_type_bytes) {
         // Taken from objstr.c:str_index_to_ptr()
         size_t index_val = mp_get_index(type, self_len, index, is_slice);
+        RETURN_ON_EXCEPTION(NULL)
         return self_data + index_val;
     }
 
@@ -131,7 +131,8 @@ const byte *str_index_to_ptr(const mp_obj_type_t *type, const byte *self_data, s
     if (MP_OBJ_IS_SMALL_INT(index)) {
         i = MP_OBJ_SMALL_INT_VALUE(index);
     } else if (!mp_obj_get_int_maybe(index, &i)) {
-        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError, "string indices must be integers, not %s", mp_obj_get_type_str(index)));
+        mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError, "string indices must be integers, not %s", mp_obj_get_type_str(index)));
+        return NULL;
     }
     const byte *s, *top = self_data + self_len;
     if (i < 0)
@@ -142,7 +143,8 @@ const byte *str_index_to_ptr(const mp_obj_type_t *type, const byte *self_data, s
                 if (is_slice) {
                     return self_data;
                 }
-                mp_raise_msg(&mp_type_IndexError, "string index out of range");
+                mp_raise_msg_o(&mp_type_IndexError, "string index out of range");
+                return NULL;
             }
             if (!UTF8_IS_CONT(*s)) {
                 ++i;
@@ -161,7 +163,8 @@ const byte *str_index_to_ptr(const mp_obj_type_t *type, const byte *self_data, s
                 if (is_slice) {
                     return top;
                 }
-                mp_raise_msg(&mp_type_IndexError, "string index out of range");
+                mp_raise_msg_o(&mp_type_IndexError, "string index out of range");
+                return NULL;
             }
             // Then check completion
             if (i-- == 0) {
@@ -187,13 +190,15 @@ STATIC mp_obj_t str_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
         if (MP_OBJ_IS_TYPE(index, &mp_type_slice)) {
             mp_obj_t ostart, ostop, ostep;
             mp_obj_slice_get(index, &ostart, &ostop, &ostep);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             if (ostep != mp_const_none && ostep != MP_OBJ_NEW_SMALL_INT(1)) {
-                mp_raise_NotImplementedError("only slices with step=1 (aka None) are supported");
+                return mp_raise_NotImplementedError_o("only slices with step=1 (aka None) are supported");
             }
 
             const byte *pstart, *pstop;
             if (ostart != mp_const_none) {
                 pstart = str_index_to_ptr(type, self_data, self_len, ostart, true);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             } else {
                 pstart = self_data;
             }
@@ -201,6 +206,7 @@ STATIC mp_obj_t str_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
                 // pstop will point just after the stop character. This depends on
                 // the \0 at the end of the string.
                 pstop = str_index_to_ptr(type, self_data, self_len, ostop, true);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             } else {
                 pstop = self_data + self_len;
             }
@@ -211,6 +217,7 @@ STATIC mp_obj_t str_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
         }
 #endif
         const byte *s = str_index_to_ptr(type, self_data, self_len, index, false);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         int len = 1;
         if (UTF8_IS_NONASCII(*s)) {
             // Count the number of 1 bits (after the first)
@@ -294,6 +301,7 @@ STATIC mp_obj_t str_it_iternext(mp_obj_t self_in) {
         const byte *cur = str + self->cur;
         const byte *end = utf8_next_char(str + self->cur);
         mp_obj_t o_out = mp_obj_new_str((const char*)cur, end - cur, true);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         self->cur += end - cur;
         return o_out;
     } else {

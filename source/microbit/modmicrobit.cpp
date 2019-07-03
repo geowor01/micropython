@@ -29,8 +29,8 @@
 
 extern "C" {
 
-#include "py/nlr.h"
 #include "py/obj.h"
+#include "py/mpstate.h"
 #include "py/mphal.h"
 #include "microbit/modmicrobit.h"
 #include "lib/ticker.h"
@@ -51,6 +51,7 @@ STATIC mp_obj_t microbit_sleep(mp_obj_t ms_in) {
     } else {
         ms = (mp_int_t)mp_obj_get_float(ms_in);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (ms > 0) {
         mp_hal_delay_ms(ms);
     }

@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "py/nlr.h"
+#include "py/mpstate.h"
 #include "py/obj.h"
 #include "py/runtime0.h"
 
@@ -85,6 +85,7 @@ const mp_obj_type_t mp_type_slice = {
 
 mp_obj_t mp_obj_new_slice(mp_obj_t ostart, mp_obj_t ostop, mp_obj_t ostep) {
     mp_obj_slice_t *o = m_new_obj(mp_obj_slice_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_slice;
     o->start = ostart;
     o->stop = ostop;

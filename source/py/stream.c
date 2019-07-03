@@ -28,7 +28,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "py/nlr.h"
 #include "py/objstr.h"
 #include "py/stream.h"
 #include "py/runtime.h"
@@ -101,7 +100,8 @@ const mp_stream_p_t *mp_get_stream_raise(mp_obj_t self_in, int flags) {
         || ((flags & MP_STREAM_OP_WRITE) && stream_p->write == NULL)
         || ((flags & MP_STREAM_OP_IOCTL) && stream_p->ioctl == NULL)) {
         // CPython: io.UnsupportedOperation, OSError subclass
-        mp_raise_msg(&mp_type_OSError, "stream operation not supported");
+        mp_raise_msg_o(&mp_type_OSError, "stream operation not supported");
+        return NULL;
     }
     return stream_p;
 }
@@ -110,19 +110,23 @@ mp_obj_t mp_stream_close(mp_obj_t stream) {
     // TODO: Still consider using ioctl for close
     mp_obj_t dest[2];
     mp_load_method(stream, MP_QSTR_close, dest);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_call_method_n_kw(0, 0, dest);
 }
 
 STATIC mp_obj_t stream_read_generic(size_t n_args, const mp_obj_t *args, byte flags) {
     const mp_stream_p_t *stream_p = mp_get_stream_raise(args[0], MP_STREAM_OP_READ);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // What to do if sz < -1?  Python docs don't specify this case.
     // CPython does a readall, but here we silently let negatives through,
     // and they will cause a MemoryError.
     mp_int_t sz;
     if (n_args == 1 || ((sz = mp_obj_get_int(args[1])) == -1)) {
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         return stream_readall(args[0]);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     #if MICROPY_PY_BUILTINS_STR_UNICODE
     if (stream_p->is_text) {
@@ -138,12 +142,14 @@ STATIC mp_obj_t stream_read_generic(size_t n_args, const mp_obj_t *args, byte fl
         vstr_t vstr;
         m_rs_push_ind(&vstr.buf);
         vstr_init(&vstr, sz);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         mp_uint_t more_bytes = sz;
         mp_uint_t last_buf_offset = 0;
         while (more_bytes > 0) {
             char *p = vstr_add_len(&vstr, more_bytes);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             if (p == NULL) {
-                mp_raise_msg(&mp_type_MemoryError, "out of memory");
+                return mp_raise_msg_o(&mp_type_MemoryError, "out of memory");
             }
             int error;
             mp_uint_t out_sz = mp_stream_read_exactly(args[0], p, more_bytes, &error);
@@ -161,7 +167,7 @@ STATIC mp_obj_t stream_read_generic(size_t n_args, const mp_obj_t *args, byte fl
                     }
                     break;
                 }
-                mp_raise_OSError(error);
+                return mp_raise_OSError_o(error);
             }
 
             if (out_sz < more_bytes) {
@@ -219,6 +225,7 @@ STATIC mp_obj_t stream_read_generic(size_t n_args, const mp_obj_t *args, byte fl
     vstr_t vstr;
     m_rs_push_ind(&vstr.buf);
     vstr_init_len(&vstr, sz);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     int error;
     mp_uint_t out_sz = mp_stream_rw(args[0], vstr.buf, sz, &error, flags);
     if (error != 0) {
@@ -232,7 +239,7 @@ STATIC mp_obj_t stream_read_generic(size_t n_args, const mp_obj_t *args, byte fl
             m_rs_pop_ind(&vstr.buf);
             return mp_const_none;
         }
-        mp_raise_OSError(error);
+        return mp_raise_OSError_o(error);
     } else {
         vstr.len = out_sz;
         m_rs_pop_ind(&vstr.buf);
@@ -252,6 +259,7 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_stream_read1_obj, 1, 2, stream_read1);
 
 mp_obj_t mp_stream_write(mp_obj_t self_in, const void *buf, size_t len, byte flags) {
     mp_get_stream_raise(self_in, MP_STREAM_OP_WRITE);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     int error;
     mp_uint_t out_sz = mp_stream_rw(self_in, (void*)buf, len, &error, flags);
@@ -262,7 +270,7 @@ mp_obj_t mp_stream_write(mp_obj_t self_in, const void *buf, size_t len, byte fla
             // no single byte could be readily written to it."
             return mp_const_none;
         }
-        mp_raise_OSError(error);
+        return mp_raise_OSError_o(error);
     } else {
         return MP_OBJ_NEW_SMALL_INT(out_sz);
     }
@@ -276,13 +284,17 @@ void mp_stream_write_adaptor(void *self, const char *buf, size_t len) {
 STATIC mp_obj_t stream_write_method(size_t n_args, const mp_obj_t *args) {
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_READ);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     size_t max_len = (size_t)-1;
     size_t off = 0;
     if (n_args == 3) {
         max_len = mp_obj_get_int_truncated(args[2]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     } else if (n_args == 4) {
         off = mp_obj_get_int_truncated(args[2]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         max_len = mp_obj_get_int_truncated(args[3]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (off > bufinfo.len) {
             off = bufinfo.len;
         }
@@ -295,14 +307,17 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_stream_write_obj, 2, 4, stream_write_meth
 STATIC mp_obj_t stream_write1_method(mp_obj_t self_in, mp_obj_t arg) {
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(arg, &bufinfo, MP_BUFFER_READ);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_stream_write(self_in, bufinfo.buf, bufinfo.len, MP_STREAM_RW_WRITE | MP_STREAM_RW_ONCE);
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_stream_write1_obj, stream_write1_method);
 
 STATIC mp_obj_t stream_readinto(size_t n_args, const mp_obj_t *args) {
     mp_get_stream_raise(args[0], MP_STREAM_OP_READ);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_WRITE);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // CPython extension: if 2nd arg is provided, that's max len to read,
     // instead of full buffer. Similar to
@@ -310,6 +325,7 @@ STATIC mp_obj_t stream_readinto(size_t n_args, const mp_obj_t *args) {
     mp_uint_t len = bufinfo.len;
     if (n_args > 2) {
         len = mp_obj_get_int(args[2]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (len > bufinfo.len) {
             len = bufinfo.len;
         }
@@ -321,7 +337,7 @@ STATIC mp_obj_t stream_readinto(size_t n_args, const mp_obj_t *args) {
         if (mp_is_nonblocking_error(error)) {
             return mp_const_none;
         }
-        mp_raise_OSError(error);
+        return mp_raise_OSError_o(error);
     } else {
         return MP_OBJ_NEW_SMALL_INT(out_sz);
     }
@@ -330,16 +346,19 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_stream_readinto_obj, 2, 3, stream_readint
 
 STATIC mp_obj_t stream_readall(mp_obj_t self_in) {
     const mp_stream_p_t *stream_p = mp_get_stream_raise(self_in, MP_STREAM_OP_READ);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     mp_uint_t total_size = 0;
     vstr_t vstr;
     m_rs_push_ind(&vstr.buf);
     vstr_init(&vstr, DEFAULT_BUFFER_SIZE);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     char *p = vstr.buf;
     mp_uint_t current_read = DEFAULT_BUFFER_SIZE;
     while (true) {
         int error;
         mp_uint_t out_sz = stream_p->read(self_in, p, current_read, &error);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (out_sz == MP_STREAM_ERROR) {
             if (mp_is_nonblocking_error(error)) {
                 // With non-blocking streams, we read as much as we can.
@@ -351,7 +370,7 @@ STATIC mp_obj_t stream_readall(mp_obj_t self_in) {
                 }
                 break;
             }
-            mp_raise_OSError(error);
+            return mp_raise_OSError_o(error);
         }
         if (out_sz == 0) {
             break;
@@ -362,6 +381,7 @@ STATIC mp_obj_t stream_readall(mp_obj_t self_in) {
             p += out_sz;
         } else {
             p = vstr_extend(&vstr, DEFAULT_BUFFER_SIZE);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             current_read = DEFAULT_BUFFER_SIZE;
         }
     }
@@ -374,6 +394,7 @@ STATIC mp_obj_t stream_readall(mp_obj_t self_in) {
 // Unbuffered, inefficient implementation of readline() for raw I/O files.
 STATIC mp_obj_t stream_unbuffered_readline(size_t n_args, const mp_obj_t *args) {
     const mp_stream_p_t *stream_p = mp_get_stream_raise(args[0], MP_STREAM_OP_READ);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     mp_int_t max_size = -1;
     if (n_args > 1) {
@@ -386,15 +407,18 @@ STATIC mp_obj_t stream_unbuffered_readline(size_t n_args, const mp_obj_t *args) 
     } else {
         vstr_init(&vstr, 16);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     while (max_size == -1 || max_size-- != 0) {
         char *p = vstr_add_len(&vstr, 1);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (p == NULL) {
-            mp_raise_msg(&mp_type_MemoryError, "out of memory");
+            return mp_raise_msg_o(&mp_type_MemoryError, "out of memory");
         }
 
         int error;
         mp_uint_t out_sz = stream_p->read(args[0], p, 1, &error);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (out_sz == MP_STREAM_ERROR) {
             if (mp_is_nonblocking_error(error)) {
                 if (vstr.len == 1) {
@@ -410,7 +434,7 @@ STATIC mp_obj_t stream_unbuffered_readline(size_t n_args, const mp_obj_t *args) 
                     goto done;
                 }
             }
-            mp_raise_OSError(error);
+            return mp_raise_OSError_o(error);
         }
         if (out_sz == 0) {
 done:
@@ -432,13 +456,16 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_stream_unbuffered_readline_obj, 1, 2, str
 // TODO take an optional extra argument (what does it do exactly?)
 STATIC mp_obj_t stream_unbuffered_readlines(mp_obj_t self) {
     mp_obj_t lines = mp_obj_new_list(0, NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_obj_ptr(lines);
     for (;;) {
         mp_obj_t line = stream_unbuffered_readline(1, &self);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (!mp_obj_is_true(line)) {
             break;
         }
         mp_obj_list_append_rs(lines, line);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     m_rs_pop_obj_ptr(lines);
     return lines;
@@ -447,6 +474,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_stream_unbuffered_readlines_obj, stream_unbuffered_
 
 mp_obj_t mp_stream_unbuffered_iter(mp_obj_t self) {
     mp_obj_t l_in = stream_unbuffered_readline(1, &self);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (mp_obj_is_true(l_in)) {
         return l_in;
     }
@@ -455,24 +483,28 @@ mp_obj_t mp_stream_unbuffered_iter(mp_obj_t self) {
 
 STATIC mp_obj_t stream_seek(size_t n_args, const mp_obj_t *args) {
     const mp_stream_p_t *stream_p = mp_get_stream_raise(args[0], MP_STREAM_OP_IOCTL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     struct mp_stream_seek_t seek_s;
     // TODO: Could be uint64
     seek_s.offset = mp_obj_get_int(args[1]);
+
     seek_s.whence = SEEK_SET;
     if (n_args == 3) {
         seek_s.whence = mp_obj_get_int(args[2]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     // In POSIX, it's error to seek before end of stream, we enforce it here.
     if (seek_s.whence == SEEK_SET && seek_s.offset < 0) {
-        mp_raise_OSError(MP_EINVAL);
+        return mp_raise_OSError_o(MP_EINVAL);
     }
 
     int error;
     mp_uint_t res = stream_p->ioctl(args[0], MP_STREAM_SEEK, (mp_uint_t)(uintptr_t)&seek_s, &error);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (res == MP_STREAM_ERROR) {
-        mp_raise_OSError(error);
+        return mp_raise_OSError_o(error);
     }
 
     // TODO: Could be uint64
@@ -490,10 +522,12 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_stream_tell_obj, stream_tell);
 
 STATIC mp_obj_t stream_flush(mp_obj_t self) {
     const mp_stream_p_t *stream_p = mp_get_stream_raise(self, MP_STREAM_OP_IOCTL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     int error;
     mp_uint_t res = stream_p->ioctl(self, MP_STREAM_FLUSH, 0, &error);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (res == MP_STREAM_ERROR) {
-        mp_raise_OSError(error);
+        return mp_raise_OSError_o(error);
     }
     return mp_const_none;
 }
@@ -501,21 +535,28 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_stream_flush_obj, stream_flush);
 
 STATIC mp_obj_t stream_ioctl(size_t n_args, const mp_obj_t *args) {
     const mp_stream_p_t *stream_p = mp_get_stream_raise(args[0], MP_STREAM_OP_IOCTL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     mp_buffer_info_t bufinfo;
     uintptr_t val = 0;
     if (n_args > 2) {
         if (mp_get_buffer(args[2], &bufinfo, MP_BUFFER_WRITE)) {
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             val = (uintptr_t)bufinfo.buf;
         } else {
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             val = mp_obj_get_int_truncated(args[2]);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
     }
 
     int error;
-    mp_uint_t res = stream_p->ioctl(args[0], mp_obj_get_int(args[1]), val, &error);
+    mp_int_t temp = mp_obj_get_int(args[1]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    mp_uint_t res = stream_p->ioctl(args[0], temp, val, &error);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (res == MP_STREAM_ERROR) {
-        mp_raise_OSError(error);
+        return mp_raise_OSError_o(error);
     }
 
     return mp_obj_new_int(res);
@@ -539,6 +580,7 @@ ssize_t mp_stream_posix_write(mp_obj_t stream, const void *buf, size_t len) {
     mp_obj_base_t* o = (mp_obj_base_t*)MP_OBJ_TO_PTR(stream);
     const mp_stream_p_t *stream_p = o->type->protocol;
     mp_uint_t out_sz = stream_p->write(stream, buf, len, &mp_stream_errno);
+    RETURN_ON_EXCEPTION(-1)
     if (out_sz == MP_STREAM_ERROR) {
         return -1;
     } else {
@@ -550,6 +592,7 @@ ssize_t mp_stream_posix_read(mp_obj_t stream, void *buf, size_t len) {
     mp_obj_base_t* o = (mp_obj_base_t*)MP_OBJ_TO_PTR(stream);
     const mp_stream_p_t *stream_p = o->type->protocol;
     mp_uint_t out_sz = stream_p->read(stream, buf, len, &mp_stream_errno);
+    RETURN_ON_EXCEPTION(-1)
     if (out_sz == MP_STREAM_ERROR) {
         return -1;
     } else {
@@ -564,6 +607,7 @@ off_t mp_stream_posix_lseek(mp_obj_t stream, off_t offset, int whence) {
     seek_s.offset = offset;
     seek_s.whence = whence;
     mp_uint_t res = stream_p->ioctl(stream, MP_STREAM_SEEK, (mp_uint_t)(uintptr_t)&seek_s, &mp_stream_errno);
+    RETURN_ON_EXCEPTION(-1)
     if (res == MP_STREAM_ERROR) {
         return -1;
     }
@@ -574,6 +618,7 @@ int mp_stream_posix_fsync(mp_obj_t stream) {
     mp_obj_base_t* o = (mp_obj_base_t*)MP_OBJ_TO_PTR(stream);
     const mp_stream_p_t *stream_p = o->type->protocol;
     mp_uint_t res = stream_p->ioctl(stream, MP_STREAM_FLUSH, 0, &mp_stream_errno);
+    RETURN_ON_EXCEPTION(-1)
     if (res == MP_STREAM_ERROR) {
         return -1;
     }

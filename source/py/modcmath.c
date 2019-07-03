@@ -40,6 +40,7 @@
 STATIC mp_obj_t mp_cmath_phase(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_float(MICROPY_FLOAT_C_FUN(atan2)(imag, real));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_phase_obj, mp_cmath_phase);
@@ -50,10 +51,12 @@ STATIC mp_obj_t mp_cmath_polar(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
     mp_obj_tuple_t *tuple = MP_OBJ_TO_PTR(mp_obj_new_tuple(2, NULL));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_ptr(tuple);
     tuple->items[0] = mp_obj_new_float(MICROPY_FLOAT_C_FUN(sqrt)(real*real + imag*imag));
     tuple->items[1] = mp_obj_new_float(MICROPY_FLOAT_C_FUN(atan2)(imag, real));
     m_rs_pop_ptr(tuple);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return MP_OBJ_FROM_PTR(tuple);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_polar_obj, mp_cmath_polar);
@@ -62,7 +65,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_polar_obj, mp_cmath_polar);
 /// Returns the complex number with modulus `r` and phase `phi`.
 STATIC mp_obj_t mp_cmath_rect(mp_obj_t r_obj, mp_obj_t phi_obj) {
     mp_float_t r = mp_obj_get_float(r_obj);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_float_t phi = mp_obj_get_float(phi_obj);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_complex(r * MICROPY_FLOAT_C_FUN(cos)(phi), r * MICROPY_FLOAT_C_FUN(sin)(phi));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mp_cmath_rect_obj, mp_cmath_rect);
@@ -72,6 +77,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(mp_cmath_rect_obj, mp_cmath_rect);
 STATIC mp_obj_t mp_cmath_exp(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_float_t exp_real = MICROPY_FLOAT_C_FUN(exp)(real);
     return mp_obj_new_complex(exp_real * MICROPY_FLOAT_C_FUN(cos)(imag), exp_real * MICROPY_FLOAT_C_FUN(sin)(imag));
 }
@@ -83,6 +89,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_exp_obj, mp_cmath_exp);
 STATIC mp_obj_t mp_cmath_log(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_complex(0.5 * MICROPY_FLOAT_C_FUN(log)(real*real + imag*imag), MICROPY_FLOAT_C_FUN(atan2)(imag, real));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_log_obj, mp_cmath_log);
@@ -93,6 +100,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_log_obj, mp_cmath_log);
 STATIC mp_obj_t mp_cmath_log10(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_complex(0.5 * MICROPY_FLOAT_C_FUN(log10)(real*real + imag*imag), 0.4342944819032518 * MICROPY_FLOAT_C_FUN(atan2)(imag, real));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_log10_obj, mp_cmath_log10);
@@ -103,6 +111,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_log10_obj, mp_cmath_log10);
 STATIC mp_obj_t mp_cmath_sqrt(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_float_t sqrt_abs = MICROPY_FLOAT_C_FUN(pow)(real*real + imag*imag, 0.25);
     mp_float_t theta = 0.5 * MICROPY_FLOAT_C_FUN(atan2)(imag, real);
     return mp_obj_new_complex(sqrt_abs * MICROPY_FLOAT_C_FUN(cos)(theta), sqrt_abs * MICROPY_FLOAT_C_FUN(sin)(theta));
@@ -114,6 +123,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_sqrt_obj, mp_cmath_sqrt);
 STATIC mp_obj_t mp_cmath_cos(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_complex(MICROPY_FLOAT_C_FUN(cos)(real) * MICROPY_FLOAT_C_FUN(cosh)(imag), -MICROPY_FLOAT_C_FUN(sin)(real) * MICROPY_FLOAT_C_FUN(sinh)(imag));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_cos_obj, mp_cmath_cos);
@@ -123,6 +133,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_cos_obj, mp_cmath_cos);
 STATIC mp_obj_t mp_cmath_sin(mp_obj_t z_obj) {
     mp_float_t real, imag;
     mp_obj_get_complex(z_obj, &real, &imag);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_complex(MICROPY_FLOAT_C_FUN(sin)(real) * MICROPY_FLOAT_C_FUN(cosh)(imag), MICROPY_FLOAT_C_FUN(cos)(real) * MICROPY_FLOAT_C_FUN(sinh)(imag));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_cmath_sin_obj, mp_cmath_sin);

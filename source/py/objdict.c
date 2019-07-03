@@ -27,7 +27,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/obj.h"
 #include "py/runtime0.h"
 #include "py/runtime.h"
@@ -84,6 +83,7 @@ STATIC void dict_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_
 
 STATIC mp_obj_t dict_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_obj_t dict_out = mp_obj_new_dict(0);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_dict_t *dict = MP_OBJ_TO_PTR(dict_out);
     dict->base.type = type;
     #if MICROPY_PY_COLLECTIONS_ORDEREDDICT
@@ -98,6 +98,7 @@ STATIC mp_obj_t dict_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
         m_rs_push_ptr(dict);
         dict_update(n_args + 1, args2, &kwargs); // dict_update will check that n_args + 1 == 1 or 2
         m_rs_pop_ptr(dict);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     return dict_out;
 }
@@ -122,6 +123,7 @@ STATIC mp_obj_t dict_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
     switch (op) {
         case MP_BINARY_OP_IN: {
             mp_map_elem_t *elem = mp_map_lookup(&o->map, rhs_in, MP_MAP_LOOKUP);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             return mp_obj_new_bool(elem != NULL);
         }
         case MP_BINARY_OP_EQUAL: {
@@ -135,6 +137,7 @@ STATIC mp_obj_t dict_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
                     if (!mp_obj_equal(e1->key, e2->key) || !mp_obj_equal(e1->value, e2->value)) {
                         return mp_const_false;
                     }
+                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 }
                 return e1 == NULL && e2 == NULL ? mp_const_true : mp_const_false;
             } else
@@ -149,9 +152,11 @@ STATIC mp_obj_t dict_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
                 mp_map_elem_t *next = NULL;
                 while ((next = dict_iter_next(o, &cur)) != NULL) {
                     mp_map_elem_t *elem = mp_map_lookup(&rhs->map, next->key, MP_MAP_LOOKUP);
+                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                     if (elem == NULL || !mp_obj_equal(next->value, elem->value)) {
                         return mp_const_false;
                     }
+                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 }
                 return mp_const_true;
             } else {
@@ -169,8 +174,9 @@ STATIC mp_obj_t dict_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
 mp_obj_t mp_obj_dict_get(mp_obj_t self_in, mp_obj_t index) {
     mp_obj_dict_t *self = MP_OBJ_TO_PTR(self_in);
     mp_map_elem_t *elem = mp_map_lookup(&self->map, index, MP_MAP_LOOKUP);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (elem == NULL) {
-        nlr_raise(mp_obj_new_exception_arg1(&mp_type_KeyError, index));
+        return mp_raise_o(mp_obj_new_exception_arg1(&mp_type_KeyError, index));
     } else {
         return elem->value;
     }
@@ -185,8 +191,9 @@ STATIC mp_obj_t dict_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
         // load
         mp_obj_dict_t *self = MP_OBJ_TO_PTR(self_in);
         mp_map_elem_t *elem = mp_map_lookup(&self->map, index, MP_MAP_LOOKUP);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (elem == NULL) {
-            nlr_raise(mp_obj_new_exception_arg1(&mp_type_KeyError, index));
+            return mp_raise_o(mp_obj_new_exception_arg1(&mp_type_KeyError, index));
         } else {
             return elem->value;
         }
@@ -245,6 +252,7 @@ STATIC mp_obj_t dict_copy(mp_obj_t self_in) {
     mp_check_self(MP_OBJ_IS_DICT_TYPE(self_in));
     mp_obj_dict_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_t other_out = mp_obj_new_dict(self->map.alloc);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_dict_t *other = MP_OBJ_TO_PTR(other_out);
     other->base.type = self->base.type;
     other->map.used = self->map.used;
@@ -259,6 +267,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(dict_copy_obj, dict_copy);
 // this is a classmethod
 STATIC mp_obj_t dict_fromkeys(size_t n_args, const mp_obj_t *args) {
     mp_obj_t iter = mp_getiter(args[1], NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_obj(iter);
     mp_obj_t value = mp_const_none;
     mp_obj_t next = MP_OBJ_NULL;
@@ -270,12 +279,14 @@ STATIC mp_obj_t dict_fromkeys(size_t n_args, const mp_obj_t *args) {
     // optimisation to allocate result based on len of argument
     mp_obj_t self_out;
     mp_obj_t len = mp_obj_len_maybe(args[1]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (len == MP_OBJ_NULL) {
         /* object's type doesn't have a __len__ slot */
         self_out = mp_obj_new_dict(0);
     } else {
         self_out = mp_obj_new_dict(MP_OBJ_SMALL_INT_VALUE(len));
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     mp_obj_dict_t *self = MP_OBJ_TO_PTR(self_out);
     m_rs_push_ptr(self);
@@ -283,6 +294,7 @@ STATIC mp_obj_t dict_fromkeys(size_t n_args, const mp_obj_t *args) {
         m_rs_push_obj(next);
         mp_map_lookup(&self->map, next, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND)->value = value;
         m_rs_pop_obj(next);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     m_rs_pop_ptr(self);
     m_rs_pop_obj(iter);
@@ -296,11 +308,12 @@ STATIC mp_obj_t dict_get_helper(size_t n_args, const mp_obj_t *args, mp_map_look
     mp_check_self(MP_OBJ_IS_DICT_TYPE(args[0]));
     mp_obj_dict_t *self = MP_OBJ_TO_PTR(args[0]);
     mp_map_elem_t *elem = mp_map_lookup(&self->map, args[1], lookup_kind);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_t value;
     if (elem == NULL || elem->value == MP_OBJ_NULL) {
         if (n_args == 2) {
             if (lookup_kind == MP_MAP_LOOKUP_REMOVE_IF_FOUND) {
-                nlr_raise(mp_obj_new_exception_arg1(&mp_type_KeyError, args[1]));
+                return mp_raise_o(mp_obj_new_exception_arg1(&mp_type_KeyError, args[1]));
             } else {
                 value = mp_const_none;
             }
@@ -340,13 +353,14 @@ STATIC mp_obj_t dict_popitem(mp_obj_t self_in) {
     size_t cur = 0;
     mp_map_elem_t *next = dict_iter_next(self, &cur);
     if (next == NULL) {
-        mp_raise_msg(&mp_type_KeyError, "popitem(): dictionary is empty");
+        return mp_raise_msg_o(&mp_type_KeyError, "popitem(): dictionary is empty");
     }
     self->map.used--;
     mp_obj_t items[] = {next->key, next->value};
     next->key = MP_OBJ_SENTINEL; // must mark key as sentinel to indicate that it was deleted
     next->value = MP_OBJ_NULL;
     mp_obj_t tuple = mp_obj_new_tuple(2, items);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     return tuple;
 }
@@ -357,6 +371,7 @@ STATIC mp_obj_t dict_update(size_t n_args, const mp_obj_t *args, mp_map_t *kwarg
     mp_obj_dict_t *self = MP_OBJ_TO_PTR(args[0]);
 
     mp_arg_check_num(n_args, kwargs->used, 1, 2, true);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     if (n_args == 2) {
         // given a positional argument
@@ -368,6 +383,7 @@ STATIC mp_obj_t dict_update(size_t n_args, const mp_obj_t *args, mp_map_t *kwarg
                 mp_map_elem_t *elem = NULL;
                 while ((elem = dict_iter_next((mp_obj_dict_t*)MP_OBJ_TO_PTR(args[1]), &cur)) != NULL) {
                     mp_map_lookup(&self->map, elem->key, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND)->value = elem->value;
+                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 }
             }
         } else {
@@ -376,20 +392,26 @@ STATIC mp_obj_t dict_update(size_t n_args, const mp_obj_t *args, mp_map_t *kwarg
             m_rs_push_obj(iter);
             mp_obj_t next = MP_OBJ_NULL;
             while ((next = mp_iternext(iter)) != MP_OBJ_STOP_ITERATION) {
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 m_rs_push_obj(next);
                 mp_obj_t inneriter = mp_getiter(next, NULL);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 m_rs_push_obj(inneriter);
                 mp_obj_t key = mp_iternext(inneriter);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 m_rs_push_obj(key);
                 mp_obj_t value = mp_iternext(inneriter);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 m_rs_push_obj(value);
                 mp_obj_t stop = mp_iternext(inneriter);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 if (key == MP_OBJ_STOP_ITERATION
                     || value == MP_OBJ_STOP_ITERATION
                     || stop != MP_OBJ_STOP_ITERATION) {
-                    mp_raise_ValueError("dict update sequence has wrong length");
+                    return mp_raise_ValueError_o("dict update sequence has wrong length");
                 } else {
                     mp_map_lookup(&self->map, key, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND)->value = value;
+                    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 }
                 m_rs_pop_obj(value);
                 m_rs_pop_obj(key);
@@ -397,6 +419,7 @@ STATIC mp_obj_t dict_update(size_t n_args, const mp_obj_t *args, mp_map_t *kwarg
                 m_rs_pop_obj(next);
             }
             m_rs_pop_obj(iter);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
     }
 
@@ -404,6 +427,7 @@ STATIC mp_obj_t dict_update(size_t n_args, const mp_obj_t *args, mp_map_t *kwarg
     for (size_t i = 0; i < kwargs->alloc; i++) {
         if (MP_MAP_SLOT_IS_FILLED(kwargs, i)) {
             mp_map_lookup(&self->map, kwargs->table[i].key, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND)->value = kwargs->table[i].value;
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
     }
 
@@ -491,12 +515,14 @@ STATIC void dict_view_print(const mp_print_t *print, mp_obj_t self_in, mp_print_
     mp_obj_t self_iter = dict_view_getiter(self_in, &iter_buf);
     mp_obj_t next = MP_OBJ_NULL;
     while ((next = dict_view_it_iternext(self_iter)) != MP_OBJ_STOP_ITERATION) {
+        RETURN_ON_EXCEPTION()
         if (!first) {
             mp_print_str(print, ", ");
         }
         first = false;
         mp_obj_print_helper(print, next, PRINT_REPR);
     }
+    RETURN_ON_EXCEPTION()
     mp_print_str(print, "])");
 }
 
@@ -522,6 +548,7 @@ STATIC const mp_obj_type_t dict_view_type = {
 
 STATIC mp_obj_t mp_obj_new_dict_view(mp_obj_t dict, mp_dict_view_kind_t kind) {
     mp_obj_dict_view_t *o = m_new_obj(mp_obj_dict_view_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &dict_view_type;
     o->dict = dict;
     o->kind = kind;
@@ -604,9 +631,11 @@ void mp_obj_dict_init(mp_obj_dict_t *dict, size_t n_args) {
 
 mp_obj_t mp_obj_new_dict(size_t n_args) {
     mp_obj_dict_t *o = m_new_obj(mp_obj_dict_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_ptr(o);
     mp_obj_dict_init(o, n_args);
     m_rs_pop_ptr(o);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return MP_OBJ_FROM_PTR(o);
 }
 
@@ -619,12 +648,14 @@ mp_obj_t mp_obj_dict_store(mp_obj_t self_in, mp_obj_t key, mp_obj_t value) {
     mp_check_self(MP_OBJ_IS_DICT_TYPE(self_in));
     mp_obj_dict_t *self = MP_OBJ_TO_PTR(self_in);
     mp_map_lookup(&self->map, key, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND)->value = value;
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return self_in;
 }
 
 mp_obj_t mp_obj_dict_delete(mp_obj_t self_in, mp_obj_t key) {
     mp_obj_t args[2] = {self_in, key};
     dict_get_helper(2, args, MP_MAP_LOOKUP_REMOVE_IF_FOUND);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return self_in;
 }
 

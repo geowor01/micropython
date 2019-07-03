@@ -40,31 +40,32 @@
 /// The `math` module provides some basic mathematical funtions for
 /// working with floating-point numbers.
 
-STATIC NORETURN void math_error(void) {
-    mp_raise_ValueError("math domain error");
+STATIC mp_obj_t math_error(void) {
+    return mp_raise_ValueError_o("math domain error");
 }
 
 #define MATH_FUN_1(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj) { return mp_obj_new_float(MICROPY_FLOAT_C_FUN(c_name)(mp_obj_get_float(x_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj) { mp_float_t x = mp_obj_get_float(x_obj); RETURN_ON_EXCEPTION(MP_OBJ_NULL) return mp_obj_new_float(MICROPY_FLOAT_C_FUN(c_name)(x)); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_2(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj, mp_obj_t y_obj) { return mp_obj_new_float(MICROPY_FLOAT_C_FUN(c_name)(mp_obj_get_float(x_obj), mp_obj_get_float(y_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj, mp_obj_t y_obj) { mp_float_t x = mp_obj_get_float(x_obj); mp_float_t y = mp_obj_get_float(y_obj); RETURN_ON_EXCEPTION(MP_OBJ_NULL) return mp_obj_new_float(MICROPY_FLOAT_C_FUN(c_name)(x, y)); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_2(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_TO_BOOL(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj) { return mp_obj_new_bool(c_name(mp_obj_get_float(x_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj) { mp_float_t x = mp_obj_get_float(x_obj); RETURN_ON_EXCEPTION(MP_OBJ_NULL) return mp_obj_new_bool(c_name(x)); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_TO_INT(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj) { return mp_obj_new_int_from_float(MICROPY_FLOAT_C_FUN(c_name)(mp_obj_get_float(x_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj) { mp_float_t x = mp_obj_get_float(x_obj); RETURN_ON_EXCEPTION(MP_OBJ_NULL) return mp_obj_new_int_from_float(MICROPY_FLOAT_C_FUN(c_name)(x)); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_ERRCOND(py_name, c_name, error_condition) \
     STATIC mp_obj_t mp_math_ ## py_name(mp_obj_t x_obj) { \
         mp_float_t x = mp_obj_get_float(x_obj); \
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL) \
         if (error_condition) { \
-            math_error(); \
+            return math_error(); \
         } \
         return mp_obj_new_float(MICROPY_FLOAT_C_FUN(c_name)(x)); \
     } \
@@ -158,18 +159,20 @@ MATH_FUN_1(lgamma, lgamma)
 // log(x[, base])
 STATIC mp_obj_t mp_math_log(size_t n_args, const mp_obj_t *args) {
     mp_float_t x = mp_obj_get_float(args[0]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (x <= (mp_float_t)0.0) {
-        math_error();
+        return math_error();
     }
     mp_float_t l = MICROPY_FLOAT_C_FUN(log)(x);
     if (n_args == 1) {
         return mp_obj_new_float(l);
     } else {
         mp_float_t base = mp_obj_get_float(args[1]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (base <= (mp_float_t)0.0) {
-            math_error();
+            return math_error();
         } else if (base == (mp_float_t)1.0) {
-            mp_raise_msg(&mp_type_ZeroDivisionError, "division by zero");
+            return mp_raise_msg_o(&mp_type_ZeroDivisionError, "division by zero");
         }
         return mp_obj_new_float(l / MICROPY_FLOAT_C_FUN(log)(base));
     }
@@ -182,12 +185,16 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_math_log_obj, 1, 2, mp_math_log);
 /// Converts a floating-point number to fractional and integral components.
 STATIC mp_obj_t mp_math_frexp(mp_obj_t x_obj) {
     int int_exponent = 0;
-    mp_float_t significand = MICROPY_FLOAT_C_FUN(frexp)(mp_obj_get_float(x_obj), &int_exponent);
+    mp_float_t x = mp_obj_get_float(x_obj);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    mp_float_t significand = MICROPY_FLOAT_C_FUN(frexp)(x, &int_exponent);
     mp_obj_tuple_t *tuple = MP_OBJ_TO_PTR(mp_obj_new_tuple(2, NULL));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_ptr(tuple);
     tuple->items[0] = mp_obj_new_float(significand);
     tuple->items[1] = mp_obj_new_int(int_exponent);
     m_rs_pop_ptr(tuple);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return MP_OBJ_FROM_PTR(tuple);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_frexp_obj, mp_math_frexp);
@@ -195,12 +202,16 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_frexp_obj, mp_math_frexp);
 /// \function modf(x)
 STATIC mp_obj_t mp_math_modf(mp_obj_t x_obj) {
     mp_float_t int_part = 0.0;
-    mp_float_t fractional_part = MICROPY_FLOAT_C_FUN(modf)(mp_obj_get_float(x_obj), &int_part);
+    mp_float_t x = mp_obj_get_float(x_obj);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    mp_float_t fractional_part = MICROPY_FLOAT_C_FUN(modf)(x, &int_part);
     mp_obj_tuple_t *tuple = MP_OBJ_TO_PTR(mp_obj_new_tuple(2, NULL));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     m_rs_push_ptr(tuple);
     tuple->items[0] = mp_obj_new_float(fractional_part);
     tuple->items[1] = mp_obj_new_float(int_part);
     m_rs_pop_ptr(tuple);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return MP_OBJ_FROM_PTR(tuple);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_modf_obj, mp_math_modf);
@@ -209,13 +220,17 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_modf_obj, mp_math_modf);
 
 /// \function radians(x)
 STATIC mp_obj_t mp_math_radians(mp_obj_t x_obj) {
-    return mp_obj_new_float(mp_obj_get_float(x_obj) * (MP_PI / MICROPY_FLOAT_CONST(180.0)));
+    mp_float_t x = mp_obj_get_float(x_obj);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    return mp_obj_new_float(x * (MP_PI / MICROPY_FLOAT_CONST(180.0)));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_radians_obj, mp_math_radians);
 
 /// \function degrees(x)
 STATIC mp_obj_t mp_math_degrees(mp_obj_t x_obj) {
-    return mp_obj_new_float(mp_obj_get_float(x_obj) * (MICROPY_FLOAT_CONST(180.0) / MP_PI));
+    mp_float_t x = mp_obj_get_float(x_obj);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    return mp_obj_new_float(x * (MICROPY_FLOAT_CONST(180.0) / MP_PI));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_degrees_obj, mp_math_degrees);
 

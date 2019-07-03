@@ -274,7 +274,8 @@ file_descriptor_obj *microbit_file_open(const char *name, uint32_t name_len, boo
         }
         index = find_chunk_and_erase();
         if (index == FILE_NOT_FOUND) {
-            mp_raise_msg(&mp_type_OSError, "no more storage space");
+            mp_raise_msg_o(&mp_type_OSError, "no more storage space");
+            return NULL;
         }
         persistent_write_byte_unchecked(&(file_system_chunks[index].marker), FILE_START);
         persistent_write_byte_unchecked(&(file_system_chunks[index].header.name_len), name_len);
@@ -289,6 +290,7 @@ file_descriptor_obj *microbit_file_open(const char *name, uint32_t name_len, boo
 
 static file_descriptor_obj *microbit_file_descriptor_new(uint8_t start_chunk, bool write, bool binary) {
     file_descriptor_obj *res = m_new_obj(file_descriptor_obj);
+    RETURN_ON_EXCEPTION(NULL)
     if (binary) {
         res->base.type = &microbit_bytesio_type;
     } else {
@@ -306,9 +308,11 @@ static file_descriptor_obj *microbit_file_descriptor_new(uint8_t start_chunk, bo
 mp_obj_t microbit_remove(mp_obj_t filename) {
     mp_uint_t name_len;
     const char *name = mp_obj_str_get_data(filename, &name_len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_uint_t index = microbit_find_file(name, name_len);
     if (index == 255) {
-        mp_raise_msg(&mp_type_OSError, "file not found");
+        mp_raise_msg_o(&mp_type_OSError, "file not found");
+        return MP_OBJ_NULL;
     }
     clear_file(index);
     return mp_const_none;
@@ -316,7 +320,7 @@ mp_obj_t microbit_remove(mp_obj_t filename) {
 
 static void check_file_open(file_descriptor_obj *self) {
     if (!self->open) {
-        mp_raise_ValueError("I/O operation on closed file");
+        mp_raise_ValueError_o("I/O operation on closed file");
     }
 }
 
@@ -345,6 +349,7 @@ static int advance(file_descriptor_obj *self, uint32_t n, bool write) {
 mp_uint_t microbit_file_read(mp_obj_t obj, void *buf, mp_uint_t size, int *errcode) {
     file_descriptor_obj *self = (file_descriptor_obj *)obj;
     check_file_open(self);
+    RETURN_ON_EXCEPTION(0)
     if (self->writable || file_system_chunks[self->start_chunk].marker == FREED_CHUNK) {
         *errcode = EBADF;
         return MP_STREAM_ERROR;
@@ -375,6 +380,7 @@ mp_uint_t microbit_file_read(mp_obj_t obj, void *buf, mp_uint_t size, int *errco
 mp_uint_t microbit_file_write(mp_obj_t obj, const void *buf, mp_uint_t size, int *errcode) {
     file_descriptor_obj *self = (file_descriptor_obj *)obj;
     check_file_open(self);
+    RETURN_ON_EXCEPTION(0)
     if (!self->writable || file_system_chunks[self->start_chunk].marker == FREED_CHUNK) {
         *errcode = EBADF;
         return MP_STREAM_ERROR;
@@ -404,10 +410,13 @@ void microbit_file_close(file_descriptor_obj *fd) {
 
 mp_obj_t microbit_file_list(void) {
     mp_obj_t res = mp_obj_new_list(0, NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     for (uint8_t index = 1; index <= chunks_in_file_system; index++) {
         if (file_system_chunks[index].marker == FILE_START) {
             mp_obj_t name = mp_obj_new_str(&file_system_chunks[index].header.filename[0], file_system_chunks[index].header.name_len, false);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_obj_list_append(res, name);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
     }
     return res;
@@ -416,9 +425,11 @@ mp_obj_t microbit_file_list(void) {
 mp_obj_t microbit_file_size(mp_obj_t filename) {
     mp_uint_t name_len;
     const char *name = mp_obj_str_get_data(filename, &name_len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     uint8_t chunk = microbit_find_file(name, name_len);
     if (chunk == 255) {
-        mp_raise_msg(&mp_type_OSError, "file not found");
+        mp_raise_msg_o(&mp_type_OSError, "file not found");
+        return MP_OBJ_NULL;
     }
     mp_uint_t len = 0;
     uint8_t end_offset = file_system_chunks[chunk].header.end_offset;
@@ -454,5 +465,7 @@ mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
     file_descriptor_obj *fd = microbit_file_open(filename, strlen(filename), false, false);
     if (fd == NULL)
         return NULL;
-    return microbit_file_lexer(qstr_from_str(filename), fd);
+    qstr string = qstr_from_str(filename);
+    RETURN_ON_EXCEPTION(NULL)
+    return microbit_file_lexer(string, fd);
 }

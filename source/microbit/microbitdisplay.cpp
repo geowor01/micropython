@@ -410,24 +410,24 @@ static void microbit_display_update(void) {
             /* WARNING: We are executing in an interrupt handler.
              * If an exception is raised here then we must hand it to the VM. */
             mp_obj_t obj;
-            nlr_buf_t nlr;
             gc_lock();
-            if (nlr_push(&nlr) == 0) {
+            {
                 obj = mp_iternext_allow_raise(async_iterator);
-                nlr_pop();
                 gc_unlock();
-            } else {
-                gc_unlock();
-                if (!mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(((mp_obj_base_t*)nlr.ret_val)->type),
-                    MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
-                    // An exception other than StopIteration, so set it for the VM to raise later
-                    // If memory error, write an appropriate message.
-                    if (mp_obj_get_type(nlr.ret_val) == &mp_type_MemoryError) {
-                        mp_printf(&mp_plat_print, "Allocation in interrupt handler");
+                 if (MP_STATE_THREAD(cur_exc) != NULL) {
+                    mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
+                    // uncaught exception
+                    if (!mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(the_exc->type),
+                        MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
+                        // An exception other than StopIteration, so set it for the VM to raise later
+                        // If memory error, write an appropriate message.
+                        if (mp_obj_get_type(the_exc) == &mp_type_MemoryError) {
+                            mp_printf(&mp_plat_print, "Allocation in interrupt handler");
+                        }
+                        MP_STATE_VM(mp_pending_exception) = MP_OBJ_FROM_PTR(the_exc);
                     }
-                    MP_STATE_VM(mp_pending_exception) = MP_OBJ_FROM_PTR(nlr.ret_val);
+                    obj = MP_OBJ_STOP_ITERATION;
                 }
-                obj = MP_OBJ_STOP_ITERATION;
             }
             draw_object(obj);
             break;

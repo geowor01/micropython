@@ -1174,16 +1174,17 @@ mp_obj_t mp_iternext(mp_obj_t o_in) {
         mp_load_method_maybe(o_in, MP_QSTR___next__, dest);
         if (dest[0] != MP_OBJ_NULL) {
             // __next__ exists, call it and return its result
-            nlr_buf_t nlr;
-            if (nlr_push(&nlr) == 0) {
-                mp_obj_t ret = mp_call_method_n_kw(0, 0, dest);
-                nlr_pop();
+            mp_obj_t ret = mp_call_method_n_kw(0, 0, dest);
+            if (MP_STATE_THREAD(cur_exc) == NULL) {
                 return ret;
             } else {
-                if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(((mp_obj_base_t*)nlr.ret_val)->type), MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
+                // exception
+                if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(MP_STATE_THREAD(cur_exc)->type), MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
+                    MP_STATE_THREAD(cur_exc) = NULL;
                     return MP_OBJ_STOP_ITERATION;
                 } else {
-                    nlr_jump(nlr.ret_val);
+                    // reraise
+                    return MP_OBJ_NULL;
                 }
             }
         } else {
@@ -1225,15 +1226,13 @@ mp_vm_return_kind_t mp_resume(mp_obj_t self_in, mp_obj_t send_value, mp_obj_t th
     if (send_value == mp_const_none) {
         mp_load_method_maybe(self_in, MP_QSTR___next__, dest);
         if (dest[0] != MP_OBJ_NULL) {
-            nlr_buf_t nlr;
-            if (nlr_push(&nlr) == 0) {
-                *ret_val = mp_call_method_n_kw(0, 0, dest);
-                nlr_pop();
-                return MP_VM_RETURN_YIELD;
-            } else {
-                *ret_val = MP_OBJ_FROM_PTR(nlr.ret_val);
+            *ret_val = mp_call_method_n_kw(0, 0, dest);
+            if (MP_STATE_THREAD(cur_exc) != NULL) {
+                *ret_val = MP_OBJ_FROM_PTR(MP_STATE_THREAD(cur_exc));
+                MP_STATE_THREAD(cur_exc) = NULL;
                 return MP_VM_RETURN_EXCEPTION;
             }
+            return MP_VM_RETURN_YIELD;
         }
     }
 
@@ -1384,13 +1383,12 @@ mp_obj_t mp_parse_compile_execute(mp_lexer_t *lex, mp_parse_input_kind_t parse_i
     mp_globals_set(globals);
     mp_locals_set(locals);
 
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
-        qstr source_name = lex->source_name;
-        mp_parse_tree_t parse_tree = mp_parse(lex, parse_input_kind);
-        mp_obj_t module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, false);
+    qstr source_name = lex->source_name;
+    mp_parse_tree_t parse_tree = mp_parse(lex, parse_input_kind);
+    mp_obj_t module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, false);
 
-        mp_obj_t ret;
+    mp_obj_t ret = MP_OBJ_NULL;
+    if (MP_STATE_THREAD(cur_exc) == NULL) {
         if (MICROPY_PY_BUILTINS_COMPILE && globals == NULL) {
             // for compile only, return value is the module function
             ret = module_fun;
@@ -1398,18 +1396,11 @@ mp_obj_t mp_parse_compile_execute(mp_lexer_t *lex, mp_parse_input_kind_t parse_i
             // execute module function and get return value
             ret = mp_call_function_0(module_fun);
         }
-
-        // finish nlr block, restore context and return value
-        nlr_pop();
-        mp_globals_set(old_globals);
-        mp_locals_set(old_locals);
-        return ret;
-    } else {
-        // exception; restore context and re-raise same exception
-        mp_globals_set(old_globals);
-        mp_locals_set(old_locals);
-        nlr_jump(nlr.ret_val);
     }
+    // restore context and return value
+    mp_globals_set(old_globals);
+    mp_locals_set(old_locals);
+    return ret;
 }
 
 #endif // MICROPY_ENABLE_COMPILER

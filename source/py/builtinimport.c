@@ -162,21 +162,14 @@ STATIC int do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
     mp_globals_set(mod_globals);
     mp_locals_set(mod_globals);
 
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
-        mp_obj_t module_fun = mp_make_function_from_raw_code(raw_code, MP_OBJ_NULL, MP_OBJ_NULL);
-        mp_call_function_0(module_fun);
+    mp_obj_t module_fun = mp_make_function_from_raw_code(raw_code, MP_OBJ_NULL, MP_OBJ_NULL);
+    module_fun = mp_call_function_0(module_fun);
 
-        // finish nlr block, restore context
-        nlr_pop();
-        mp_globals_set(old_globals);
-        mp_locals_set(old_locals);
-    } else {
-        // exception; restore context and re-raise same exception
-        mp_globals_set(old_globals);
-        mp_locals_set(old_locals);
-        nlr_jump(nlr.ret_val);
-    }
+    // restore context
+    mp_globals_set(old_globals);
+    mp_locals_set(old_locals);
+
+    return module_fun == MP_OBJ_NULL;
 }
 #endif
 

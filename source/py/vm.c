@@ -157,7 +157,8 @@ mp_vm_return_kind_t mp_execute_bytecode(mp_code_state_t *code_state, volatile mp
     // sees that it's possible for us to jump from the dispatch loop to the exception
     // handler.  Without this, the code may have a different stack layout in the dispatch
     // loop and the exception handler, leading to very obscure bugs.
-    #define RAISE(o) do { nlr_pop(); nlr.ret_val = MP_OBJ_TO_PTR(o); goto exception_handler; } while (0)
+    #define RAISE(o) do { MP_STATE_THREAD(cur_exc) = MP_OBJ_TO_PTR(o); goto exception_handler; } while (0)
+    #define RAISE_IT() do { goto exception_handler; } while (0)
 
 #if MICROPY_STACKLESS
 run_code_state: ;
@@ -186,9 +187,8 @@ run_code_state: ;
 
     // outer exception handling loop
     for (;;) {
-        nlr_buf_t nlr;
 outer_dispatch_loop:
-        if (nlr_push(&nlr) == 0) {
+        {
             // local variables that are not visible to the exception handler
             const byte *ip = code_state->ip;
             mp_obj_t *sp = code_state->sp;
@@ -946,7 +946,6 @@ unwind_jump:;
                         if (new_state) {
                             new_state->prev = code_state;
                             code_state = new_state;
-                            nlr_pop();
                             goto run_code_state;
                         }
                         #if MICROPY_STACKLESS_STRICT
@@ -984,7 +983,6 @@ unwind_jump:;
                         if (new_state) {
                             new_state->prev = code_state;
                             code_state = new_state;
-                            nlr_pop();
                             goto run_code_state;
                         }
                         #if MICROPY_STACKLESS_STRICT
@@ -1018,7 +1016,6 @@ unwind_jump:;
                         if (new_state) {
                             new_state->prev = code_state;
                             code_state = new_state;
-                            nlr_pop();
                             goto run_code_state;
                         }
                         #if MICROPY_STACKLESS_STRICT
@@ -1055,7 +1052,6 @@ unwind_jump:;
                         if (new_state) {
                             new_state->prev = code_state;
                             code_state = new_state;
-                            nlr_pop();
                             goto run_code_state;
                         }
                         #if MICROPY_STACKLESS_STRICT
@@ -1105,7 +1101,6 @@ unwind_return:
                         }
                         exc_sp--;
                     }
-                    nlr_pop();
                     code_state->sp = sp;
                     assert(exc_sp == exc_stack - 1);
                     MICROPY_VM_HOOK_RETURN
@@ -1151,7 +1146,6 @@ unwind_return:
 
                 ENTRY(MP_BC_YIELD_VALUE):
 yield:
-                    nlr_pop();
                     code_state->ip = ip;
                     code_state->sp = sp;
                     code_state->exc_sp = MP_TAGPTR_MAKE(exc_sp, currently_in_except_block);
@@ -1286,7 +1280,6 @@ yield:
 #endif
                 {
                     mp_obj_t obj = mp_obj_new_exception_msg(&mp_type_NotImplementedError, "byte code not implemented");
-                    nlr_pop();
                     fastn[0] = obj;
                     return MP_VM_RETURN_EXCEPTION;
                 }
@@ -1344,12 +1337,18 @@ pending_exception_check:
 
             } // for loop
 
-        } else {
+        }
+        {
 exception_handler:
             // exception occurred
+            assert(MP_STATE_THREAD(cur_exc) != NULL);
+
+            // clear exception because we caught it
+            mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
+            MP_STATE_THREAD(cur_exc) = NULL;
 
             #if MICROPY_PY_SYS_EXC_INFO
-            MP_STATE_VM(cur_exception) = nlr.ret_val;
+            MP_STATE_VM(cur_exception) = the_exc;
             #endif
 
             #if SELECTIVE_EXC_IP
@@ -1357,7 +1356,7 @@ exception_handler:
             code_state->ip -= 1;
             #endif
 
-            if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(((mp_obj_base_t*)nlr.ret_val)->type), MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
+            if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(((mp_obj_base_t*)the_exc)->type), MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
                 if (code_state->ip) {
                     // check if it's a StopIteration within a for block
                     if (*code_state->ip == MP_BC_FOR_ITER) {
@@ -1369,7 +1368,7 @@ exception_handler:
                     } else if (*code_state->ip == MP_BC_YIELD_FROM) {
                         // StopIteration inside yield from call means return a value of
                         // yield from, so inject exception's value as yield from's result
-                        *++code_state->sp = mp_obj_exception_get_value(MP_OBJ_FROM_PTR(nlr.ret_val));
+                        *++code_state->sp = mp_obj_exception_get_value(MP_OBJ_FROM_PTR(the_exc));
                         code_state->ip++; // yield from is over, move to next instruction
                         goto outer_dispatch_loop; // continue with dispatch loop
                     }
@@ -1383,7 +1382,7 @@ unwind_loop:
             // TODO: don't set traceback for exceptions re-raised by END_FINALLY.
             // But consider how to handle nested exceptions.
             // TODO need a better way of not adding traceback to constant objects (right now, just GeneratorExit_obj and MemoryError_obj)
-            if (nlr.ret_val != &mp_const_GeneratorExit_obj && nlr.ret_val != &mp_const_MemoryError_obj) {
+            if (the_exc != &mp_const_GeneratorExit_obj && the_exc != &mp_const_MemoryError_obj) {
                 const byte *ip = code_state->fun_bc->bytecode;
                 ip = mp_decode_uint_skip(ip); // skip n_state
                 ip = mp_decode_uint_skip(ip); // skip n_exc_stack
@@ -1431,7 +1430,7 @@ unwind_loop:
                 if (!the_exc) {
                     crash_micropython("the mishandling of GeneratorExit");
                 }
-                mp_obj_exception_add_traceback(MP_OBJ_FROM_PTR(nlr.ret_val), source_file, source_line, block_name);
+                mp_obj_exception_add_traceback(MP_OBJ_FROM_PTR(the_exc), source_file, source_line, block_name);
             }
 
             while (currently_in_except_block) {
@@ -1454,9 +1453,9 @@ unwind_loop:
                 code_state->ip = exc_sp->handler;
                 mp_obj_t *sp = MP_TAGPTR_PTR(exc_sp->val_sp);
                 // save this exception in the stack so it can be used in a reraise, if needed
-                exc_sp->prev_exc = nlr.ret_val;
+                exc_sp->prev_exc = the_exc;
                 // push exception object so it can be handled by bytecode
-                PUSH(MP_OBJ_FROM_PTR(nlr.ret_val));
+                PUSH(MP_OBJ_FROM_PTR(the_exc));
                 code_state->sp = sp;
 
             #if MICROPY_STACKLESS
@@ -1475,7 +1474,7 @@ unwind_loop:
             } else {
                 // propagate exception to higher level
                 // TODO what to do about ip and sp? they don't really make sense at this point
-                fastn[0] = MP_OBJ_FROM_PTR(nlr.ret_val); // must put exception here because sp is invalid
+                fastn[0] = MP_OBJ_FROM_PTR(the_exc); // must put exception here because sp is invalid
                 return MP_VM_RETURN_EXCEPTION;
             }
         }

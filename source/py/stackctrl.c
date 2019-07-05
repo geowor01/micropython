@@ -54,7 +54,7 @@ void mp_stack_set_limit(mp_uint_t limit) {
 }
 
 void mp_exc_recursion_depth(void) {
-    nlr_raise(mp_obj_new_exception_arg1(&mp_type_RuntimeError,
+    mp_raise_o(mp_obj_new_exception_arg1(&mp_type_RuntimeError,
         MP_OBJ_NEW_QSTR(MP_QSTR_maximum_space_recursion_space_depth_space_exceeded)));
 }
 

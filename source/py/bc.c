@@ -80,10 +80,10 @@ STATIC void fun_pos_args_mismatch(mp_obj_fun_bc_t *f, size_t expected, size_t gi
     mp_arg_error_terse_mismatch();
 #elif MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_NORMAL
     (void)f;
-    nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+    mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
         "function takes %d positional arguments but %d were given", expected, given));
 #elif MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_DETAILED
-    nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+    mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
         "%q() takes %d positional arguments but %d were given",
         mp_obj_fun_get_name(MP_OBJ_FROM_PTR(f)), expected, given));
 #endif
@@ -145,9 +145,11 @@ void mp_setup_code_state(mp_code_state_t *code_state, size_t n_args, size_t n_kw
         // given more than enough arguments
         if ((scope_flags & MP_SCOPE_FLAG_VARARGS) == 0) {
             fun_pos_args_mismatch(self, n_pos_args, n_args);
+            return;
         }
         // put extra arguments in varargs tuple
         *var_pos_kw_args-- = mp_obj_new_tuple(n_args - n_pos_args, args + n_pos_args);
+        RETURN_ON_EXCEPTION()
         n_args = n_pos_args;
     } else {
         if ((scope_flags & MP_SCOPE_FLAG_VARARGS) != 0) {
@@ -164,6 +166,7 @@ void mp_setup_code_state(mp_code_state_t *code_state, size_t n_args, size_t n_kw
                 }
             } else {
                 fun_pos_args_mismatch(self, n_pos_args - n_def_pos_args, n_args);
+                return;
             }
         }
     }
@@ -182,6 +185,7 @@ void mp_setup_code_state(mp_code_state_t *code_state, size_t n_args, size_t n_kw
         mp_obj_t dict = MP_OBJ_NULL;
         if ((scope_flags & MP_SCOPE_FLAG_VARKEYWORDS) != 0) {
             dict = mp_obj_new_dict(n_kw); // TODO: better go conservative with 0?
+            RETURN_ON_EXCEPTION()
             *var_pos_kw_args = dict;
         }
 
@@ -194,8 +198,9 @@ void mp_setup_code_state(mp_code_state_t *code_state, size_t n_args, size_t n_kw
             for (size_t j = 0; j < n_pos_args + n_kwonly_args; j++) {
                 if (wanted_arg_name == arg_names[j]) {
                     if (code_state->state[n_state - 1 - j] != MP_OBJ_NULL) {
-                        nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+                        mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
                             "function got multiple values for argument '%q'", MP_OBJ_QSTR_VALUE(wanted_arg_name)));
+                        return;
                     }
                     code_state->state[n_state - 1 - j] = kwargs[2 * i + 1];
                     goto continue2;
@@ -204,13 +209,15 @@ void mp_setup_code_state(mp_code_state_t *code_state, size_t n_args, size_t n_kw
             // Didn't find name match with positional args
             if ((scope_flags & MP_SCOPE_FLAG_VARKEYWORDS) == 0) {
                 if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-                    mp_raise_TypeError("unexpected keyword argument");
+                    mp_raise_TypeError_o("unexpected keyword argument");
                 } else {
-                    nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+                    mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
                         "unexpected keyword argument '%q'", MP_OBJ_QSTR_VALUE(wanted_arg_name)));
                 }
+                return;
             }
             mp_obj_dict_store(dict, kwargs[2 * i], kwargs[2 * i + 1]);
+            RETURN_ON_EXCEPTION()
 continue2:;
         }
 
@@ -232,8 +239,9 @@ continue2:;
         // Check that all mandatory positional args are specified
         while (d < &code_state->state[n_state]) {
             if (*d++ == MP_OBJ_NULL) {
-                nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+                mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
                     "function missing required positional argument #%d", &code_state->state[n_state] - d));
+                return;
             }
         }
 
@@ -244,12 +252,14 @@ continue2:;
                 mp_map_elem_t *elem = NULL;
                 if ((scope_flags & MP_SCOPE_FLAG_DEFKWARGS) != 0) {
                     elem = mp_map_lookup(&((mp_obj_dict_t*)MP_OBJ_TO_PTR(self->extra_args[n_def_pos_args]))->map, arg_names[n_pos_args + i], MP_MAP_LOOKUP);
+                    RETURN_ON_EXCEPTION()
                 }
                 if (elem != NULL) {
                     code_state->state[n_state - 1 - n_pos_args - i] = elem->value;
                 } else {
-                    nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+                    mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
                         "function missing required keyword argument '%q'", MP_OBJ_QSTR_VALUE(arg_names[n_pos_args + i])));
+                    return;
                 }
             }
         }
@@ -257,10 +267,12 @@ continue2:;
     } else {
         // no keyword arguments given
         if (n_kwonly_args != 0) {
-            mp_raise_TypeError("function missing keyword-only argument");
+            mp_raise_TypeError_o("function missing keyword-only argument");
+            return;
         }
         if ((scope_flags & MP_SCOPE_FLAG_VARKEYWORDS) != 0) {
             *var_pos_kw_args = mp_obj_new_dict(0);
+            RETURN_ON_EXCEPTION()
         }
     }
 
@@ -275,6 +287,7 @@ continue2:;
     while ((local_num = *ip++) != 255) {
         code_state->state[n_state - 1 - local_num] =
             mp_obj_new_cell(code_state->state[n_state - 1 - local_num]);
+        RETURN_ON_EXCEPTION()
     }
 
     // now that we skipped over the prelude, set the ip for the VM

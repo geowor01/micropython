@@ -74,22 +74,27 @@ STATIC mp_obj_t mp_builtin_compile(size_t n_args, const mp_obj_t *args) {
 
     // get the filename
     qstr filename = mp_obj_str_get_qstr(args[1]);
+    RETURN_ON_EXCEPTION()
 
     // create the lexer
     mp_lexer_t *lex = mp_lexer_new_from_str_len(filename, str, str_len, 0);
+    RETURN_ON_EXCEPTION()
 
     // get the compile mode
     qstr mode = mp_obj_str_get_qstr(args[2]);
+    RETURN_ON_EXCEPTION()
     mp_parse_input_kind_t parse_input_kind;
     switch (mode) {
         case MP_QSTR_single: parse_input_kind = MP_PARSE_SINGLE_INPUT; break;
         case MP_QSTR_exec: parse_input_kind = MP_PARSE_FILE_INPUT; break;
         case MP_QSTR_eval: parse_input_kind = MP_PARSE_EVAL_INPUT; break;
         default:
-            mp_raise_ValueError("bad compile mode");
+            mp_raise_ValueError_o("bad compile mode");
+            return MP_OBJ_NULL;
     }
 
     mp_obj_code_t *code = m_new_obj(mp_obj_code_t);
+    RETURN_ON_EXCEPTION()
     code->base.type = &mp_type_code;
     code->module_fun = mp_parse_compile_execute(lex, parse_input_kind, NULL, NULL);
     return MP_OBJ_FROM_PTR(code);
@@ -107,7 +112,8 @@ STATIC mp_obj_t eval_exec_helper(size_t n_args, const mp_obj_t *args, mp_parse_i
     for (size_t i = 1; i < 3 && i < n_args; ++i) {
         if (args[i] != mp_const_none) {
             if (!MP_OBJ_IS_TYPE(args[i], &mp_type_dict)) {
-                mp_raise_TypeError(NULL);
+                mp_raise_TypeError_o(NULL);
+                return MP_OBJ_NULL;
             }
             locals = MP_OBJ_TO_PTR(args[i]);
             if (i == 1) {
@@ -124,6 +130,7 @@ STATIC mp_obj_t eval_exec_helper(size_t n_args, const mp_obj_t *args, mp_parse_i
 
     size_t str_len;
     const char *str = mp_obj_str_get_data(args[0], &str_len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // create the lexer
     // MP_PARSE_SINGLE_INPUT is used to indicate a file input
@@ -134,6 +141,7 @@ STATIC mp_obj_t eval_exec_helper(size_t n_args, const mp_obj_t *args, mp_parse_i
     } else {
         lex = mp_lexer_new_from_str_len(MP_QSTR__lt_string_gt_, str, str_len, 0);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     return mp_parse_compile_execute(lex, parse_input_kind, globals, locals);
 }

@@ -26,7 +26,6 @@
  */
 
 #include "py/mpstate.h"
-#include "py/nlr.h"
 #include "py/builtin.h"
 #include "py/objlist.h"
 #include "py/objtuple.h"

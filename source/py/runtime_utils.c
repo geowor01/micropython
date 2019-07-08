@@ -27,7 +27,6 @@
 
 #include "py/runtime.h"
 #include "py/obj.h"
-#include "py/nlr.h"
 
 void mp_call_function_1_protected(mp_obj_t fun, mp_obj_t arg) {
     mp_obj_t ret = mp_call_function_1(fun, arg);

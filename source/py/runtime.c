@@ -28,7 +28,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/mphal.h"
 #include <limits.h>
 #include <assert.h>

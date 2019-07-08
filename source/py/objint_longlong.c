@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "py/nlr.h"
 #include "py/smallint.h"
 #include "py/objint.h"
 #include "py/runtime0.h"

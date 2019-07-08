@@ -25,7 +25,6 @@
  */
 
 #include "py/mpstate.h"
-#include "py/nlr.h"
 #include "py/obj.h"
 #include "py/runtime.h"
 #include "py/stackctrl.h"

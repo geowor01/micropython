@@ -28,7 +28,6 @@
 #include <assert.h>
 #include <string.h>
 
-#include "py/nlr.h"
 #include "py/parsenum.h"
 #include "py/smallint.h"
 #include "py/objint.h"

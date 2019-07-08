@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/obj.h"
 #include "py/parsenum.h"
 #include "py/runtime0.h"

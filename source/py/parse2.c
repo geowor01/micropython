@@ -30,7 +30,6 @@
 #include <assert.h>
 #include <string.h>
 
-#include "py/nlr.h"
 #include "py/lexer.h"
 #include "py/parse.h"
 #include "py/parsenum.h"

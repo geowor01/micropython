@@ -31,7 +31,6 @@
 #include "py/mpconfig.h"
 #include "py/mpthread.h"
 #include "py/misc.h"
-#include "py/nlr.h"
 #include "py/obj.h"
 #include "py/objlist.h"
 #include "py/objexcept.h"

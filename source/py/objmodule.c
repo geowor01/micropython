@@ -28,7 +28,6 @@
 #include <assert.h>
 
 #include "py/mpstate.h"
-#include "py/nlr.h"
 #include "py/objmodule.h"
 #include "py/runtime.h"
 #include "py/builtin.h"

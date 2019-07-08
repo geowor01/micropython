@@ -29,7 +29,6 @@
 
 extern "C" {
 
-#include "py/nlr.h"
 #include "py/obj.h"
 #include "py/mphal.h"
 #include "microbit/modmicrobit.h"

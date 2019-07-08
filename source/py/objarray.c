@@ -29,7 +29,6 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include "py/nlr.h"
 #include "py/runtime0.h"
 #include "py/runtime.h"
 #include "py/binary.h"

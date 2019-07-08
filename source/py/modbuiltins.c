@@ -27,7 +27,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/smallint.h"
 #include "py/objint.h"
 #include "py/objstr.h"

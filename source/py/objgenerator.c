@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include <limits.h>
 #include <assert.h>
 #include "py/mpconfig.h"

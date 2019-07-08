@@ -29,7 +29,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/objfun.h"
 #include "py/runtime0.h"
 #include "py/bc0.h"

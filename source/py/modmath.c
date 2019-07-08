@@ -40,7 +40,7 @@
 /// The `math` module provides some basic mathematical funtions for
 /// working with floating-point numbers.
 
-STATIC NORETURN void math_error(void) {
+STATIC void math_error(void) {
     mp_raise_ValueError("math domain error");
 }
 

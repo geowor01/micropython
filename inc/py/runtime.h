@@ -80,8 +80,8 @@ int mp_print_mp_int(const mp_print_t *print, mp_obj_t x, int base, int base_char
 void mp_arg_check_num(size_t n_args, size_t n_kw, size_t n_args_min, size_t n_args_max, bool takes_kw);
 void mp_arg_parse_all(size_t n_pos, const mp_obj_t *pos, mp_map_t *kws, size_t n_allowed, const mp_arg_t *allowed, mp_arg_val_t *out_vals);
 void mp_arg_parse_all_kw_array(size_t n_pos, size_t n_kw, const mp_obj_t *args, size_t n_allowed, const mp_arg_t *allowed, mp_arg_val_t *out_vals);
-NORETURN void mp_arg_error_terse_mismatch(void);
-NORETURN void mp_arg_error_unimpl_kw(void);
+void mp_arg_error_terse_mismatch(void);
+void mp_arg_error_unimpl_kw(void);
 
 static inline mp_obj_dict_t *mp_locals_get(void) { return MP_STATE_THREAD(dict_locals); }
 static inline void mp_locals_set(mp_obj_dict_t *d) { MP_STATE_THREAD(dict_locals) = d; }

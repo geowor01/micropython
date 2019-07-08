@@ -116,6 +116,7 @@ static mp_obj_t mp_builtin_open(size_t n_args, const mp_obj_t *args) {
     if (n_args == 2) {
         mp_uint_t len;
         const char *mode = mp_obj_str_get_data(args[1], &len);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         for (mp_uint_t i = 0; i < len; i++) {
             if (mode[i] == 'r' || mode[i] == 'w') {
                 if (read >= 0) {
@@ -134,6 +135,7 @@ static mp_obj_t mp_builtin_open(size_t n_args, const mp_obj_t *args) {
     }
     mp_uint_t name_len;
     const char *filename = mp_obj_str_get_data(args[0], &name_len);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     file_descriptor_obj *res = microbit_file_open(filename, name_len, read == 0, text == 0);
     if (res == NULL) {
         mp_raise_msg(&mp_type_OSError, "file not found");

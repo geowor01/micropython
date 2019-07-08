@@ -41,6 +41,7 @@ void love(int interval = 25 /* ms */) {
     microbit_image_obj_t *hearts[MP_ARRAY_SIZE(bright)];
     for (uint i = 0; i < MP_ARRAY_SIZE(bright); i++) {
          hearts[i] = microbit_image_dim(HEART_IMAGE, bright[i]);
+        RETURN_ON_EXCEPTION()
     }
 
     for (int iteration = 0; iteration < 8; iteration++) {

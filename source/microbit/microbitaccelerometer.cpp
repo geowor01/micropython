@@ -98,10 +98,12 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_get_z_obj, microbit_acceleromet
 mp_obj_t microbit_accelerometer_get_values(mp_obj_t self_in) {
     (void)self_in;
     mp_obj_tuple_t *tuple = (mp_obj_tuple_t *)mp_obj_new_tuple(3, NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     Sample3D sample = ubit_accelerometer->getSample();
     tuple->items[0] = mp_obj_new_int(sample.x);
     tuple->items[1] = mp_obj_new_int(sample.y);
     tuple->items[2] = mp_obj_new_int(sample.z);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return tuple;
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_get_values_obj, microbit_accelerometer_get_values);
@@ -123,12 +125,14 @@ STATIC const qstr gesture_name_map[] = {
 
 STATIC uint32_t gesture_from_obj(mp_obj_t gesture_in) {
     qstr gesture = mp_obj_str_get_qstr(gesture_in);
+    RETURN_ON_EXCEPTION(0)
     for (uint i = 0; i < MP_ARRAY_SIZE(gesture_name_map); ++i) {
         if (gesture == gesture_name_map[i]) {
             return i;
         }
     }
-    mp_raise_ValueError("invalid gesture");
+    mp_raise_ValueError_o("invalid gesture");
+    return 0;
 }
 
 mp_obj_t microbit_accelerometer_current_gesture(mp_obj_t self_in) {
@@ -141,6 +145,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_accelerometer_current_gesture_obj, microbit_a
 mp_obj_t microbit_accelerometer_is_gesture(mp_obj_t self_in, mp_obj_t gesture_in) {
     microbit_accelerometer_obj_t *self = (microbit_accelerometer_obj_t*)self_in;
     uint32_t gesture = gesture_from_obj(gesture_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     update(self);
     return mp_obj_new_bool(ubit_accelerometer->getGesture() == gesture);
 }
@@ -149,8 +154,10 @@ MP_DEFINE_CONST_FUN_OBJ_2(microbit_accelerometer_is_gesture_obj, microbit_accele
 mp_obj_t microbit_accelerometer_was_gesture(mp_obj_t self_in, mp_obj_t gesture_in) {
     microbit_accelerometer_obj_t *self = (microbit_accelerometer_obj_t*)self_in;
     uint32_t gesture = gesture_from_obj(gesture_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     update(self);
     mp_obj_t result = mp_obj_new_bool(gesture_state & (1 << gesture));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     gesture_state &= (~(1 << gesture));
     gesture_list_cur = 0;
     return result;
@@ -164,6 +171,7 @@ mp_obj_t microbit_accelerometer_get_gestures(mp_obj_t self_in) {
         return mp_const_empty_tuple;
     }
     mp_obj_tuple_t *o = (mp_obj_tuple_t*)mp_obj_new_tuple(gesture_list_cur, NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     for (uint i = 0; i < gesture_list_cur; ++i) {
         uint gesture = (gesture_list[i >> 1] >> (4 * (i & 1))) & 0x0f;
         o->items[i] = MP_OBJ_NEW_QSTR(gesture_name_map[gesture]);

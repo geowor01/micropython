@@ -64,12 +64,16 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_pin_get_mode_obj, microbit_pin_get_mode_func)
 mp_obj_t microbit_pin_write_digital(mp_obj_t self_in, mp_obj_t value_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
     int val = mp_obj_get_int(value_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (val >> 1) {
-        mp_raise_ValueError("value must be 0 or 1");
+        mp_raise_ValueError_o("value must be 0 or 1");
+        return MP_OBJ_NULL;
     }
     if (microbit_obj_pin_acquire(self, microbit_pin_mode_write_digital)) {
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         nrf_gpio_cfg_output(self->name);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (val)
         nrf_gpio_pin_set(self->name);
     else
@@ -81,8 +85,10 @@ MP_DEFINE_CONST_FUN_OBJ_2(microbit_pin_write_digital_obj, microbit_pin_write_dig
 mp_obj_t microbit_pin_read_digital(mp_obj_t self_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
     if (microbit_obj_pin_acquire(self, microbit_pin_mode_read_digital)) {
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         nrf_gpio_cfg_input(self->name, NRF_GPIO_PIN_PULLDOWN);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_int(nrf_gpio_pin_read(self->name));
 }
 MP_DEFINE_CONST_FUN_OBJ_1(microbit_pin_read_digital_obj, microbit_pin_read_digital);
@@ -93,11 +99,14 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_pin_read_digital_obj, microbit_pin_read_digit
 mp_obj_t microbit_pin_set_pull(mp_obj_t self_in, mp_obj_t pull_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
     int pull = mp_obj_get_int(pull_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (((1 << pull) & SHIFT_PULL_MASK) == 0) {
-        mp_raise_ValueError("invalid pull");
+        mp_raise_ValueError_o("invalid pull");
+        return MP_OBJ_NULL;
     }
     /* Pull only applies in an read digital mode */
     microbit_obj_pin_acquire(self, microbit_pin_mode_read_digital);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     nrf_gpio_cfg_input(self->name, (nrf_gpio_pin_pull_t)pull);
     return mp_const_none;
 }
@@ -111,6 +120,7 @@ mp_obj_t microbit_pin_get_pull(mp_obj_t self_in) {
     /* Pull only applies in an read digital mode (and button mode behaves like that too) */
     if (mode != microbit_pin_mode_read_digital && mode != microbit_pin_mode_button) {
         pinmode_error(self);
+        return MP_OBJ_NULL;
     }
     uint32_t pull = (NRF_GPIO->PIN_CNF[self->name] >> GPIO_PIN_CNF_PULL_Pos) & PULL_MASK;
     return mp_obj_new_int(pull);
@@ -122,19 +132,24 @@ mp_obj_t microbit_pin_write_analog(mp_obj_t self_in, mp_obj_t value_in) {
     int set_value;
     if (mp_obj_is_float(value_in)) {
         mp_float_t val = mp_obj_get_float(value_in);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         set_value = val+0.5;
     } else {
         set_value = mp_obj_get_int(value_in);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     if (set_value < 0 || set_value > MICROBIT_PIN_MAX_OUTPUT) {
-        mp_raise_ValueError("value must be between 0 and 1023");
+        mp_raise_ValueError_o("value must be between 0 and 1023");
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     if (microbit_obj_pin_acquire(self, microbit_pin_mode_write_analog)) {
         nrf_gpio_cfg_output(self->name);
     }
     pwm_set_duty_cycle(self->name, set_value);
-    if (set_value == 0)
+    if (set_value == 0) {
         microbit_obj_pin_acquire(self, microbit_pin_mode_unused);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    }
     return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_2(microbit_pin_write_analog_obj, microbit_pin_write_analog);
@@ -142,6 +157,7 @@ MP_DEFINE_CONST_FUN_OBJ_2(microbit_pin_write_analog_obj, microbit_pin_write_anal
 mp_obj_t microbit_pin_read_analog(mp_obj_t self_in) {
     microbit_pin_obj_t *self = (microbit_pin_obj_t*)self_in;
     microbit_obj_pin_acquire(self, microbit_pin_mode_unused);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     analogin_t obj;
     analogin_init(&obj, (PinName)self->name);
     int val = analogin_read_u16(&obj);
@@ -152,9 +168,12 @@ MP_DEFINE_CONST_FUN_OBJ_1(microbit_pin_read_analog_obj, microbit_pin_read_analog
 
 mp_obj_t microbit_pin_set_analog_period(mp_obj_t self_in, mp_obj_t period_in) {
     (void)self_in;
-    int err = pwm_set_period_us(mp_obj_get_int(period_in)*1000);
+    mp_int_t period = mp_obj_get_int(period_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    int err = pwm_set_period_us(period*1000);
     if (err) {
-        mp_raise_ValueError("invalid period");
+        mp_raise_ValueError_o("invalid period");
+        return MP_OBJ_NULL;
     }
     return mp_const_none;
 }
@@ -164,7 +183,8 @@ mp_obj_t microbit_pin_set_analog_period_microseconds(mp_obj_t self_in, mp_obj_t 
     (void)self_in;
     int err = pwm_set_period_us(mp_obj_get_int(period_in));
     if (err) {
-        mp_raise_ValueError("invalid period");
+        mp_raise_ValueError_o("invalid period");
+        return MP_OBJ_NULL;
     }
     return mp_const_none;
 }
@@ -182,6 +202,7 @@ mp_obj_t microbit_pin_is_touched(mp_obj_t self_in) {
     const microbit_pinmode_t *mode = microbit_pin_get_mode(self);
     if (mode != microbit_pin_mode_touch && mode != microbit_pin_mode_button) {
         microbit_obj_pin_acquire(self, microbit_pin_mode_touch);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         nrf_gpio_cfg_input(self->name, NRF_GPIO_PIN_NOPULL);
     }
     /* Pin is touched if it is low after debouncing */
@@ -305,7 +326,8 @@ const microbit_pin_obj_t *microbit_obj_get_pin(mp_obj_t o) {
     if (type == &microbit_touch_pin_type || type == &microbit_ad_pin_type || type == &microbit_dig_pin_type) {
         return (microbit_pin_obj_t*)o;
     } else {
-        mp_raise_TypeError("expecting a pin");
+        mp_raise_TypeError_o("expecting a pin");
+        return NULL;
     }
 }
 

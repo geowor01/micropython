@@ -90,8 +90,10 @@ STATIC int parse_compile_execute(const void *source, mp_parse_input_kind_t input
                 qstr source_name = lex->source_name;
                 mp_parse_tree_t parse_tree = mp_parse(lex, input_kind);
                 emscripten_sleep(1);
-                module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, exec_flags & EXEC_FLAG_IS_REPL);
-                emscripten_sleep(1);
+                if (MP_STATE_THREAD(cur_exc) == NULL) {
+                    module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, exec_flags & EXEC_FLAG_IS_REPL);
+                    emscripten_sleep(1);
+                }
 
             }
             #else
@@ -159,9 +161,11 @@ STATIC int pyexec_friendly_repl_process_char(int c);
 
 void pyexec_event_repl_init(void) {
     MP_STATE_VM(repl_line) = vstr_new(32);
+    RETURN_ON_EXCEPTION();
     repl.cont_line = false;
     // no prompt before printing friendly REPL banner or entering raw REPL
     readline_init(MP_STATE_VM(repl_line), "");
+    RETURN_ON_EXCEPTION();
     if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
         pyexec_raw_repl_process_char(CHAR_CTRL_A);
     } else {
@@ -204,6 +208,7 @@ STATIC int pyexec_raw_repl_process_char(int c) {
     }
 
     int ret = parse_compile_execute(MP_STATE_VM(repl_line), MP_PARSE_FILE_INPUT, EXEC_FLAG_PRINT_EOF | EXEC_FLAG_SOURCE_IS_VSTR);
+    RETURN_ON_EXCEPTION(-1);
     if (ret & PYEXEC_FORCED_EXIT) {
         return ret;
     }
@@ -217,6 +222,7 @@ reset:
 
 STATIC int pyexec_friendly_repl_process_char(int c) {
     int ret = readline_process_char(c);
+    RETURN_ON_EXCEPTION(-1);
 
     if (!repl.cont_line) {
 
@@ -249,11 +255,14 @@ STATIC int pyexec_friendly_repl_process_char(int c) {
             return 0;
         }
 
-        if (!mp_repl_continue_with_input(vstr_null_terminated_str(MP_STATE_VM(repl_line)))) {
+        char *string = vstr_null_terminated_str(MP_STATE_VM(repl_line));
+        RETURN_ON_EXCEPTION(-1)
+        if (!mp_repl_continue_with_input(string)) {
             goto exec;
         }
 
         vstr_add_byte(MP_STATE_VM(repl_line), '\n');
+        RETURN_ON_EXCEPTION(-1)
         repl.cont_line = true;
         readline_note_newline("... ");
         return 0;
@@ -274,14 +283,18 @@ STATIC int pyexec_friendly_repl_process_char(int c) {
             return 0;
         }
 
-        if (mp_repl_continue_with_input(vstr_null_terminated_str(MP_STATE_VM(repl_line)))) {
+        char *string = vstr_null_terminated_str(MP_STATE_VM(repl_line));
+        RETURN_ON_EXCEPTION(-1)
+        if (mp_repl_continue_with_input(string)) {
             vstr_add_byte(MP_STATE_VM(repl_line), '\n');
+            RETURN_ON_EXCEPTION(-1)
             readline_note_newline("... ");
             return 0;
         }
 
 exec: ;
         int ret = parse_compile_execute(MP_STATE_VM(repl_line), MP_PARSE_SINGLE_INPUT, EXEC_FLAG_ALLOW_DEBUGGING | EXEC_FLAG_IS_REPL | EXEC_FLAG_SOURCE_IS_VSTR);
+        RETURN_ON_EXCEPTION(-1)
         if (ret & PYEXEC_FORCED_EXIT) {
             return ret;
         }
@@ -312,6 +325,7 @@ int pyexec_event_repl_process_char(int c) {
 int pyexec_raw_repl(void) {
     vstr_t line;
     vstr_init(&line, 32);
+    RETURN_ON_EXCEPTION(-1)
 
 raw_repl_reset:
     mp_hal_stdout_tx_str("raw REPL; CTRL-B to exit\r\n");
@@ -339,6 +353,7 @@ raw_repl_reset:
             } else {
                 // let through any other raw 8-bit value
                 vstr_add_byte(&line, c);
+                RETURN_ON_EXCEPTION(-1)
             }
         }
 
@@ -353,6 +368,7 @@ raw_repl_reset:
         }
 
         int ret = parse_compile_execute(&line, MP_PARSE_FILE_INPUT, EXEC_FLAG_PRINT_EOF | EXEC_FLAG_SOURCE_IS_VSTR);
+        RETURN_ON_EXCEPTION(-1)
         if (ret & PYEXEC_FORCED_EXIT) {
             return ret;
         }
@@ -362,11 +378,22 @@ raw_repl_reset:
 int pyexec_friendly_repl(void) {
     vstr_t line;
     vstr_init(&line, 32);
+    RETURN_ON_EXCEPTION(-1)
 
 #if defined(USE_HOST_MODE) && MICROPY_HW_HAS_LCD
     // in host mode, we enable the LCD for the repl
-    mp_obj_t lcd_o = mp_call_function_0(mp_load_name(qstr_from_str("LCD")));
-    mp_call_function_1(mp_load_attr(lcd_o, qstr_from_str("light")), mp_const_true);
+    qstr lcd_q = qstr_from_str("LCD");
+    RETURN_ON_EXCEPTION(-1)
+    mp_obj_t name = mp_load_name(lcd_q);
+    RETURN_ON_EXCEPTION(-1)
+    mp_obj_t lcd_o = mp_call_function_0(name);
+    RETURN_ON_EXCEPTION(-1)
+    qstr light_q = qstr_from_str("light");
+    RETURN_ON_EXCEPTION(-1)
+    mp_obj_t attr = mp_load_attr(lcd_o, light_q);
+    RETURN_ON_EXCEPTION(-1)
+    mp_call_function_1(attr, mp_const_true);
+    RETURN_ON_EXCEPTION(-1)
 #endif
 
 friendly_repl_reset:
@@ -380,12 +407,15 @@ friendly_repl_reset:
 
         #if defined(USE_DEVICE_MODE)
         if (usb_vcp_is_enabled()) {
+            RETURN_ON_EXCEPTION(-1)
             // If the user gets to here and interrupts are disabled then
             // they'll never see the prompt, traceback etc. The USB REPL needs
             // interrupts to be enabled or no transfers occur. So we try to
             // do the user a favor and reenable interrupts.
             if (query_irq() == IRQ_STATE_DISABLED) {
+                RETURN_ON_EXCEPTION(-1)
                 enable_irq(IRQ_STATE_ENABLED);
+                RETURN_ON_EXCEPTION(-1)
                 mp_hal_stdout_tx_str("PYB: enabling IRQs\r\n");
             }
         }
@@ -393,6 +423,7 @@ friendly_repl_reset:
 
         vstr_reset(&line);
         int ret = readline(&line, ">>> ");
+        RETURN_ON_EXCEPTION(-1)
         mp_parse_input_kind_t parse_input_kind = MP_PARSE_SINGLE_INPUT;
 
         if (ret == CHAR_CTRL_A) {
@@ -431,6 +462,7 @@ friendly_repl_reset:
                 } else {
                     // add char to buffer and echo
                     vstr_add_byte(&line, c);
+                    RETURN_ON_EXCEPTION(-1)
                     if (c == '\r') {
                         mp_hal_stdout_tx_str("\r\n=== ");
                     } else {
@@ -443,9 +475,14 @@ friendly_repl_reset:
             continue;
         } else {
             // got a line with non-zero length, see if it needs continuing
-            while (mp_repl_continue_with_input(vstr_null_terminated_str(&line))) {
+            char *string = vstr_null_terminated_str(string);
+            while (mp_repl_continue_with_input()) {
+                RETURN_ON_EXCEPTION(-1)
                 vstr_add_byte(&line, '\n');
+                RETURN_ON_EXCEPTION(-1)
                 ret = readline(&line, "... ");
+                string = vstr_null_terminated_str(&line);
+                RETURN_ON_EXCEPTION(-1)
                 if (ret == CHAR_CTRL_C) {
                     // cancel everything
                     mp_hal_stdout_tx_str("\r\n");
@@ -458,6 +495,7 @@ friendly_repl_reset:
         }
 
         ret = parse_compile_execute(&line, parse_input_kind, EXEC_FLAG_ALLOW_DEBUGGING | EXEC_FLAG_IS_REPL | EXEC_FLAG_SOURCE_IS_VSTR);
+        RETURN_ON_EXCEPTION(-1)
         if (ret & PYEXEC_FORCED_EXIT) {
             return ret;
         }
@@ -475,6 +513,7 @@ int pyexec_file(const char *filename) {
 int pyexec_frozen_module(const char *name) {
     void *frozen_data;
     int frozen_type = mp_find_frozen_module(name, strlen(name), &frozen_data);
+    RETURN_ON_EXCEPTION(-1)
 
     switch (frozen_type) {
         #if MICROPY_MODULE_FROZEN_STR

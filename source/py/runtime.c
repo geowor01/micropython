@@ -1413,6 +1413,7 @@ void *m_malloc_fail(size_t num_bytes) {
     #endif
     nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_MemoryError,
         "memory allocation failed, allocating %u bytes", (uint)num_bytes));
+    return NULL;
 }
 
 mp_obj_t mp_raise_o(mp_obj_t exc) {

@@ -38,18 +38,25 @@
 
 STATIC mp_obj_t time_sleep(mp_obj_t seconds_o) {
     #if MICROPY_PY_BUILTINS_FLOAT
-    mp_hal_delay_ms((mp_uint_t)(1000 * mp_obj_get_float(seconds_o)));
+    mp_float_t o = mp_obj_get_float(seconds_o);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    mp_hal_delay_ms((mp_uint_t)(1000 * o));
     #else
+    mp_int_t o = mp_obj_get_int(seconds_o);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_hal_delay_ms(1000 * mp_obj_get_int(seconds_o));
     #endif
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_1(mp_utime_sleep_obj, time_sleep);
 
 STATIC mp_obj_t time_sleep_ms(mp_obj_t arg) {
     mp_int_t ms = mp_obj_get_int(arg);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL);
     if (ms > 0) {
         mp_hal_delay_ms(ms);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL);
     }
     return mp_const_none;
 }
@@ -57,8 +64,10 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_utime_sleep_ms_obj, time_sleep_ms);
 
 STATIC mp_obj_t time_sleep_us(mp_obj_t arg) {
     mp_int_t us = mp_obj_get_int(arg);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL);
     if (us > 0) {
         mp_hal_delay_us(us);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL);
     }
     return mp_const_none;
 }
@@ -95,6 +104,7 @@ STATIC mp_obj_t time_ticks_add(mp_obj_t ticks_in, mp_obj_t delta_in) {
     // we assume that first argument come from ticks_xx so is small int
     mp_uint_t ticks = MP_OBJ_SMALL_INT_VALUE(ticks_in);
     mp_uint_t delta = mp_obj_get_int(delta_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL);
     return MP_OBJ_NEW_SMALL_INT((ticks + delta) & (MICROPY_PY_UTIME_TICKS_PERIOD - 1));
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_utime_ticks_add_obj, time_ticks_add);

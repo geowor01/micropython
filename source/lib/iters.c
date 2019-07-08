@@ -37,9 +37,12 @@ typedef struct _repeat_iterator_t {
 static mp_obj_t microbit_repeat_iter_next(mp_obj_t iter_in) {
     repeat_iterator_t *iter = (repeat_iterator_t *)iter_in;
     iter->index++;
-    if (iter->index >= mp_obj_get_int(mp_obj_len(iter->iterable))) {
+    mp_obj_t o = mp_obj_len(iter->iterable);mp_obj_len(iter->iterable)
+    RETURN_ON_EXCEPTION(-1)
+    if (iter->index >= mp_obj_get_int(o)) {
         iter->index = 0;
     }
+    RETURN_ON_EXCEPTION(-1)
     return mp_obj_subscr(iter->iterable, MP_OBJ_NEW_SMALL_INT(iter->index), MP_OBJ_SENTINEL);
 }
 
@@ -59,6 +62,7 @@ const mp_obj_type_t microbit_repeat_iterator_type = {
 
 mp_obj_t microbit_repeat_iterator(mp_obj_t iterable) {
     repeat_iterator_t *result = m_new_obj(repeat_iterator_t);
+    RETURN_ON_EXCEPTION(-1)
     result->base.type = &microbit_repeat_iterator_type;
     result->iterable = iterable;
     result->index = -1;

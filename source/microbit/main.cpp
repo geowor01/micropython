@@ -63,6 +63,7 @@ static void microbit_display_exception(mp_obj_t exc_in) {
         vstr_t vstr;
         mp_print_t print;
         vstr_init_print(&vstr, 50, &print);
+        RETURN_ON_EXCEPTION()
         #if MICROPY_ENABLE_SOURCE_LINE
         if (n >= 3) {
             mp_printf(&print, "line %u ", values[1]);
@@ -77,7 +78,9 @@ static void microbit_display_exception(mp_obj_t exc_in) {
         }
         // Allow ctrl-C to stop the scrolling message
         mp_hal_set_interrupt_char(CHAR_CTRL_C);
-        mp_hal_display_string(vstr_null_terminated_str(&vstr));
+        char *string = vstr_null_terminated_str(&vstr);
+        RETURN_ON_EXCEPTION()
+        mp_hal_display_string(string);
         vstr_clear(&vstr);
         mp_hal_set_interrupt_char(-1);
         // This is a variant of mp_handle_pending that swallows exceptions
@@ -99,11 +102,13 @@ static void do_lexer(mp_lexer_t *lex) {
     {
         qstr source_name = lex->source_name;
         mp_parse_tree_t parse_tree = mp_parse(lex, MP_PARSE_FILE_INPUT);
-        mp_obj_t module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, false);
         if (MP_STATE_THREAD(cur_exc) == NULL) {
-            mp_hal_set_interrupt_char(3); // allow ctrl-C to interrupt us
-            mp_call_function_0(module_fun);
-            mp_hal_set_interrupt_char(-1);
+            mp_obj_t module_fun = mp_compile(&parse_tree, source_name, MP_EMIT_OPT_NONE, false);
+            if (MP_STATE_THREAD(cur_exc) == NULL) {
+                mp_hal_set_interrupt_char(3); // allow ctrl-C to interrupt us
+                mp_call_function_0(module_fun);
+                mp_hal_set_interrupt_char(-1);
+            }
         }
         if (MP_STATE_THREAD(cur_exc) != NULL) {
             // uncaught exception

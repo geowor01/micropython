@@ -213,6 +213,7 @@ typedef struct _pt_t {
 
 STATIC pt_t *pt_new(void) {
     pt_t *pt = m_new_obj(pt_t);
+    RETURN_ON_EXCEPTION(NULL)
     vstr_init(&pt->vv, 16);
     return pt;
 }
@@ -427,11 +428,14 @@ void pt_show(const byte *p, const byte *ptop) {
 #endif
 
 STATIC void pt_add_null(pt_t *pt) {
-    *pt_raw_add_blank(pt, 1) = MP_PT_NULL;
+    byte *buf = pt_raw_add_blank(pt, 1);
+    RETURN_ON_EXCEPTION()
+    *buf = MP_PT_NULL;
 }
 
 STATIC void pt_add_kind_byte(pt_t *pt, byte kind, byte b) {
     byte *buf = pt_raw_add_blank(pt, 2);
+    RETURN_ON_EXCEPTION()
     buf[0] = kind;
     buf[1] = b;
 }
@@ -440,11 +444,13 @@ STATIC void pt_add_kind_qstr(pt_t *pt, byte kind, qstr qst) {
     if (kind == MP_PT_ID_BASE) {
         assert((qst >> 12) == 0);
         byte *buf = pt_raw_add_blank(pt, 2);
+        RETURN_ON_EXCEPTION()
         buf[0] = MP_PT_ID_BASE + (qst >> 8);
         buf[1] = qst;
     } else {
         assert((qst >> 16) == 0);
         byte *buf = pt_raw_add_blank(pt, 3);
+        RETURN_ON_EXCEPTION()
         buf[0] = kind;
         buf[1] = qst;
         buf[2] = qst >> 8;
@@ -456,6 +462,7 @@ const byte pt_const_int0[] = {MP_PT_SMALL_INT, 0, 0, 0, 0, 0, 0, 0, 0};
 
 STATIC void pt_add_kind_int(pt_t *pt, byte kind, mp_int_t val) {
     byte *buf = pt_raw_add_blank(pt, 1 + BYTES_PER_WORD);
+    RETURN_ON_EXCEPTION()
     buf[0] = kind;
     for (size_t i = 0; i < BYTES_PER_WORD; ++i) {
         buf[i + 1] = val;
@@ -689,6 +696,7 @@ STATIC bool fold_constants(parser_t *parser, pt_t *pt, size_t pt_off, const rule
 
     pt_raw_truncate_at(pt, pt_off);
     pt_add_kind_int(pt, MP_PT_SMALL_INT, arg0);
+    RETURN_ON_EXCEPTION(false)
 
     return true;
 }
@@ -717,6 +725,7 @@ STATIC void pt_ins_rule(parser_t *parser, pt_t *pt, size_t pt_off, size_t src_li
         // we folded this rule so return straight away
         return;
     }
+    RETURN_ON_EXCEPTION()
     #endif
 
 #if 0
@@ -863,6 +872,7 @@ folding_fail:;
     int nb1 = vuint_nbytes(src_line);
     int nb2 = vuint_nbytes(nbytes);
     byte *dest = (byte*)pt_raw_ins_blank(pt, pt_off, 1 + nb1 + nb2 + extra_node);
+    RETURN_ON_EXCEPTION()
     dest[0] = MP_PT_RULE_BASE + rule->rule_id;
     vuint_store(dest + 1, nb1, src_line);
     vuint_store(dest + 1 + nb1, nb2, nbytes);
@@ -881,12 +891,14 @@ folding_fail:;
 STATIC void make_node_const_object(parser_t *parser, pt_t *pt, mp_obj_t obj) {
     int nb = vuint_nbytes(parser->co_used);
     byte *buf = pt_raw_add_blank(pt, 1 + nb);
+    RETURN_ON_EXCEPTION()
     buf[0] = MP_PT_CONST_OBJECT;
     vuint_store(buf + 1, nb, parser->co_used);
     if (parser->co_used >= parser->co_alloc) {
         // TODO use m_renew_maybe
         size_t alloc = parser->co_alloc + 8;
         parser->co_data = m_renew(mp_uint_t, parser->co_data, parser->co_alloc, alloc);
+        RETURN_ON_EXCEPTION()
         parser->co_alloc = alloc;
     }
     parser->co_data[parser->co_used++] = (mp_uint_t)obj;
@@ -899,6 +911,7 @@ STATIC void make_node_string_bytes(parser_t *parser, pt_t *pt, mp_token_kind_t t
     } else {
         o = mp_obj_new_bytes((const byte*)str, len);
     }
+    RETURN_ON_EXCEPTION()
     make_node_const_object(parser, pt, o);
 }
 
@@ -906,9 +919,11 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
     mp_lexer_t *lex = parser->lexer;
     if (lex->tok_kind == MP_TOKEN_NAME) {
         qstr id = qstr_from_strn(lex->vstr.buf, lex->vstr.len);
+        RETURN_ON_EXCEPTION(false)
         #if MICROPY_COMP_CONST
         // lookup identifier in table of dynamic constants
         mp_map_elem_t *elem = mp_map_lookup(&parser->consts, MP_OBJ_NEW_QSTR(id), MP_MAP_LOOKUP);
+        RETURN_ON_EXCEPTION(false)
         if (elem != NULL) {
             pt_add_kind_int(pt, MP_PT_SMALL_INT, MP_OBJ_SMALL_INT_VALUE(elem->value));
         } else
@@ -916,24 +931,32 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
         {
             pt_add_kind_qstr(pt, MP_PT_ID_BASE, id);
         }
+        RETURN_ON_EXCEPTION(false)
     } else if (lex->tok_kind == MP_TOKEN_INTEGER) {
         mp_obj_t o = mp_parse_num_integer(lex->vstr.buf, lex->vstr.len, 0, lex);
+        RETURN_ON_EXCEPTION(false)
         if (MP_OBJ_IS_SMALL_INT(o)) {
             pt_add_kind_int(pt, MP_PT_SMALL_INT, MP_OBJ_SMALL_INT_VALUE(o));
         } else {
             make_node_const_object(parser, pt, o);
         }
+        RETURN_ON_EXCEPTION(false)
     } else if (lex->tok_kind == MP_TOKEN_FLOAT_OR_IMAG) {
         mp_obj_t o = mp_parse_num_decimal(lex->vstr.buf, lex->vstr.len, true, false, lex);
+        RETURN_ON_EXCEPTION(false)
         make_node_const_object(parser, pt, o);
+        RETURN_ON_EXCEPTION(false)
     } else if (lex->tok_kind == MP_TOKEN_STRING || lex->tok_kind == MP_TOKEN_BYTES) {
         // join adjacent string/bytes literals
         mp_token_kind_t tok_kind = lex->tok_kind;
         vstr_t vstr;
         vstr_init(&vstr, lex->vstr.len);
+        RETURN_ON_EXCEPTION(false)
         do {
             vstr_add_strn(&vstr, lex->vstr.buf, lex->vstr.len);
+            RETURN_ON_EXCEPTION(false)
             mp_lexer_to_next(lex);
+            RETURN_ON_EXCEPTION(false)
         } while (lex->tok_kind == tok_kind);
 
         if (lex->tok_kind == MP_TOKEN_STRING || lex->tok_kind == MP_TOKEN_BYTES) {
@@ -946,6 +969,7 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
         if (vstr.len <= MICROPY_ALLOC_PARSE_INTERN_STRING_LEN) {
             // intern short strings
             qst = qstr_from_strn(vstr.buf, vstr.len);
+            RETURN_ON_EXCEPTION(false)
         } else {
             // check if this string is already interned
             qst = qstr_find_strn(vstr.buf, vstr.len);
@@ -957,12 +981,15 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
             // not interned, make a node holding a pointer to the string/bytes data
             make_node_string_bytes(parser, pt, tok_kind, vstr.buf, vstr.len);
         }
+        RETURN_ON_EXCEPTION(false)
         vstr_clear(&vstr);
         return true;
     } else {
         pt_add_kind_byte(pt, MP_PT_TOKEN, lex->tok_kind);
     }
+    RETURN_ON_EXCEPTION(false)
     mp_lexer_to_next(lex);
+    RETURN_ON_EXCEPTION(false)
     return true;
 }
 
@@ -1013,6 +1040,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
 
     #if MICROPY_COMP_CONST
     mp_map_init(&parser.consts, 0);
+    RETURN_ON_EXCEPTION(parser.tree)
     #endif
 
     // check if we could allocate the stacks
@@ -1037,6 +1065,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
     bool backtrack = false;
     const rule_t *rule = NULL;
     pt_t *pt = pt_new();
+    RETURN_ON_EXCEPTION(parser.tree)
 
     for (;;) {
         next_rule:
@@ -1072,8 +1101,10 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                     if (kind == RULE_ARG_TOK) {
                         if (lex->tok_kind == (rule->arg[i] & RULE_ARG_ARG_MASK)) {
                             if (!pt_add_token(&parser, pt)) {
+                                RETURN_ON_EXCEPTION(parser.tree)
                                 goto syntax_error;
                             }
+                            RETURN_ON_EXCEPTION(parser.tree)
                             goto next_rule;
                         }
                     } else {
@@ -1096,6 +1127,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                     if ((rule->arg[i - 1] & RULE_ARG_KIND_MASK) == RULE_ARG_OPT_RULE) {
                         // an optional rule that failed, so continue with next arg
                         pt_add_null(pt);
+                        RETURN_ON_EXCEPTION(parser.tree)
                         backtrack = false;
                     } else {
                         // a mandatory rule that failed, so propagate backtrack
@@ -1117,12 +1149,17 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                             if (lex->tok_kind == tok_kind) {
                                 // matched token
                                 if (tok_kind == MP_TOKEN_NAME) {
-                                    pt_add_kind_qstr(pt, MP_PT_ID_BASE, qstr_from_strn(lex->vstr.buf, lex->vstr.len));
+                                    qstr q = qstr_from_strn(lex->vstr.buf, lex->vstr.len);
+                                    RETURN_ON_EXCEPTION(parser.tree)
+                                    pt_add_kind_qstr(pt, MP_PT_ID_BASE, q);
+                                    RETURN_ON_EXCEPTION(parser.tree)
                                 }
                                 if (i == 0 && ADD_BLANK_NODE(rule)) {
                                     pt_add_kind_int(pt, MP_PT_SMALL_INT, ++parser.cur_scope_id);
+                                    RETURN_ON_EXCEPTION(parser.tree)
                                 }
                                 mp_lexer_to_next(lex);
+                                RETURN_ON_EXCEPTION(parser.tree)
                             } else {
                                 // failed to match token
                                 if (i > 0) {
@@ -1238,6 +1275,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                     // need to add rule when num_not_null == 0 for, eg, atom_paren, testlist_comp_3b
                     pt_del_tail_bytes(pt, num_trail_null); // remove trailing null nodes, they are store implicitly
                     pt_ins_rule(&parser, pt, pt_off, rule_src_line, rule, i - num_trail_null);
+                    RETURN_ON_EXCEPTION(parser.tree)
                 } else {
                     // single result, leave it on stack
                     const byte *p = (byte*)pt->vv.buf + pt_off;
@@ -1301,6 +1339,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                                     } else {
                                         pt_add_token(&parser, pt);
                                     }
+                                    RETURN_ON_EXCEPTION(parser.tree)
                                     // got element of list, so continue parsing list
                                     i += 1;
                                 } else {
@@ -1335,11 +1374,13 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                     if (had_trailing_sep) {
                         // if there was a trailing separator, make a list of a single item
                         pt_ins_rule(&parser, pt, pt_off, rule_src_line, rule, i);
+                        RETURN_ON_EXCEPTION(parser.tree)
                     } else {
                         // just leave single item on stack (ie don't wrap in a list)
                     }
                 } else {
                     pt_ins_rule(&parser, pt, pt_off, rule_src_line, rule, i);
+                    RETURN_ON_EXCEPTION(parser.tree)
                 }
                 break;
             }
@@ -1407,6 +1448,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
 
         // add number of scopes
         pt_add_kind_int(pt, MP_PT_SMALL_INT, parser.cur_scope_id + 1);
+        RETURN_ON_EXCEPTION(parser.tree)
 
         // get the root parse node that we created
         //assert(parser.result_stack_top == 1);
@@ -1414,6 +1456,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
         parser.tree.root = (byte*)pt->vv.buf;
         parser.tree.co_data = parser.co_data;
     }
+    RETURN_ON_EXCEPTION(parser.tree)
 
     // free the memory that we don't need anymore
     m_del(rule_stack_t, parser.rule_stack, parser.rule_stack_alloc);
@@ -1425,7 +1468,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
         // we don't have a 'block' name, so just pass the NULL qstr to indicate this
         mp_obj_exception_add_traceback(exc, lex->source_name, lex->tok_line, MP_QSTR_NULL);
         mp_lexer_free(lex);
-        nlr_raise(exc);
+        mp_raise_o(exc);
     } else {
         mp_lexer_free(lex);
         return parser.tree;

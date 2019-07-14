@@ -146,6 +146,7 @@ mp_obj_t mp_import_from(mp_obj_t module, qstr name);
 void mp_import_all(mp_obj_t module);
 
 #define RETURN_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { return x; }
+#define GOTO_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { goto x; }
 
 /* raises */
 mp_obj_t mp_raise_o(mp_obj_t exc);

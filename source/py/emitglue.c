@@ -51,6 +51,7 @@ mp_uint_t mp_verbose_flag = 0;
 
 mp_raw_code_t *mp_emit_glue_new_raw_code(void) {
     mp_raw_code_t *rc = m_new0(mp_raw_code_t, 1);
+    RETURN_ON_EXCEPTION(NULL)
     rc->kind = MP_CODE_RESERVED;
     return rc;
 }
@@ -146,10 +147,12 @@ mp_obj_t mp_make_function_from_raw_code(const mp_raw_code_t *rc, mp_obj_t def_ar
             fun = mp_obj_new_fun_bc(def_args, def_kw_args, rc->data.u_byte.bytecode, rc->data.u_byte.const_table);
             break;
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // check for generator functions and if so wrap in generator object
     if ((rc->scope_flags & MP_SCOPE_FLAG_GENERATOR) != 0) {
         fun = mp_obj_new_gen_wrap(fun);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     return fun;
@@ -166,6 +169,7 @@ mp_obj_t mp_make_closure_from_raw_code(const mp_raw_code_t *rc, mp_uint_t n_clos
         // default positional and keyword args not given
         ffun = mp_make_function_from_raw_code(rc, MP_OBJ_NULL, MP_OBJ_NULL);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     // wrap function in closure object
     return mp_obj_new_closure(ffun, n_closed_over & 0xff, args + ((n_closed_over >> 7) & 2));
 }

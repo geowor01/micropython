@@ -1421,7 +1421,7 @@ unwind_loop:
             // TODO: don't set traceback for exceptions re-raised by END_FINALLY.
             // But consider how to handle nested exceptions.
             // TODO need a better way of not adding traceback to constant objects (right now, just GeneratorExit_obj and MemoryError_obj)
-            if (the_exc != &mp_const_GeneratorExit_obj && the_exc != &mp_const_MemoryError_obj) {
+            if (the_exc != &mp_const_GeneratorExit_obj.base && the_exc != &mp_const_MemoryError_obj.base) {
                 const byte *ip = code_state->fun_bc->bytecode;
                 ip = mp_decode_uint_skip(ip); // skip n_state
                 ip = mp_decode_uint_skip(ip); // skip n_exc_stack

@@ -30,6 +30,7 @@
 #include <assert.h>
 
 #include "py/mpconfig.h"
+#include "py/mpstate.h"
 #include "py/misc.h"
 #include "py/mpprint.h"
 
@@ -128,7 +129,7 @@ char *vstr_add_len(vstr_t *vstr, size_t len) {
     if (!vstr_ensure_extra(vstr, len)) {
         return NULL;
     }
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(NULL)
     char *buf = vstr->buf + vstr->len;
     vstr->len += len;
     return buf;
@@ -141,7 +142,7 @@ char *vstr_null_terminated_str(vstr_t *vstr) {
         if (vstr_extend(vstr, 1) == NULL) {
             return NULL;
         }
-        RETURN_ON_EXCEPTION()
+        RETURN_ON_EXCEPTION(NULL)
     }
     vstr->buf[vstr->len] = '\0';
     return vstr->buf;
@@ -232,7 +233,7 @@ char *vstr_ins_blank_bytes(vstr_t *vstr, size_t byte_pos, size_t byte_len) {
         if (!vstr_ensure_extra(vstr, byte_len)) {
             return NULL;
         }
-        RETURN_ON_EXCEPTION()
+        RETURN_ON_EXCEPTION(NULL)
         // copy up the string to make room for the new bytes
         memmove(vstr->buf + byte_pos + byte_len, vstr->buf + byte_pos, l - byte_pos);
         // increase the length

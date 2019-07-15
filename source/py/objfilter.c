@@ -36,10 +36,13 @@ typedef struct _mp_obj_filter_t {
 
 STATIC mp_obj_t filter_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 2, 2, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_filter_t *o = m_new_obj(mp_obj_filter_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     o->fun = args[0];
     o->iter = mp_getiter(args[1], NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return MP_OBJ_FROM_PTR(o);
 }
 
@@ -48,9 +51,11 @@ STATIC mp_obj_t filter_iternext(mp_obj_t self_in) {
     mp_obj_filter_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_t next;
     while ((next = mp_iternext(self->iter)) != MP_OBJ_STOP_ITERATION) {
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         mp_obj_t val;
         if (self->fun != mp_const_none) {
             val = mp_call_function_n_kw(self->fun, 1, 0, &next);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         } else {
             val = next;
         }
@@ -58,6 +63,7 @@ STATIC mp_obj_t filter_iternext(mp_obj_t self_in) {
             return next;
         }
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return MP_OBJ_STOP_ITERATION;
 }
 

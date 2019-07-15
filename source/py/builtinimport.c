@@ -277,8 +277,7 @@ mp_obj_t mp_builtin___import__(size_t n_args, const mp_obj_t *args) {
         if (n_args >= 5) {
             level = MP_OBJ_SMALL_INT_VALUE(args[4]);
             if (level < 0) {
-                mp_raise_ValueError_o(NULL);
-                return MP_OBJ_NULL;
+                return mp_raise_ValueError_o(NULL);
             }
         }
     }

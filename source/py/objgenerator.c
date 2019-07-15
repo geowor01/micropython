@@ -65,12 +65,14 @@ STATIC mp_obj_t gen_wrap_call(mp_obj_t self_in, size_t n_args, size_t n_kw, cons
     // allocate the generator object, with room for local stack and exception stack
     mp_obj_gen_instance_t *o = m_new_obj_var(mp_obj_gen_instance_t, byte,
         n_state * sizeof(mp_obj_t) + n_exc_stack * sizeof(mp_exc_stack_t));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_gen_instance;
 
     o->globals = self_fun->globals;
     o->code_state.fun_bc = self_fun;
     o->code_state.ip = 0;
     mp_setup_code_state(&o->code_state, n_args, n_kw, args);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return MP_OBJ_FROM_PTR(o);
 }
 
@@ -83,6 +85,7 @@ const mp_obj_type_t mp_type_gen_wrap = {
 
 mp_obj_t mp_obj_new_gen_wrap(mp_obj_t fun) {
     mp_obj_gen_wrap_t *o = m_new_obj(mp_obj_gen_wrap_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_gen_wrap;
     o->fun = MP_OBJ_TO_PTR(fun);
     return MP_OBJ_FROM_PTR(o);
@@ -107,7 +110,8 @@ mp_vm_return_kind_t mp_obj_gen_resume(mp_obj_t self_in, mp_obj_t send_value, mp_
     }
     if (self->code_state.sp == self->code_state.state - 1) {
         if (send_value != mp_const_none) {
-            mp_raise_TypeError("can't send non-None value to a just-started generator");
+            mp_raise_TypeError_o("can't send non-None value to a just-started generator");
+            return MP_VM_RETURN_EXCEPTION;
         }
     } else {
         *self->code_state.sp = send_value;
@@ -119,6 +123,7 @@ mp_vm_return_kind_t mp_obj_gen_resume(mp_obj_t self_in, mp_obj_t send_value, mp_
     mp_globals_set(self->globals);
     self->globals = NULL;
     mp_vm_return_kind_t ret_kind = mp_execute_bytecode(&self->code_state, throw_value);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     self->globals = mp_globals_get();
     mp_globals_set(old_globals);
 
@@ -161,13 +166,14 @@ STATIC mp_obj_t gen_resume_and_raise(mp_obj_t self_in, mp_obj_t send_value, mp_o
             if (ret == mp_const_none || ret == MP_OBJ_STOP_ITERATION) {
                 return MP_OBJ_STOP_ITERATION;
             } else {
-                nlr_raise(mp_obj_new_exception_args(&mp_type_StopIteration, 1, &ret));
+                return mp_raise_o(mp_obj_new_exception_args(&mp_type_StopIteration, 1, &ret));
             }
 
         case MP_VM_RETURN_YIELD:
             return ret;
 
         case MP_VM_RETURN_EXCEPTION:
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             // TODO: Optimization of returning MP_OBJ_STOP_ITERATION is really part
             // of mp_iternext() protocol, but this function is called by other methods
             // too, which may not handled MP_OBJ_STOP_ITERATION.
@@ -177,7 +183,7 @@ STATIC mp_obj_t gen_resume_and_raise(mp_obj_t self_in, mp_obj_t send_value, mp_o
                     return MP_OBJ_STOP_ITERATION;
                 }
             }
-            nlr_raise(ret);
+            return mp_raise_o(ret);
     }
 }
 
@@ -187,8 +193,9 @@ STATIC mp_obj_t gen_instance_iternext(mp_obj_t self_in) {
 
 STATIC mp_obj_t gen_instance_send(mp_obj_t self_in, mp_obj_t send_value) {
     mp_obj_t ret = gen_resume_and_raise(self_in, send_value, MP_OBJ_NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (ret == MP_OBJ_STOP_ITERATION) {
-        nlr_raise(mp_obj_new_exception(&mp_type_StopIteration));
+        return mp_raise_o(mp_obj_new_exception(&mp_type_StopIteration));
     } else {
         return ret;
     }
@@ -201,8 +208,9 @@ STATIC mp_obj_t gen_instance_throw(size_t n_args, const mp_obj_t *args) {
     mp_obj_t exc = (n_args == 2) ? args[1] : args[2];
 
     mp_obj_t ret = gen_resume_and_raise(args[0], mp_const_none, exc);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (ret == MP_OBJ_STOP_ITERATION) {
-        nlr_raise(mp_obj_new_exception(&mp_type_StopIteration));
+        return mp_raise_o(mp_obj_new_exception(&mp_type_StopIteration));
     } else {
         return ret;
     }
@@ -214,16 +222,17 @@ STATIC mp_obj_t gen_instance_close(mp_obj_t self_in) {
     mp_obj_t ret;
     switch (mp_obj_gen_resume(self_in, mp_const_none, MP_OBJ_FROM_PTR(&mp_const_GeneratorExit_obj), &ret)) {
         case MP_VM_RETURN_YIELD:
-            mp_raise_msg(&mp_type_RuntimeError, "generator ignored GeneratorExit");
+            return mp_raise_msg_o(&mp_type_RuntimeError, "generator ignored GeneratorExit");
 
         // Swallow StopIteration & GeneratorExit (== successful close), and re-raise any other
         case MP_VM_RETURN_EXCEPTION:
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             // ret should always be an instance of an exception class
             if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(mp_obj_get_type(ret)), MP_OBJ_FROM_PTR(&mp_type_GeneratorExit)) ||
                 mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(mp_obj_get_type(ret)), MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
                 return mp_const_none;
             }
-            nlr_raise(ret);
+            return mp_raise_o(ret);
 
         default:
             // The only choice left is MP_VM_RETURN_NORMAL which is successful close

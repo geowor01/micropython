@@ -263,6 +263,7 @@ STATIC void gc_sweep(void) {
                         // if the object has a type then see if it has a __del__ method
                         mp_obj_t dest[2];
                         mp_load_method_maybe(MP_OBJ_FROM_PTR(obj), MP_QSTR___del__, dest);
+                        RETURN_ON_EXCEPTION()
                         if (dest[0] != MP_OBJ_NULL) {
                             // load_method returned a method, execute it in a protected environment
                             #if MICROPY_ENABLE_SCHEDULER
@@ -421,6 +422,7 @@ void *gc_alloc(size_t n_bytes, bool has_finaliser) {
     if (!collected && MP_STATE_MEM(gc_alloc_amount) >= MP_STATE_MEM(gc_alloc_threshold)) {
         GC_EXIT();
         gc_collect();
+        RETURN_ON_EXCEPTION(NULL)
         GC_ENTER();
     }
     #endif
@@ -443,6 +445,7 @@ void *gc_alloc(size_t n_bytes, bool has_finaliser) {
         }
         DEBUG_printf("gc_alloc(" UINT_FMT "): no free mem, triggering GC\n", n_bytes);
         gc_collect();
+        RETURN_ON_EXCEPTION(NULL)
         collected = 1;
         GC_ENTER();
     }
@@ -747,6 +750,7 @@ void *gc_realloc(void *ptr_in, size_t n_bytes, bool allow_move) {
 
     // can't resize inplace; try to find a new contiguous chain
     void *ptr_out = gc_alloc(n_bytes, ftb_state);
+    RETURN_ON_EXCEPTION(NULL)
 
     // check that the alloc succeeded
     if (ptr_out == NULL) {

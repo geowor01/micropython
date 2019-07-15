@@ -110,6 +110,7 @@ typedef uint32_t mp_float_uint_t;
 STATIC void float_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t kind) {
     (void)kind;
     mp_float_t o_val = mp_obj_float_get(o_in);
+    RETURN_ON_EXCEPTION()
 #if MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_FLOAT
     char buf[16];
     #if MICROPY_OBJ_REPR == MICROPY_OBJ_REPR_C
@@ -132,6 +133,7 @@ STATIC void float_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t 
 STATIC mp_obj_t float_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)type_in;
     mp_arg_check_num(n_args, n_kw, 0, 1, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     switch (n_args) {
         case 0:
@@ -143,19 +145,23 @@ STATIC mp_obj_t float_make_new(const mp_obj_type_t *type_in, size_t n_args, size
                 // a string, parse it
                 size_t l;
                 const char *s = mp_obj_str_get_data(args[0], &l);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 return mp_parse_num_decimal(s, l, false, false, NULL);
             } else if (mp_obj_is_float(args[0])) {
                 // a float, just return it
                 return args[0];
             } else {
                 // something else, try to cast it to a float
-                return mp_obj_new_float(mp_obj_get_float(args[0]));
+                mp_float_t temp = mp_obj_get_float(args[0]);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+                return mp_obj_new_float(temp);
             }
     }
 }
 
 STATIC mp_obj_t float_unary_op(mp_uint_t op, mp_obj_t o_in) {
     mp_float_t val = mp_obj_float_get(o_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     switch (op) {
         case MP_UNARY_OP_BOOL: return mp_obj_new_bool(val != 0);
         case MP_UNARY_OP_HASH: return MP_OBJ_NEW_SMALL_INT(mp_float_hash(val));
@@ -167,6 +173,7 @@ STATIC mp_obj_t float_unary_op(mp_uint_t op, mp_obj_t o_in) {
 
 STATIC mp_obj_t float_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
     mp_float_t lhs_val = mp_obj_float_get(lhs_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 #if MICROPY_PY_BUILTINS_COMPLEX
     if (MP_OBJ_IS_TYPE(rhs_in, &mp_type_complex)) {
         return mp_obj_complex_binary_op(op, lhs_val, 0, rhs_in);
@@ -190,6 +197,7 @@ const mp_obj_type_t mp_type_float = {
 
 mp_obj_t mp_obj_new_float(mp_float_t value) {
     mp_obj_float_t *o = m_new(mp_obj_float_t, 1);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_float;
     o->value = value;
     return MP_OBJ_FROM_PTR(o);
@@ -240,6 +248,7 @@ STATIC void mp_obj_float_divmod(mp_float_t *x, mp_float_t *y) {
 
 mp_obj_t mp_obj_float_binary_op(mp_uint_t op, mp_float_t lhs_val, mp_obj_t rhs_in) {
     mp_float_t rhs_val = mp_obj_get_float(rhs_in); // can be any type, this function will convert to float (if possible)
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     switch (op) {
         case MP_BINARY_OP_ADD:
         case MP_BINARY_OP_INPLACE_ADD: lhs_val += rhs_val; break;
@@ -251,12 +260,13 @@ mp_obj_t mp_obj_float_binary_op(mp_uint_t op, mp_float_t lhs_val, mp_obj_t rhs_i
         case MP_BINARY_OP_INPLACE_FLOOR_DIVIDE:
             if (rhs_val == 0) {
                 zero_division_error:
-                mp_raise_msg(&mp_type_ZeroDivisionError, "division by zero");
+                return mp_raise_msg_o(&mp_type_ZeroDivisionError, "division by zero");
             }
             // Python specs require that x == (x//y)*y + (x%y) so we must
             // call divmod to compute the correct floor division, which
             // returns the floor divide in lhs_val.
             mp_obj_float_divmod(&lhs_val, &rhs_val);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             break;
         case MP_BINARY_OP_TRUE_DIVIDE:
         case MP_BINARY_OP_INPLACE_TRUE_DIVIDE:
@@ -292,10 +302,12 @@ mp_obj_t mp_obj_float_binary_op(mp_uint_t op, mp_float_t lhs_val, mp_obj_t rhs_i
                 goto zero_division_error;
             }
             mp_obj_float_divmod(&lhs_val, &rhs_val);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_obj_t tuple[2] = {
                 mp_obj_new_float(lhs_val),
                 mp_obj_new_float(rhs_val),
             };
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             return mp_obj_new_tuple(2, tuple);
         }
         case MP_BINARY_OP_LESS: return mp_obj_new_bool(lhs_val < rhs_val);

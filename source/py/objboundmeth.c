@@ -64,6 +64,7 @@ mp_obj_t mp_call_method_self_n_kw(mp_obj_t meth, mp_obj_t self, size_t n_args, s
     args2[0] = self;
     memcpy(args2 + 1, args, n_total * sizeof(mp_obj_t));
     mp_obj_t res = mp_call_function_n_kw(meth, n_args + 1, n_kw, args2);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (free_args2 != NULL) {
         m_del(mp_obj_t, free_args2, 1 + n_total);
     }
@@ -102,6 +103,7 @@ STATIC const mp_obj_type_t mp_type_bound_meth = {
 
 mp_obj_t mp_obj_new_bound_meth(mp_obj_t meth, mp_obj_t self) {
     mp_obj_bound_meth_t *o = m_new_obj(mp_obj_bound_meth_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_bound_meth;
     o->meth = meth;
     o->self = self;

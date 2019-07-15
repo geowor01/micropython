@@ -78,6 +78,7 @@ STATIC mp_uint_t get_fmt_num(const char **p) {
         len++;
     }
     mp_uint_t val = (mp_uint_t)MP_OBJ_SMALL_INT_VALUE(mp_parse_num_integer(*p, len, 10, NULL));
+    RETURN_ON_EXCEPTION(val)
     *p = num;
     return val;
 }
@@ -88,6 +89,7 @@ STATIC uint calcsize_items(const char *fmt) {
         int num = 1;
         if (unichar_isdigit(*fmt)) {
             num = get_fmt_num(&fmt);
+            RETURN_ON_EXCEPTION(0)
             if (*fmt == 's') {
                 num = 1;
             }
@@ -100,12 +102,14 @@ STATIC uint calcsize_items(const char *fmt) {
 
 STATIC mp_obj_t struct_calcsize(mp_obj_t fmt_in) {
     const char *fmt = mp_obj_str_get_str(fmt_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     char fmt_type = get_fmt_type(&fmt);
     mp_uint_t size;
     for (size = 0; *fmt; fmt++) {
         mp_uint_t cnt = 1;
         if (unichar_isdigit(*fmt)) {
             cnt = get_fmt_num(&fmt);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
 
         if (*fmt == 's') {
@@ -113,6 +117,7 @@ STATIC mp_obj_t struct_calcsize(mp_obj_t fmt_in) {
         } else {
             mp_uint_t align;
             size_t sz = mp_binary_get_size(fmt_type, *fmt, &align);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             while (cnt--) {
                 // Apply alignment
                 size = (size + align - 1) & ~(align - 1);
@@ -130,11 +135,15 @@ STATIC mp_obj_t struct_unpack_from(size_t n_args, const mp_obj_t *args) {
     // Since we implement unpack and unpack_from using the same function
     // we relax the "exact" requirement, and only implement "big enough".
     const char *fmt = mp_obj_str_get_str(args[0]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     char fmt_type = get_fmt_type(&fmt);
     uint num_items = calcsize_items(fmt);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_tuple_t *res = MP_OBJ_TO_PTR(mp_obj_new_tuple(num_items, NULL));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_READ);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     byte *p = bufinfo.buf;
     byte *end_p = &p[bufinfo.len];
     mp_int_t offset = 0;
@@ -142,11 +151,12 @@ STATIC mp_obj_t struct_unpack_from(size_t n_args, const mp_obj_t *args) {
     if (n_args > 2) {
         // offset arg provided
         offset = mp_obj_get_int(args[2]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (offset < 0) {
             // negative offsets are relative to the end of the buffer
             offset = bufinfo.len + offset;
             if (offset < 0) {
-                mp_raise_ValueError("buffer too small");
+                return mp_raise_ValueError_o("buffer too small");
             }
         }
         p += offset;
@@ -156,18 +166,21 @@ STATIC mp_obj_t struct_unpack_from(size_t n_args, const mp_obj_t *args) {
         mp_uint_t sz = 1;
         if (unichar_isdigit(*fmt)) {
             sz = get_fmt_num(&fmt);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
         if (p + sz > end_p) {
-            mp_raise_ValueError("buffer too small");
+            return mp_raise_ValueError_o("buffer too small");
         }
         mp_obj_t item;
         if (*fmt == 's') {
             item = mp_obj_new_bytes(p, sz);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             p += sz;
             res->items[i++] = item;
         } else {
             while (sz--) {
                 item = mp_binary_get_val(fmt_type, *fmt, &p);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 res->items[i++] = item;
             }
         }
@@ -179,6 +192,7 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(struct_unpack_from_obj, 2, 3, struct_unpack_
 
 STATIC void struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, size_t n_args, const mp_obj_t *args) {
     const char *fmt = mp_obj_str_get_str(fmt_in);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     char fmt_type = get_fmt_type(&fmt);
 
     size_t i;
@@ -190,14 +204,16 @@ STATIC void struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, siz
         }
         if (unichar_isdigit(*fmt)) {
             sz = get_fmt_num(&fmt);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
         if (p + sz > end_p) {
-            mp_raise_ValueError("buffer too small");
+            return mp_raise_ValueError_o("buffer too small");
         }
 
         if (*fmt == 's') {
             mp_buffer_info_t bufinfo;
             mp_get_buffer_raise(args[i++], &bufinfo, MP_BUFFER_READ);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_uint_t to_copy = sz;
             if (bufinfo.len < to_copy) {
                 to_copy = bufinfo.len;
@@ -208,6 +224,7 @@ STATIC void struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, siz
         } else {
             while (sz--) {
                 mp_binary_set_val(fmt_type, *fmt, args[i++], &p);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             }
         }
         fmt++;
@@ -217,12 +234,15 @@ STATIC void struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, siz
 STATIC mp_obj_t struct_pack(size_t n_args, const mp_obj_t *args) {
     // TODO: "The arguments must match the values required by the format exactly."
     mp_int_t size = MP_OBJ_SMALL_INT_VALUE(struct_calcsize(args[0]));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     vstr_t vstr;
     vstr_init_len(&vstr, size);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     byte *p = (byte*)vstr.buf;
     memset(p, 0, size);
     byte *end_p = &p[size];
     struct_pack_into_internal(args[0], p, end_p, n_args - 1, &args[1]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(struct_pack_obj, 1, MP_OBJ_FUN_ARGS_MAX, struct_pack);
@@ -230,12 +250,14 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(struct_pack_obj, 1, MP_OBJ_FUN_ARGS_MAX, str
 STATIC mp_obj_t struct_pack_into(size_t n_args, const mp_obj_t *args) {
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(args[1], &bufinfo, MP_BUFFER_WRITE);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_int_t offset = mp_obj_get_int(args[2]);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (offset < 0) {
         // negative offsets are relative to the end of the buffer
         offset = (mp_int_t)bufinfo.len + offset;
         if (offset < 0) {
-            mp_raise_ValueError("buffer too small");
+            return mp_raise_ValueError_o("buffer too small");
         }
     }
     byte *p = (byte *)bufinfo.buf;

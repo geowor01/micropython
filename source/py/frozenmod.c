@@ -69,7 +69,9 @@ STATIC mp_lexer_t *mp_lexer_frozen_str(const char *str, size_t len) {
     }
 
     qstr source = qstr_from_strn(str, name_len);
+    RETURN_ON_EXCEPTION(NULL)
     mp_lexer_t *lex = MICROPY_MODULE_FROZEN_LEXER(source, content, len, 0);
+    RETURN_ON_EXCEPTION(NULL)
     return lex;
 }
 
@@ -138,6 +140,7 @@ mp_import_stat_t mp_frozen_stat(const char *str) {
 int mp_find_frozen_module(const char *str, size_t len, void **data) {
     #if MICROPY_MODULE_FROZEN_STR
     mp_lexer_t *lex = mp_lexer_frozen_str(str, len);
+    RETURN_ON_EXCEPTION(MP_FROZEN_NONE)
     if (lex != NULL) {
         *data = lex;
         return MP_FROZEN_STR;

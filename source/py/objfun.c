@@ -54,6 +54,7 @@ STATIC mp_obj_t fun_builtin_0_call(mp_obj_t self_in, size_t n_args, size_t n_kw,
     assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_0));
     mp_obj_fun_builtin_fixed0_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return self->fun();
 }
 
@@ -68,6 +69,7 @@ STATIC mp_obj_t fun_builtin_1_call(mp_obj_t self_in, size_t n_args, size_t n_kw,
     assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_1));
     mp_obj_fun_builtin_fixed1_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 1, 1, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return self->fun(args[0]);
 }
 
@@ -82,6 +84,7 @@ STATIC mp_obj_t fun_builtin_2_call(mp_obj_t self_in, size_t n_args, size_t n_kw,
     assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_2));
     mp_obj_fun_builtin_fixed2_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 2, 2, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return self->fun(args[0], args[1]);
 }
 
@@ -96,6 +99,7 @@ STATIC mp_obj_t fun_builtin_3_call(mp_obj_t self_in, size_t n_args, size_t n_kw,
     assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_3));
     mp_obj_fun_builtin_fixed3_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 3, 3, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     return self->fun(args[0], args[1], args[2]);
 }
 
@@ -112,6 +116,7 @@ STATIC mp_obj_t fun_builtin_var_call(mp_obj_t self_in, size_t n_args, size_t n_k
 
     // check number of arguments
     mp_arg_check_num(n_args, n_kw, self->n_args_min, self->n_args_max, self->is_kw);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     if (self->is_kw) {
         // function allows keywords
@@ -202,6 +207,7 @@ STATIC void dump_args(const mp_obj_t *a, size_t sz) {
 #if MICROPY_STACKLESS
 mp_code_state_t *mp_obj_fun_bc_prepare_codestate(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     MP_STACK_CHECK();
+    RETURN_ON_EXCEPTION(NULL)
     mp_obj_fun_bc_t *self = MP_OBJ_TO_PTR(self_in);
 
     // bytecode prelude: state size and exception stack size
@@ -219,6 +225,7 @@ mp_code_state_t *mp_obj_fun_bc_prepare_codestate(mp_obj_t self_in, size_t n_args
     code_state->fun_bc = self;
     code_state->ip = 0;
     mp_setup_code_state(code_state, n_args, n_kw, args);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // execute the byte code with the correct globals context
     code_state->old_globals = mp_globals_get();
@@ -230,6 +237,7 @@ mp_code_state_t *mp_obj_fun_bc_prepare_codestate(mp_obj_t self_in, size_t n_args
 
 STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     MP_STACK_CHECK();
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     DEBUG_printf("Input n_args: " UINT_FMT ", n_kw: " UINT_FMT "\n", n_args, n_kw);
     DEBUG_printf("Input pos args: ");
@@ -261,11 +269,13 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
     code_state->fun_bc = self;
     code_state->ip = 0;
     mp_setup_code_state(code_state, n_args, n_kw, args);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     // execute the byte code with the correct globals context
     code_state->old_globals = mp_globals_get();
     mp_globals_set(self->globals);
     mp_vm_return_kind_t vm_return_kind = mp_execute_bytecode(code_state, MP_OBJ_NULL);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_globals_set(code_state->old_globals);
 
 #if VM_DETECT_STACK_OVERFLOW
@@ -313,7 +323,7 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
     if (vm_return_kind == MP_VM_RETURN_NORMAL) {
         return result;
     } else { // MP_VM_RETURN_EXCEPTION
-        nlr_raise(result);
+        return mp_raise_o(result);
     }
 }
 
@@ -355,6 +365,7 @@ mp_obj_t mp_obj_new_fun_bc(mp_obj_t def_args_in, mp_obj_t def_kw_args, const byt
         n_extra_args += 1;
     }
     mp_obj_fun_bc_t *o = m_new_obj_var(mp_obj_fun_bc_t, mp_obj_t, n_extra_args);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_fun_bc;
     o->globals = mp_globals_get();
     o->bytecode = code;
@@ -375,6 +386,7 @@ mp_obj_t mp_obj_new_fun_bc(mp_obj_t def_args_in, mp_obj_t def_kw_args, const byt
 
 STATIC mp_obj_t fun_native_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     MP_STACK_CHECK();
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_fun_bc_t *self = self_in;
     mp_call_fun_t fun = MICROPY_MAKE_POINTER_CALLABLE((void*)self->bytecode);
     return fun(self_in, n_args, n_kw, args);
@@ -389,6 +401,7 @@ STATIC const mp_obj_type_t mp_type_fun_native = {
 
 mp_obj_t mp_obj_new_fun_native(mp_obj_t def_args_in, mp_obj_t def_kw_args, const void *fun_data, const mp_uint_t *const_table) {
     mp_obj_fun_bc_t *o = mp_obj_new_fun_bc(def_args_in, def_kw_args, (const byte*)fun_data, const_table);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_fun_native;
     return o;
 }
@@ -417,6 +430,7 @@ STATIC mp_obj_t fun_viper_call(mp_obj_t self_in, size_t n_args, size_t n_kw, con
     mp_obj_fun_viper_t *self = self_in;
 
     mp_arg_check_num(n_args, n_kw, self->n_args, self->n_args, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     void *fun = MICROPY_MAKE_POINTER_CALLABLE(self->fun_data);
 
@@ -439,6 +453,7 @@ STATIC mp_obj_t fun_viper_call(mp_obj_t self_in, size_t n_args, size_t n_kw, con
             mp_convert_obj_to_native(args[3], self->type_sig >> 16)
         );
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     return mp_convert_native_to_obj(ret, self->type_sig);
 }
@@ -452,6 +467,7 @@ STATIC const mp_obj_type_t mp_type_fun_viper = {
 
 mp_obj_t mp_obj_new_fun_viper(size_t n_args, void *fun_data, mp_uint_t type_sig) {
     mp_obj_fun_viper_t *o = m_new_obj(mp_obj_fun_viper_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_fun_viper;
     o->n_args = n_args;
     o->fun_data = fun_data;
@@ -509,13 +525,16 @@ STATIC mp_uint_t convert_obj_for_inline_asm(mp_obj_t obj) {
             size_t len;
             mp_obj_t *items;
             mp_obj_get_array(obj, &len, &items);
+            RETURN_ON_EXCEPTION(0)
             return (mp_uint_t)items;
         } else {
             mp_buffer_info_t bufinfo;
             if (mp_get_buffer(obj, &bufinfo, MP_BUFFER_WRITE)) {
+                RETURN_ON_EXCEPTION(0)
                 // supports the buffer protocol, return a pointer to the data
                 return (mp_uint_t)bufinfo.buf;
             } else {
+                RETURN_ON_EXCEPTION(0)
                 // just pass along a pointer to the object
                 return (mp_uint_t)obj;
             }
@@ -527,6 +546,7 @@ STATIC mp_obj_t fun_asm_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const
     mp_obj_fun_asm_t *self = self_in;
 
     mp_arg_check_num(n_args, n_kw, self->n_args, self->n_args, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     void *fun = MICROPY_MAKE_POINTER_CALLABLE(self->fun_data);
 
@@ -549,6 +569,7 @@ STATIC mp_obj_t fun_asm_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const
             convert_obj_for_inline_asm(args[3])
         );
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     return mp_convert_native_to_obj(ret, self->type_sig);
 }
@@ -562,6 +583,7 @@ STATIC const mp_obj_type_t mp_type_fun_asm = {
 
 mp_obj_t mp_obj_new_fun_asm(size_t n_args, void *fun_data, mp_uint_t type_sig) {
     mp_obj_fun_asm_t *o = m_new_obj(mp_obj_fun_asm_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_fun_asm;
     o->n_args = n_args;
     o->fun_data = fun_data;

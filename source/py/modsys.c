@@ -104,7 +104,7 @@ STATIC mp_obj_t mp_sys_exit(size_t n_args, const mp_obj_t *args) {
     } else {
         exc = mp_obj_new_exception_arg1(&mp_type_SystemExit, args[0]);
     }
-    nlr_raise(exc);
+    return mp_raise_o(exc);
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_sys_exit_obj, 0, 1, mp_sys_exit);
 
@@ -130,6 +130,7 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_sys_print_exception_obj, 1, 2, mp_sys_pri
 STATIC mp_obj_t mp_sys_exc_info(void) {
     mp_obj_t cur_exc = MP_OBJ_FROM_PTR(MP_STATE_VM(cur_exception));
     mp_obj_tuple_t *t = MP_OBJ_TO_PTR(mp_obj_new_tuple(3, NULL));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     if (cur_exc == MP_OBJ_NULL) {
         t->items[0] = mp_const_none;

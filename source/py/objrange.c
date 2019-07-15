@@ -92,21 +92,27 @@ STATIC void range_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind
 
 STATIC mp_obj_t range_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 1, 3, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     mp_obj_range_t *o = m_new_obj(mp_obj_range_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     o->start = 0;
     o->step = 1;
 
     if (n_args == 1) {
         o->stop = mp_obj_get_int(args[0]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     } else {
         o->start = mp_obj_get_int(args[0]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         o->stop = mp_obj_get_int(args[1]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (n_args == 3) {
             o->step = mp_obj_get_int(args[2]);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             if (o->step == 0) {
-                mp_raise_ValueError("zero step");
+                return mp_raise_ValueError_o("zero step");
             }
         }
     }
@@ -148,7 +154,9 @@ STATIC mp_obj_t range_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
         if (MP_OBJ_IS_TYPE(index, &mp_type_slice)) {
             mp_bound_slice_t slice;
             mp_seq_get_fast_slice_indexes(len, index, &slice);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             mp_obj_range_t *o = m_new_obj(mp_obj_range_t);
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             o->base.type = &mp_type_range;
             o->start = self->start + slice.start * self->step;
             o->stop = self->start + slice.stop * self->step;
@@ -161,6 +169,7 @@ STATIC mp_obj_t range_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
         }
 #endif
         size_t index_val = mp_get_index(self->base.type, len, index, false);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         return MP_OBJ_NEW_SMALL_INT(self->start + index_val * self->step);
     } else {
         return MP_OBJ_NULL; // op not supported
@@ -187,6 +196,7 @@ STATIC void range_attr(mp_obj_t o_in, qstr attr, mp_obj_t *dest) {
     } else if (attr == MP_QSTR_step) {
         dest[0] = mp_obj_new_int(o->step);
     }
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 }
 #endif
 

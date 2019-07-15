@@ -38,12 +38,15 @@ typedef struct _mp_obj_zip_t {
 
 STATIC mp_obj_t zip_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, MP_OBJ_FUN_ARGS_MAX, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     mp_obj_zip_t *o = m_new_obj_var(mp_obj_zip_t, mp_obj_t, n_args);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = type;
     o->n_iters = n_args;
     for (size_t i = 0; i < n_args; i++) {
         o->iters[i] = mp_getiter(args[i], NULL);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     return MP_OBJ_FROM_PTR(o);
 }
@@ -55,9 +58,11 @@ STATIC mp_obj_t zip_iternext(mp_obj_t self_in) {
         return MP_OBJ_STOP_ITERATION;
     }
     mp_obj_tuple_t *tuple = MP_OBJ_TO_PTR(mp_obj_new_tuple(self->n_iters, NULL));
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     for (size_t i = 0; i < self->n_iters; i++) {
         mp_obj_t next = mp_iternext(self->iters[i]);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         if (next == MP_OBJ_STOP_ITERATION) {
             mp_obj_tuple_del(MP_OBJ_FROM_PTR(tuple));
             return MP_OBJ_STOP_ITERATION;

@@ -144,13 +144,13 @@ void mp_arg_parse_all_kw_array(size_t n_pos, size_t n_kw, const mp_obj_t *args, 
 }
 
 #if MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE || _MSC_VER
-void mp_arg_error_terse_mismatch(void) {
-    mp_raise_TypeError_o("argument num/types mismatch");
+mp_obj_t mp_arg_error_terse_mismatch(void) {
+    return mp_raise_TypeError_o("argument num/types mismatch");
 }
 #endif
 
 #if MICROPY_CPYTHON_COMPAT
-void mp_arg_error_unimpl_kw(void) {
-    mp_raise_NotImplementedError_o("keyword argument(s) not yet implemented - use normal args instead");
+mp_obj_t mp_arg_error_unimpl_kw(void) {
+    return mp_raise_NotImplementedError_o("keyword argument(s) not yet implemented - use normal args instead");
 }
 #endif

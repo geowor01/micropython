@@ -1164,6 +1164,7 @@ mp_obj_t mp_iternext_allow_raise(mp_obj_t o_in) {
 // may raise other exceptions
 mp_obj_t mp_iternext(mp_obj_t o_in) {
     MP_STACK_CHECK(); // enumerate, filter, map and zip can recursively call mp_iternext
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     mp_obj_type_t *type = mp_obj_get_type(o_in);
     if (type->iternext != NULL) {
         return type->iternext(o_in);
@@ -1419,7 +1420,10 @@ void *m_malloc_fail(size_t num_bytes) {
 mp_obj_t mp_raise_o(mp_obj_t exc) {
     // don't overwrite an existing exception
     if (MP_STATE_THREAD(cur_exc) == NULL) {
-        MP_STATE_THREAD(cur_exc) = MP_OBJ_TO_PTR(exc);
+        if (exc == MP_OBJ_NULL || exc )
+             MP_STATE_THREAD(cur_exc) = (void *)2;
+        else
+            MP_STATE_THREAD(cur_exc) = MP_OBJ_TO_PTR(exc);
     }
     return MP_OBJ_NULL;
 }

@@ -75,6 +75,7 @@ STATIC void complex_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_
 STATIC mp_obj_t complex_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)type_in;
     mp_arg_check_num(n_args, n_kw, 0, 2, false);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     switch (n_args) {
         case 0:
@@ -85,13 +86,16 @@ STATIC mp_obj_t complex_make_new(const mp_obj_type_t *type_in, size_t n_args, si
                 // a string, parse it
                 size_t l;
                 const char *s = mp_obj_str_get_data(args[0], &l);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 return mp_parse_num_decimal(s, l, true, true, NULL);
             } else if (MP_OBJ_IS_TYPE(args[0], &mp_type_complex)) {
                 // a complex, just return it
                 return args[0];
             } else {
                 // something else, try to cast it to a complex
-                return mp_obj_new_complex(mp_obj_get_float(args[0]), 0);
+                mp_float_t temp = mp_obj_get_float(args[0]);
+                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+                return mp_obj_new_complex(temp, 0);
             }
 
         case 2:
@@ -103,6 +107,7 @@ STATIC mp_obj_t complex_make_new(const mp_obj_type_t *type_in, size_t n_args, si
                 real = mp_obj_get_float(args[0]);
                 imag = 0;
             }
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             if (MP_OBJ_IS_TYPE(args[1], &mp_type_complex)) {
                 mp_float_t real2, imag2;
                 mp_obj_complex_get(args[1], &real2, &imag2);
@@ -111,6 +116,7 @@ STATIC mp_obj_t complex_make_new(const mp_obj_type_t *type_in, size_t n_args, si
             } else {
                 imag += mp_obj_get_float(args[1]);
             }
+            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             return mp_obj_new_complex(real, imag);
         }
     }
@@ -157,6 +163,7 @@ const mp_obj_type_t mp_type_complex = {
 
 mp_obj_t mp_obj_new_complex(mp_float_t real, mp_float_t imag) {
     mp_obj_complex_t *o = m_new_obj(mp_obj_complex_t);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     o->base.type = &mp_type_complex;
     o->real = real;
     o->imag = imag;
@@ -173,6 +180,7 @@ void mp_obj_complex_get(mp_obj_t self_in, mp_float_t *real, mp_float_t *imag) {
 mp_obj_t mp_obj_complex_binary_op(mp_uint_t op, mp_float_t lhs_real, mp_float_t lhs_imag, mp_obj_t rhs_in) {
     mp_float_t rhs_real, rhs_imag;
     mp_obj_get_complex(rhs_in, &rhs_real, &rhs_imag); // can be any type, this function will convert to float (if possible)
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     switch (op) {
         case MP_BINARY_OP_ADD:
         case MP_BINARY_OP_INPLACE_ADD:
@@ -195,13 +203,13 @@ mp_obj_t mp_obj_complex_binary_op(mp_uint_t op, mp_float_t lhs_real, mp_float_t 
         }
         case MP_BINARY_OP_FLOOR_DIVIDE:
         case MP_BINARY_OP_INPLACE_FLOOR_DIVIDE:
-            mp_raise_TypeError("can't do truncated division of a complex number");
+            return mp_raise_TypeError_o("can't do truncated division of a complex number");
 
         case MP_BINARY_OP_TRUE_DIVIDE:
         case MP_BINARY_OP_INPLACE_TRUE_DIVIDE:
             if (rhs_imag == 0) {
                 if (rhs_real == 0) {
-                    mp_raise_msg(&mp_type_ZeroDivisionError, "complex division by zero");
+                    return mp_raise_msg_o(&mp_type_ZeroDivisionError, "complex division by zero");
                 }
                 lhs_real /= rhs_real;
                 lhs_imag /= rhs_real;
@@ -229,7 +237,7 @@ mp_obj_t mp_obj_complex_binary_op(mp_uint_t op, mp_float_t lhs_real, mp_float_t 
                 if (rhs_imag == 0 && rhs_real >= 0) {
                     lhs_real = (rhs_real == 0);
                 } else {
-                    mp_raise_msg(&mp_type_ZeroDivisionError, "0.0 to a complex power");
+                    return mp_raise_msg_o(&mp_type_ZeroDivisionError, "0.0 to a complex power");
                 }
             } else {
                 mp_float_t ln1 = MICROPY_FLOAT_C_FUN(log)(abs1);

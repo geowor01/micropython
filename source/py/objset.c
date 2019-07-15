@@ -481,12 +481,12 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(set_symmetric_difference_obj, set_symmetric_dif
 
 STATIC void set_update_int(mp_obj_set_t *self, mp_obj_t other_in) {
     mp_obj_t iter = mp_getiter(other_in, NULL);
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION()
     mp_obj_t next;
     while ((next = mp_iternext(iter)) != MP_OBJ_STOP_ITERATION) {
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_ON_EXCEPTION()
         mp_set_lookup(&self->set, next, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_ON_EXCEPTION()
     }
 }
 
@@ -664,7 +664,7 @@ mp_obj_t mp_obj_new_set(size_t n_args, mp_obj_t *items) {
 
 void mp_obj_set_store(mp_obj_t self_in, mp_obj_t item) {
     mp_check_self(MP_OBJ_IS_TYPE(self_in, &mp_type_set));
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION()
     mp_obj_set_t *self = MP_OBJ_TO_PTR(self_in);
     mp_set_lookup(&self->set, item, MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
 }

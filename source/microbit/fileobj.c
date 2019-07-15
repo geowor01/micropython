@@ -138,10 +138,10 @@ static mp_obj_t mp_builtin_open(size_t n_args, const mp_obj_t *args) {
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     file_descriptor_obj *res = microbit_file_open(filename, name_len, read == 0, text == 0);
     if (res == NULL) {
-        mp_raise_msg(&mp_type_OSError, "file not found");
+        return mp_raise_msg_o(&mp_type_OSError, "file not found");
     }
     return res;
 mode_error:
-    mp_raise_ValueError("illegal mode");
+    return mp_raise_ValueError_o("illegal mode");
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_builtin_open_obj, 1, 2, mp_builtin_open);

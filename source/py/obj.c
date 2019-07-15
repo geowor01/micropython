@@ -232,11 +232,12 @@ mp_int_t mp_obj_get_int(mp_const_obj_t arg) {
         return mp_obj_int_get_checked(arg);
     } else {
         if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-            return mp_raise_TypeError_o("can't convert to int");
+            mp_raise_TypeError_o("can't convert to int");
         } else {
-            return mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+            mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
                 "can't convert %s to int", mp_obj_get_type_str(arg)));
         }
+        return 0;
     }
 }
 
@@ -282,11 +283,12 @@ mp_float_t mp_obj_get_float(mp_obj_t arg) {
         return mp_obj_float_get(arg);
     } else {
         if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-            return mp_raise_TypeError_o("can't convert to float");
+            mp_raise_TypeError_o("can't convert to float");
         } else {
-            return mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+            mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
                 "can't convert %s to float", mp_obj_get_type_str(arg)));
         }
+        return 0;
     }
 }
 
@@ -315,11 +317,12 @@ void mp_obj_get_complex(mp_obj_t arg, mp_float_t *real, mp_float_t *imag) {
         mp_obj_complex_get(arg, real, imag);
     } else {
         if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-            return mp_raise_TypeError_o("can't convert to complex");
+            mp_raise_TypeError_o("can't convert to complex");
         } else {
-            return mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+            mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
                 "can't convert %s to complex", mp_obj_get_type_str(arg)));
         }
+        return;
     }
 }
 #endif
@@ -333,11 +336,12 @@ void mp_obj_get_array(mp_obj_t o, size_t *len, mp_obj_t **items) {
         mp_obj_list_get(o, len, items);
     } else {
         if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-            return mp_raise_TypeError_o("expected tuple/list");
+            mp_raise_TypeError_o("expected tuple/list");
         } else {
-            return mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
+            mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_TypeError,
                 "object '%s' is not a tuple or list", mp_obj_get_type_str(o)));
         }
+        return;
     }
 }
 
@@ -347,11 +351,12 @@ void mp_obj_get_array_fixed_n(mp_obj_t o, size_t len, mp_obj_t **items) {
     mp_obj_get_array(o, &seq_len, items);
     if (seq_len != len) {
         if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
-            return mp_raise_ValueError_o("tuple/list has wrong length");
+            mp_raise_ValueError_o("tuple/list has wrong length");
         } else {
-            return mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
+            mp_raise_o(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
                 "requested length %d but object has length %d", (int)len, (int)seq_len));
         }
+        return;
     }
 }
 
@@ -361,7 +366,7 @@ size_t mp_get_index(const mp_obj_type_t *type, size_t len, mp_obj_t index, bool 
     if (MP_OBJ_IS_SMALL_INT(index)) {
         i = MP_OBJ_SMALL_INT_VALUE(index);
     } else if (!mp_obj_get_int_maybe(index, &i)) {
-        RETURN_ON_EXCEPTION()
+        RETURN_ON_EXCEPTION(0)
         if (MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_TERSE) {
             mp_raise_TypeError_o("indices must be integers");
         } else {

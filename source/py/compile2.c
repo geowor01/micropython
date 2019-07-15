@@ -2860,7 +2860,7 @@ STATIC void compile_scope_func_lambda_param(compiler_t *comp, const byte *p, pn_
     if (param_name != MP_QSTR_NULL) {
         bool added;
         id_info_t *id_info = scope_find_or_add_id(comp->scope_cur, param_name, &added);
-        RETURN_ON_EXCEPTION(NULL)
+        RETURN_ON_EXCEPTION()
         if (!added) {
             compile_syntax_error(comp, p, "name reused for argument");
             return;
@@ -3678,6 +3678,7 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
 
     if (comp->compile_error != MP_OBJ_NULL) {
         mp_raise_o(comp->compile_error);
+        return NULL;
     } else {
         return outer_raw_code;
     }

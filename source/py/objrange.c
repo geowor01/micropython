@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 
 #include "py/runtime0.h"
@@ -196,7 +197,7 @@ STATIC void range_attr(mp_obj_t o_in, qstr attr, mp_obj_t *dest) {
     } else if (attr == MP_QSTR_step) {
         dest[0] = mp_obj_new_int(o->step);
     }
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION()
 }
 #endif
 

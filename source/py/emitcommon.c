@@ -27,6 +27,7 @@
 #include <assert.h>
 
 #include "py/emit.h"
+#include "py/mpstate.h"
 
 #if MICROPY_ENABLE_COMPILER
 

@@ -26,6 +26,7 @@
 
 #include <assert.h>
 
+#include "py/mpstate.h"
 #include "py/scope.h"
 
 #if MICROPY_ENABLE_COMPILER

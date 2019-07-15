@@ -1376,7 +1376,7 @@ mp_obj_t mp_make_raise_obj(mp_obj_t o) {
         return o;
     } else {
         // o cannot be used as an exception, so return a type error (which will be raised by the caller)
-        return mp_obj_new_exception_msg_o(&mp_type_TypeError, "exceptions must derive from BaseException");
+        return mp_obj_new_exception_msg(&mp_type_TypeError, "exceptions must derive from BaseException");
     }
 }
 

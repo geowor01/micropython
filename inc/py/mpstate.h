@@ -242,4 +242,6 @@ extern mp_state_thread_t *mp_thread_get_state(void);
 #define MP_STATE_THREAD(x) (mp_state_ctx.thread.x)
 #endif
 
+#define RETURN_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { return x; }
+
 #endif // MICROPY_INCLUDED_PY_MPSTATE_H

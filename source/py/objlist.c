@@ -320,16 +320,17 @@ STATIC void mp_quicksort(mp_obj_t *head, mp_obj_t *tail, mp_obj_t key_fn, mp_obj
         mp_obj_t v = key_fn == MP_OBJ_NULL ? tail[0] : mp_call_function_1(key_fn, tail[0]); // get pivot using key_fn
         RETURN_ON_EXCEPTION()
         for (;;) {
+            mp_obj_t o = MP_OBJ_NULL;
             do {
                 RETURN_ON_EXCEPTION()
                 ++h;
-                mp_obj_t o = mp_call_function_1(key_fn, h[0]);
+                o = mp_call_function_1(key_fn, h[0]);
                 RETURN_ON_EXCEPTION()
             } while (h < t && mp_binary_op(MP_BINARY_OP_LESS, key_fn == MP_OBJ_NULL ? h[0] : o, v) == binop_less_result);
             do {
                 RETURN_ON_EXCEPTION()
                 --t;
-                mp_obj_t o = mp_call_function_1(key_fn, t[0]);
+                o = mp_call_function_1(key_fn, t[0]);
                 RETURN_ON_EXCEPTION()
             } while (h < t && mp_binary_op(MP_BINARY_OP_LESS, v, key_fn == MP_OBJ_NULL ? t[0] : o) == binop_less_result);
             RETURN_ON_EXCEPTION()
@@ -367,7 +368,7 @@ mp_obj_t mp_obj_list_sort(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_
     } args;
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args,
         MP_ARRAY_SIZE(allowed_args), allowed_args, (mp_arg_val_t*)&args);
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     mp_check_self(MP_OBJ_IS_TYPE(pos_args[0], &mp_type_list));
     mp_obj_list_t *self = MP_OBJ_TO_PTR(pos_args[0]);
@@ -376,7 +377,7 @@ mp_obj_t mp_obj_list_sort(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_
         mp_quicksort(self->items, self->items + self->len - 1,
                      args.key.u_obj == mp_const_none ? MP_OBJ_NULL : args.key.u_obj,
                      args.reverse.u_bool ? mp_const_false : mp_const_true);
-        RETURN_ON_EXCEPTION()
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
 
     return mp_const_none;
@@ -387,7 +388,7 @@ STATIC mp_obj_t list_clear(mp_obj_t self_in) {
     mp_obj_list_t *self = MP_OBJ_TO_PTR(self_in);
     self->len = 0;
     self->items = m_renew(mp_obj_t, self->items, self->alloc, LIST_MIN_ALLOC);
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     self->alloc = LIST_MIN_ALLOC;
     mp_seq_clear(self->items, 0, self->alloc, sizeof(*self->items));
     return mp_const_none;
@@ -427,7 +428,7 @@ STATIC mp_obj_t list_insert(mp_obj_t self_in, mp_obj_t idx, mp_obj_t obj) {
     }
 
     mp_obj_list_append(self_in, mp_const_none);
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
     for (mp_int_t i = self->len-1; i > index; i--) {
          self->items[i] = self->items[i-1];
@@ -441,7 +442,7 @@ mp_obj_t mp_obj_list_remove(mp_obj_t self_in, mp_obj_t value) {
     mp_check_self(MP_OBJ_IS_TYPE(self_in, &mp_type_list));
     mp_obj_t args[] = {self_in, value};
     args[1] = list_index(2, args);
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     list_pop(2, args);
 
     return mp_const_none;
@@ -512,15 +513,15 @@ void mp_obj_list_init(mp_obj_list_t *o, size_t n) {
 
 STATIC mp_obj_list_t *list_new(size_t n) {
     mp_obj_list_t *o = m_new_obj(mp_obj_list_t);
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(NULL)
     mp_obj_list_init(o, n);
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(NULL)
     return o;
 }
 
 mp_obj_t mp_obj_new_list(size_t n, mp_obj_t *items) {
     mp_obj_list_t *o = list_new(n);
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (items != NULL) {
         for (size_t i = 0; i < n; i++) {
             o->items[i] = items[i];

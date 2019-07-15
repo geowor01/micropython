@@ -192,7 +192,7 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(struct_unpack_from_obj, 2, 3, struct_unpack_
 
 STATIC void struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, size_t n_args, const mp_obj_t *args) {
     const char *fmt = mp_obj_str_get_str(fmt_in);
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION()
     char fmt_type = get_fmt_type(&fmt);
 
     size_t i;
@@ -204,16 +204,17 @@ STATIC void struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, siz
         }
         if (unichar_isdigit(*fmt)) {
             sz = get_fmt_num(&fmt);
-            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            RETURN_ON_EXCEPTION()
         }
         if (p + sz > end_p) {
-            return mp_raise_ValueError_o("buffer too small");
+            mp_raise_ValueError_o("buffer too small");
+            return;
         }
 
         if (*fmt == 's') {
             mp_buffer_info_t bufinfo;
             mp_get_buffer_raise(args[i++], &bufinfo, MP_BUFFER_READ);
-            RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+            RETURN_ON_EXCEPTION()
             mp_uint_t to_copy = sz;
             if (bufinfo.len < to_copy) {
                 to_copy = bufinfo.len;
@@ -224,7 +225,7 @@ STATIC void struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, siz
         } else {
             while (sz--) {
                 mp_binary_set_val(fmt_type, *fmt, args[i++], &p);
-                RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+                RETURN_ON_EXCEPTION()
             }
         }
         fmt++;

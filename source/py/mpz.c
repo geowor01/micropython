@@ -28,6 +28,7 @@
 #include <assert.h>
 
 #include "py/mpz.h"
+#include "py/mpstate.h"
 
 #if MICROPY_LONGINT_IMPL == MICROPY_LONGINT_IMPL_MPZ
 
@@ -852,7 +853,7 @@ size_t mpz_set_from_str(mpz_t *z, const char *str, size_t len, bool neg, unsigne
     const char *top = str + len;
 
     mpz_need_dig(z, len * 8 / DIG_SIZE + 1);
-    RETURN_ON_EXCEPTION()
+    RETURN_ON_EXCEPTION(0)
 
     if (neg) {
         z->neg = 1;

@@ -267,10 +267,7 @@ void gc_collect(void) {
 
     // WARNING: This gc_collect implementation doesn't try to get root
     // pointers from CPU registers, and thus may function incorrectly.
-    jmp_buf dummy;
-    if (setjmp(dummy) == 0) {
-        longjmp(dummy, 1);
-    }
+    int dummy;
     gc_collect_start();
     gc_collect_root((void **)stack_top, ((mp_uint_t)(void*)(&dummy + 1) - (mp_uint_t)stack_top) / sizeof(mp_uint_t));
     gc_collect_end();

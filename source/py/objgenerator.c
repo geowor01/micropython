@@ -123,7 +123,7 @@ mp_vm_return_kind_t mp_obj_gen_resume(mp_obj_t self_in, mp_obj_t send_value, mp_
     mp_globals_set(self->globals);
     self->globals = NULL;
     mp_vm_return_kind_t ret_kind = mp_execute_bytecode(&self->code_state, throw_value);
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION(MP_VM_RETURN_EXCEPTION)
     self->globals = mp_globals_get();
     mp_globals_set(old_globals);
 

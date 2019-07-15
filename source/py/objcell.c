@@ -25,6 +25,7 @@
  */
 
 #include "py/obj.h"
+#include "py/mpstate.h"
 
 typedef struct _mp_obj_cell_t {
     mp_obj_base_t base;

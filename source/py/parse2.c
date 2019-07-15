@@ -31,8 +31,10 @@
 #include <string.h>
 
 #include "py/lexer.h"
+#include "py/mpstate.h"
 #include "py/parse.h"
 #include "py/parsenum.h"
+#include "py/runtime.h"
 #include "py/smallint.h"
 
 #if MICROPY_ENABLE_COMPILER && MICROPY_USE_SMALL_HEAP_COMPILER
@@ -1469,6 +1471,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
         mp_obj_exception_add_traceback(exc, lex->source_name, lex->tok_line, MP_QSTR_NULL);
         mp_lexer_free(lex);
         mp_raise_o(exc);
+        return parser.tree;
     } else {
         mp_lexer_free(lex);
         return parser.tree;

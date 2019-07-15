@@ -30,6 +30,7 @@
 extern "C" {
 
 #include "py/obj.h"
+#include "py/mpstate.h"
 #include "py/mphal.h"
 #include "microbit/modmicrobit.h"
 #include "lib/ticker.h"

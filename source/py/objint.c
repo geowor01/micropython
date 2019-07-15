@@ -196,7 +196,7 @@ void mp_obj_int_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t
     size_t fmt_size;
 
     char *str = mp_obj_int_formatted(&buf, &buf_size, &fmt_size, self_in, 10, NULL, '\0', '\0');
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION()
     mp_print_str(print, str);
 
     if (buf != stack_buf) {

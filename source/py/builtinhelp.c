@@ -29,6 +29,7 @@
 
 #include "py/builtin.h"
 #include "py/objmodule.h"
+#include "py/mpstate.h"
 
 #if MICROPY_PY_BUILTINS_HELP
 
@@ -116,9 +117,9 @@ STATIC void mp_help_print_modules(void) {
     for (unsigned int i = 0; i < num_rows; ++i) {
         unsigned int j = i;
         for (;;) {
-            char * o = mp_obj_str_get_str(items[j]);
+            const char *str = mp_obj_str_get_str(items[j]);
             RETURN_ON_EXCEPTION()
-            int l = mp_print_str(MP_PYTHON_PRINTER, o);
+            int l = mp_print_str(MP_PYTHON_PRINTER, str);
             j += num_rows;
             if (j >= len) {
                 break;

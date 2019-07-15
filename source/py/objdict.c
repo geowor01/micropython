@@ -497,14 +497,14 @@ STATIC void dict_view_print(const mp_print_t *print, mp_obj_t self_in, mp_print_
     mp_obj_t self_iter = dict_view_getiter(self_in, &iter_buf);
     mp_obj_t next = MP_OBJ_NULL;
     while ((next = dict_view_it_iternext(self_iter)) != MP_OBJ_STOP_ITERATION) {
-        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+        RETURN_ON_EXCEPTION()
         if (!first) {
             mp_print_str(print, ", ");
         }
         first = false;
         mp_obj_print_helper(print, next, PRINT_REPR);
     }
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION()
     mp_print_str(print, "])");
 }
 

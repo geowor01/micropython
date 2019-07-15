@@ -349,7 +349,7 @@ static int advance(file_descriptor_obj *self, uint32_t n, bool write) {
 mp_uint_t microbit_file_read(mp_obj_t obj, void *buf, mp_uint_t size, int *errcode) {
     file_descriptor_obj *self = (file_descriptor_obj *)obj;
     check_file_open(self);
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION(0)
     if (self->writable || file_system_chunks[self->start_chunk].marker == FREED_CHUNK) {
         *errcode = EBADF;
         return MP_STREAM_ERROR;
@@ -380,7 +380,7 @@ mp_uint_t microbit_file_read(mp_obj_t obj, void *buf, mp_uint_t size, int *errco
 mp_uint_t microbit_file_write(mp_obj_t obj, const void *buf, mp_uint_t size, int *errcode) {
     file_descriptor_obj *self = (file_descriptor_obj *)obj;
     check_file_open(self);
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION(0)
     if (!self->writable || file_system_chunks[self->start_chunk].marker == FREED_CHUNK) {
         *errcode = EBADF;
         return MP_STREAM_ERROR;

@@ -81,9 +81,9 @@ STATIC void array_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t 
                 if (i > 0) {
                     mp_print_str(print, ", ");
                 }
-                mp_obj_t o = mp_binary_get_val_array(o->typecode, o->items, i);
+                mp_obj_t temp = mp_binary_get_val_array(o->typecode, o->items, i);
                 RETURN_ON_EXCEPTION()
-                mp_obj_print_helper(print, o, PRINT_REPR);
+                mp_obj_print_helper(print, temp, PRINT_REPR);
             }
             mp_print_str(print, "]");
         }

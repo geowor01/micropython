@@ -127,7 +127,7 @@ STATIC mp_obj_t mod_random_choice(mp_obj_t seq) {
     mp_int_t len = mp_obj_get_int(mp_obj_len(seq));
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (len > 0) {
-        mp_int_t o = mp_obj_new_int(randbelow(len));
+        mp_obj_t o = mp_obj_new_int(randbelow(len));
         return mp_obj_subscr(seq, o, MP_OBJ_SENTINEL);
     } else {
         mp_raise_msg_o(&mp_type_IndexError, NULL);

@@ -475,8 +475,8 @@ friendly_repl_reset:
             continue;
         } else {
             // got a line with non-zero length, see if it needs continuing
-            char *string = vstr_null_terminated_str(string);
-            while (mp_repl_continue_with_input()) {
+            char *string = vstr_null_terminated_str(&line);
+            while (mp_repl_continue_with_input(string)) {
                 RETURN_ON_EXCEPTION(-1)
                 vstr_add_byte(&line, '\n');
                 RETURN_ON_EXCEPTION(-1)

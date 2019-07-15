@@ -25,6 +25,7 @@
  */
 
 #include "py/objtuple.h"
+#include "py/mpstate.h"
 
 #if MICROPY_PY_ATTRTUPLE || MICROPY_PY_COLLECTIONS
 

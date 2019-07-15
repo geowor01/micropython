@@ -863,7 +863,7 @@ STATIC mp_int_t instance_get_buffer(mp_obj_t self_in, mp_buffer_info_t *bufinfo,
         .is_type = false,
     };
     mp_obj_class_lookup(&lookup, self->base.type);
-    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
+    RETURN_ON_EXCEPTION(0)
     if (member[0] == MP_OBJ_SENTINEL) {
         mp_obj_type_t *type = mp_obj_get_type(self->subobj[0]);
         return type->buffer_p.get_buffer(self->subobj[0], bufinfo, flags);
@@ -895,13 +895,14 @@ STATIC mp_obj_t type_make_new(const mp_obj_type_t *type_in, size_t n_args, size_
             return MP_OBJ_FROM_PTR(mp_obj_get_type(args[0]));
 
         case 3:
+        {
             // args[0] = name
             // args[1] = bases tuple
             // args[2] = locals dict
             qstr str = mp_obj_str_get_qstr(args[0]);
             RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             return mp_obj_new_type(str, args[1], args[2]);
-
+        }
         default:
             return mp_raise_TypeError_o("type takes 1 or 3 arguments");
     }

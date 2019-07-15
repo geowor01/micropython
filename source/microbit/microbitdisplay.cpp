@@ -650,7 +650,7 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(microbit_display_set_pixel_obj, 4, 4, microb
 mp_int_t microbit_display_get_pixel(microbit_display_obj_t *display, mp_int_t x, mp_int_t y) {
     if (x < 0 || y < 0 || x > 4 || y > 4) {
         mp_raise_ValueError_o("index out of bounds");
-        return MP_OBJ_NULL;
+        return 0;
     }
     return display->image_buffer[x][y];
 }

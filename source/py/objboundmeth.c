@@ -60,6 +60,7 @@ mp_obj_t mp_call_method_self_n_kw(mp_obj_t meth, mp_obj_t self, size_t n_args, s
     if (args2 == NULL) {
         // (fallback to) use stack to allocate temporary args array
         args2 = alloca(sizeof(mp_obj_t) * (1 + n_total));
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     }
     args2[0] = self;
     memcpy(args2 + 1, args, n_total * sizeof(mp_obj_t));

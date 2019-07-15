@@ -263,6 +263,7 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
     }
     if (code_state == NULL) {
         code_state = alloca(sizeof(mp_code_state_t) + state_size);
+        RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         state_size = 0; // indicate that we allocated using alloca
     }
 

@@ -226,6 +226,9 @@ STATIC void struct_pack_into_internal(mp_obj_t fmt_in, byte *p, byte* end_p, siz
             p += sz;
         } else {
             while (sz--) {
+                if (i >= n_args) {
+                    return;
+                }
                 mp_binary_set_val(fmt_type, *fmt, args[i++], &p);
                 RETURN_ON_EXCEPTION()
             }

@@ -273,7 +273,10 @@ void microbit_display_obj_t::advanceRow() {
         int x = display_map[i][strobe_row].x;
         int y = display_map[i][strobe_row].y;
         uint8_t brightness = microbit_display_obj.image_buffer[x][y];
-        pins_for_brightness[brightness] |= (1<<(i+MIN_COLUMN_PIN));
+        if (brightness) {
+            pins_for_brightness[MAX_BRIGHTNESS] |= (1<<(i+MIN_COLUMN_PIN));
+            EM_ASM_({ MbedJSUI.MicrobitDisplay.prototype.set_brightness($0, $1, $2); }, x, y, 100.0 * brightness / MAX_BRIGHTNESS);
+        }
     }
     /* Enable the strobe bit for this row */
     nrf_gpio_pin_set(strobe_row+MIN_ROW_PIN);
@@ -356,23 +359,6 @@ static void light_sensor_update(void) {
         light_sensor_obj->startSensing(MicroBitEvent(MICROBIT_ID_DISPLAY, MICROBIT_DISPLAY_EVT_LIGHT_SENSE, CREATE_ONLY));
         light_sensor_state = LIGHT_SENSOR_TAKING_SAMPLE;
     }
-}
-
-/* This is the PWM callback.  It is registered by the animation callback and
- * will unregister itself when all of the brightness steps are complete. */
-static int32_t callback(void) {
-    microbit_display_obj_t *display = &microbit_display_obj;
-    mp_uint_t brightness = display->previous_brightness;
-    display->setPinsForRow(brightness);
-    brightness += 1;
-    if (brightness == MAX_BRIGHTNESS) {
-        clear_ticker_callback(DISPLAY_TICKER_SLOT);
-        light_sensor_update();
-        return -1;
-    }
-    display->previous_brightness = brightness;
-    // Return interval (in 16µs ticks) until next callback
-    return render_timings[brightness];
 }
 
 static void draw_object(mp_obj_t obj) {
@@ -472,12 +458,7 @@ void microbit_display_tick(void) {
     microbit_display_obj.advanceRow();
 
     microbit_display_update();
-    microbit_display_obj.previous_brightness = 0;
-    if (microbit_display_obj.brightnesses & GREYSCALE_MASK) {
-        // set_ticker_callback(DISPLAY_TICKER_SLOT, callback, 1800);
-    } else {
-        light_sensor_update();
-    }
+    light_sensor_update();
 }
 
 

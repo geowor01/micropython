@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <stdlib.h>
 
 #include "py/runtime0.h"
@@ -60,7 +60,7 @@ STATIC const mp_obj_type_t range_it_type = {
 };
 
 STATIC mp_obj_t mp_obj_new_range_iterator(mp_int_t cur, mp_int_t stop, mp_int_t step, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(mp_obj_range_it_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(mp_obj_range_it_t) <= sizeof(mp_obj_iter_buf_t));
     mp_obj_range_it_t *o = (mp_obj_range_it_t*)iter_buf;
     o->base.type = &range_it_type;
     o->cur = cur;

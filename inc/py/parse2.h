@@ -52,7 +52,7 @@ typedef const byte *mp_parse_node_t;
 extern const byte pt_const_int0[];
 
 static inline const byte *pt_tok_extract(const byte *p, byte *tok) {
-    //assert(*p == MP_PT_TOKEN);
+    //mp_assert(*p == MP_PT_TOKEN);
     p += 1;
     *tok = *p++;
     return p;
@@ -83,7 +83,7 @@ static inline bool pt_is_any_id(const byte *p) {
 }
 
 static inline bool pt_is_id(const byte *p, qstr qst) {
-    //assert(*p == MP_PT_ID_BASE);
+    //mp_assert(*p == MP_PT_ID_BASE);
     return qst == ((mp_uint_t)p[1] | (((mp_uint_t)p[0] - MP_PT_ID_BASE) << 8));
 }
 
@@ -104,7 +104,7 @@ const byte *pt_next(const byte *p);
 
 //const byte *pt_extract_id(const byte *p, qstr *qst);
 static inline const byte *pt_extract_id(const byte *p, qstr *qst) {
-    //assert(*p == MP_PT_ID_BASE);
+    //mp_assert(*p == MP_PT_ID_BASE);
     *qst = p[1] | ((p[0] - MP_PT_ID_BASE) << 8);
     return p + 2;
 }

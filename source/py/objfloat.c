@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/parsenum.h"
 #include "py/runtime0.h"
@@ -204,7 +204,7 @@ mp_obj_t mp_obj_new_float(mp_float_t value) {
 }
 
 mp_float_t mp_obj_float_get(mp_obj_t self_in) {
-    assert(mp_obj_is_float(self_in));
+    mp_assert(mp_obj_is_float(self_in));
     mp_obj_float_t *self = MP_OBJ_TO_PTR(self_in);
     return self->value;
 }

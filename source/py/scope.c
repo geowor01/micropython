@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/rootstack.h"
 #include "py/mpstate.h"
@@ -122,9 +122,9 @@ id_info_t *scope_find_global(scope_t *scope, qstr qst) {
 }
 
 STATIC void scope_close_over_in_parents(scope_t *scope, qstr qst) {
-    assert(scope->parent != NULL); // we should have at least 1 parent
+    mp_assert(scope->parent != NULL); // we should have at least 1 parent
     for (scope_t *s = scope->parent;; s = s->parent) {
-        assert(s->parent != NULL); // we should not get to the outer scope
+        mp_assert(s->parent != NULL); // we should not get to the outer scope
         bool added;
         id_info_t *id = scope_find_or_add_id(s, qst, &added);
         RETURN_ON_EXCEPTION()
@@ -139,7 +139,7 @@ STATIC void scope_close_over_in_parents(scope_t *scope, qstr qst) {
             } else {
                 // ID_INFO_KIND_FREE: variable already closed over in a parent scope
                 // ID_INFO_KIND_CELL: variable already closed over in this scope
-                assert(id->kind == ID_INFO_KIND_FREE || id->kind == ID_INFO_KIND_CELL);
+                mp_assert(id->kind == ID_INFO_KIND_FREE || id->kind == ID_INFO_KIND_CELL);
             }
             return;
         }

@@ -25,7 +25,7 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
+#include "mp_assert.h"
 #include <string.h>
 
 #include "py/parsenum.h"
@@ -221,7 +221,7 @@ STATIC const uint8_t log_base2_floor[] = {
 };
 
 size_t mp_int_format_size(size_t num_bits, int base, const char *prefix, char comma) {
-    assert(2 <= base && base <= 16);
+    mp_assert(2 <= base && base <= 16);
     size_t num_digits = num_bits / log_base2_floor[base - 1] + 1;
     size_t num_commas = comma ? num_digits / 3 : 0;
     size_t prefix_len = prefix ? strlen(prefix) : 0;

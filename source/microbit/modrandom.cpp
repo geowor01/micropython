@@ -32,7 +32,7 @@
 
 extern "C" {
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <string.h>
 #include <string.h>
 

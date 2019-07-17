@@ -26,10 +26,10 @@
  */
 
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include <limits.h>
-#include <assert.h>
+#include "mp_assert.h"
 #include "py/mpconfig.h"
 #include "py/mphal.h"
 #include "py/mpstate.h"
@@ -905,13 +905,13 @@ STATIC mp_obj_t str_uni_strip(int type, size_t n_args, const mp_obj_t *args) {
         }
     }
 
-    assert(last_good_char_pos >= first_good_char_pos);
+    mp_assert(last_good_char_pos >= first_good_char_pos);
     //+1 to accommodate the last character
     size_t stripped_len = last_good_char_pos - first_good_char_pos + 1;
     if (stripped_len == orig_str_len) {
         // If nothing was stripped, don't bother to dup original string
         // TODO: watch out for this case when we'll get to bytearray.strip()
-        assert(first_good_char_pos == 0);
+        mp_assert(first_good_char_pos == 0);
         return args[0];
     }
     return mp_obj_new_str_of_type(self_type, orig_str + first_good_char_pos, stripped_len);
@@ -1186,7 +1186,7 @@ STATIC vstr_t mp_obj_str_format_helper(const char *str, const char *top, int *ar
             if (conversion == 's') {
                 print_kind = PRINT_STR;
             } else {
-                assert(conversion == 'r');
+                mp_assert(conversion == 'r');
                 print_kind = PRINT_REPR;
             }
             vstr_t arg_vstr;
@@ -1830,7 +1830,7 @@ STATIC mp_obj_t str_replace(size_t n_args, const mp_obj_t *args) {
                 RETURN_ON_EXCEPTION(MP_OBJ_NULL)
                 data = (byte*)vstr.buf;
                 m_rs_push_ptr(data);
-                assert(data != NULL);
+                mp_assert(data != NULL);
             }
         } else {
             // second pass, we are done
@@ -2344,7 +2344,7 @@ STATIC mp_obj_t str_it_iternext(mp_obj_t self_in) {
 }
 
 STATIC mp_obj_t mp_obj_new_str_iterator(mp_obj_t str, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(mp_obj_str8_it_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(mp_obj_str8_it_t) <= sizeof(mp_obj_iter_buf_t));
     mp_obj_str8_it_t *o = (mp_obj_str8_it_t*)iter_buf;
     o->base.type = &mp_type_polymorph_iter;
     o->iternext = str_it_iternext;
@@ -2367,7 +2367,7 @@ STATIC mp_obj_t bytes_it_iternext(mp_obj_t self_in) {
 }
 
 mp_obj_t mp_obj_new_bytes_iterator(mp_obj_t str, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(mp_obj_str8_it_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(mp_obj_str8_it_t) <= sizeof(mp_obj_iter_buf_t));
     mp_obj_str8_it_t *o = (mp_obj_str8_it_t*)iter_buf;
     o->base.type = &mp_type_polymorph_iter;
     o->iternext = bytes_it_iternext;

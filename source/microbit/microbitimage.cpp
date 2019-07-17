@@ -33,6 +33,7 @@ extern "C" {
 #include "py/runtime.h"
 #include "microbit/modmicrobit.h"
 #include "microbit/microbit_image.h"
+#include "mp_assert.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -1006,7 +1007,7 @@ const mp_obj_type_t microbit_facade_iterator_type = {
 };
 
 static mp_obj_t microbit_facade_iterator(mp_obj_t iterable_in, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(facade_iterator_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(facade_iterator_t) <= sizeof(mp_obj_iter_buf_t));
     facade_iterator_t *result = (facade_iterator_t*)iter_buf;
     string_image_facade_t *iterable = (string_image_facade_t *)iterable_in;
     result->base.type = &microbit_facade_iterator_type;

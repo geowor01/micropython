@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/obj.h"
 #include "py/objtype.h"
@@ -85,7 +85,7 @@ void mp_obj_print_exception(const mp_print_t *print, mp_obj_t exc) {
         size_t n, *values;
         mp_obj_exception_get_traceback(exc, &n, &values);
         if (n > 0) {
-            assert(n % 3 == 0);
+            mp_assert(n % 3 == 0);
             mp_print_str(print, "Traceback (most recent call last):\n");
             for (int i = n - 3; i >= 0; i -= 3) {
 #if MICROPY_ENABLE_SOURCE_LINE

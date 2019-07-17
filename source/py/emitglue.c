@@ -29,7 +29,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/emitglue.h"
 #include "py/runtime0.h"
@@ -86,7 +86,7 @@ void mp_emit_glue_assign_bytecode(mp_raw_code_t *rc, const byte *code, mp_uint_t
 
 #if MICROPY_EMIT_NATIVE || MICROPY_EMIT_INLINE_ASM
 void mp_emit_glue_assign_native(mp_raw_code_t *rc, mp_raw_code_kind_t kind, void *fun_data, mp_uint_t fun_len, const mp_uint_t *const_table, mp_uint_t n_pos_args, mp_uint_t scope_flags, mp_uint_t type_sig) {
-    assert(kind == MP_CODE_NATIVE_PY || kind == MP_CODE_NATIVE_VIPER || kind == MP_CODE_NATIVE_ASM);
+    mp_assert(kind == MP_CODE_NATIVE_PY || kind == MP_CODE_NATIVE_VIPER || kind == MP_CODE_NATIVE_ASM);
     rc->kind = kind;
     rc->scope_flags = scope_flags;
     rc->n_pos_args = n_pos_args;
@@ -117,13 +117,13 @@ void mp_emit_glue_assign_native(mp_raw_code_t *rc, mp_raw_code_kind_t kind, void
 
 mp_obj_t mp_make_function_from_raw_code(const mp_raw_code_t *rc, mp_obj_t def_args, mp_obj_t def_kw_args) {
     DEBUG_OP_printf("make_function_from_raw_code %p\n", rc);
-    assert(rc != NULL);
+    mp_assert(rc != NULL);
 
     // def_args must be MP_OBJ_NULL or a tuple
-    assert(def_args == MP_OBJ_NULL || MP_OBJ_IS_TYPE(def_args, &mp_type_tuple));
+    mp_assert(def_args == MP_OBJ_NULL || MP_OBJ_IS_TYPE(def_args, &mp_type_tuple));
 
     // def_kw_args must be MP_OBJ_NULL or a dict
-    assert(def_kw_args == MP_OBJ_NULL || MP_OBJ_IS_TYPE(def_kw_args, &mp_type_dict));
+    mp_assert(def_kw_args == MP_OBJ_NULL || MP_OBJ_IS_TYPE(def_kw_args, &mp_type_dict));
 
     // make the function, depending on the raw code kind
     mp_obj_t fun;
@@ -143,7 +143,7 @@ mp_obj_t mp_make_function_from_raw_code(const mp_raw_code_t *rc, mp_obj_t def_ar
         #endif
         default:
             // rc->kind should always be set and BYTECODE is the only remaining case
-            assert(rc->kind == MP_CODE_BYTECODE);
+            mp_assert(rc->kind == MP_CODE_BYTECODE);
             fun = mp_obj_new_fun_bc(def_args, def_kw_args, rc->data.u_byte.bytecode, rc->data.u_byte.const_table);
             break;
     }

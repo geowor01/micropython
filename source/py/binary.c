@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/binary.h"
 #include "py/smallint.h"

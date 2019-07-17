@@ -26,11 +26,11 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/mphal.h"
 #include <limits.h>
-#include <assert.h>
+#include "mp_assert.h"
 #include "py/mpconfig.h"
 #include "py/mpstate.h"
 #include "py/parsenum.h"
@@ -244,7 +244,7 @@ mp_obj_t mp_unary_op(mp_uint_t op, mp_obj_t arg) {
                     return MP_OBJ_NEW_SMALL_INT(-val);
                 }
             default:
-                assert(op == MP_UNARY_OP_INVERT);
+                mp_assert(op == MP_UNARY_OP_INVERT);
                 return MP_OBJ_NEW_SMALL_INT(~val);
         }
     } else if (op == MP_UNARY_OP_HASH && MP_OBJ_IS_STR_OR_BYTES(arg)) {
@@ -772,7 +772,7 @@ void mp_call_prepare_args_n_kw_var(bool have_self, size_t n_args_n_kw, const mp_
         // dictionary
         mp_map_t *map = mp_obj_dict_get_map(kw_dict);
         RETURN_ON_EXCEPTION()
-        assert(args2_len + 2 * map->used <= args2_alloc); // should have enough, since kw_dict_len is in this case hinted correctly above
+        mp_assert(args2_len + 2 * map->used <= args2_alloc); // should have enough, since kw_dict_len is in this case hinted correctly above
         for (size_t i = 0; i < map->alloc; i++) {
             if (MP_MAP_SLOT_IS_FILLED(map, i)) {
                 // the key must be a qstr, so intern it if it's a string
@@ -1185,7 +1185,7 @@ void mp_store_attr(mp_obj_t base, qstr attr, mp_obj_t value) {
 }
 
 mp_obj_t mp_getiter(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf) {
-    assert(o_in);
+    mp_assert(o_in);
     mp_obj_type_t *type = mp_obj_get_type(o_in);
 
     // Check for native getiter which is the identity.  We handle this case explicitly
@@ -1295,7 +1295,7 @@ mp_obj_t mp_iternext(mp_obj_t o_in) {
 
 // TODO: Unclear what to do with StopIterarion exception here.
 mp_vm_return_kind_t mp_resume(mp_obj_t self_in, mp_obj_t send_value, mp_obj_t throw_value, mp_obj_t *ret_val) {
-    assert((send_value != MP_OBJ_NULL) ^ (throw_value != MP_OBJ_NULL));
+    mp_assert((send_value != MP_OBJ_NULL) ^ (throw_value != MP_OBJ_NULL));
     mp_obj_type_t *type = mp_obj_get_type(self_in);
 
     if (type == &mp_type_gen_instance) {
@@ -1357,7 +1357,7 @@ mp_vm_return_kind_t mp_resume(mp_obj_t self_in, mp_obj_t send_value, mp_obj_t th
         return MP_VM_RETURN_YIELD;
     }
 
-    assert(throw_value != MP_OBJ_NULL);
+    mp_assert(throw_value != MP_OBJ_NULL);
     {
         if (mp_obj_is_subclass_fast(MP_OBJ_FROM_PTR(mp_obj_get_type(throw_value)), MP_OBJ_FROM_PTR(&mp_type_GeneratorExit))) {
             mp_load_method_maybe(self_in, MP_QSTR_close, dest);

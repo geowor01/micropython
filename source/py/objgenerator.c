@@ -26,10 +26,10 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include <limits.h>
-#include <assert.h>
+#include "mp_assert.h"
 #include "py/mpconfig.h"
 #include "py/mphal.h"
 #include "py/mpstate.h"
@@ -56,7 +56,7 @@ typedef struct _mp_obj_gen_instance_t {
 STATIC mp_obj_t gen_wrap_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_obj_gen_wrap_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_fun_bc_t *self_fun = (mp_obj_fun_bc_t*)self->fun;
-    assert(self_fun->base.type == &mp_type_fun_bc);
+    mp_assert(self_fun->base.type == &mp_type_fun_bc);
 
     // bytecode prelude: get state size and exception stack size
     size_t n_state = mp_decode_uint_value(self_fun->bytecode);

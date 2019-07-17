@@ -27,7 +27,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/compile.h"
 #include "py/objmodule.h"
@@ -301,7 +301,7 @@ mp_obj_t mp_builtin___import__(size_t n_args, const mp_obj_t *args) {
         level--;
         mp_obj_t this_name_q = mp_obj_dict_get(MP_OBJ_FROM_PTR(mp_globals_get()), MP_OBJ_NEW_QSTR(MP_QSTR___name__));
         RETURN_ON_EXCEPTION(MP_OBJ_NULL)
-        assert(this_name_q != MP_OBJ_NULL);
+        mp_assert(this_name_q != MP_OBJ_NULL);
         #if MICROPY_CPYTHON_COMPAT
         if (MP_OBJ_QSTR_VALUE(this_name_q) == MP_QSTR___main__) {
             // This is a module run by -m command-line switch, get its real name from backup attribute

@@ -43,7 +43,7 @@ void persistent_write_byte_unchecked(const uint8_t *dest, const uint8_t val) {
 #if DEBUG_PERSISTENT
     if (((~(*dest)) & val) != 0) {
         DEBUG(("PERSISTENCE DEBUG: ERROR: Unchecked write of byte %u to %lx which contains %u\r\n", val, (uint32_t)dest, *dest));
-        assert(false);
+        mp_assert(false);
     }
 #endif
     DEBUG(("PERSISTENCE DEBUG: Write unchecked byte %u to %lx, previous value %u\r\n", val, (uint32_t)dest, *dest));
@@ -58,7 +58,7 @@ void persistent_write_unchecked(const void *dest, const void *src, uint32_t len)
     for(uint32_t i = 0; i < len; i++) {
         if ((~address[i] & data[i]) != 0) {
             DEBUG(("PERSISTENCE DEBUG: ERROR: Unchecked write of byte %u to %lx which contains %u\r\n", data[i], (uint32_t)&address[i], address[i]));
-            assert(false);
+            mp_assert(false);
         }
     }
 #endif

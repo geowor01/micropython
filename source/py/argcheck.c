@@ -25,7 +25,7 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/runtime.h"
 
@@ -112,7 +112,7 @@ void mp_arg_parse_all(size_t n_pos, const mp_obj_t *pos, mp_map_t *kws, size_t n
             out_vals[i].u_int = mp_obj_get_int(given_arg);
             RETURN_ON_EXCEPTION()
         } else {
-            assert((allowed[i].flags & MP_ARG_KIND_MASK) == MP_ARG_OBJ);
+            mp_assert((allowed[i].flags & MP_ARG_KIND_MASK) == MP_ARG_OBJ);
             out_vals[i].u_obj = given_arg;
         }
     }

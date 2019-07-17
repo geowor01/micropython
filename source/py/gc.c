@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -141,7 +141,7 @@ void gc_init(void *start, void *end) {
     MP_STATE_MEM(gc_pool_end) = end;
 
 #if MICROPY_ENABLE_FINALISER
-    assert(MP_STATE_MEM(gc_pool_start) >= MP_STATE_MEM(gc_finaliser_table_start) + gc_finaliser_table_byte_len);
+    mp_assert(MP_STATE_MEM(gc_pool_start) >= MP_STATE_MEM(gc_finaliser_table_start) + gc_finaliser_table_byte_len);
 #endif
 
     // clear ATBs
@@ -561,9 +561,9 @@ void gc_free(void *ptr) {
         GC_EXIT();
     } else {
         // get the GC block number corresponding to this pointer
-        assert(VERIFY_PTR(ptr));
+        mp_assert(VERIFY_PTR(ptr));
         size_t block = BLOCK_FROM_PTR(ptr);
-        assert(ATB_GET_KIND(block) == AT_HEAD);
+        mp_assert(ATB_GET_KIND(block) == AT_HEAD);
 
         #if MICROPY_ENABLE_FINALISER
         FTB_CLEAR(block);
@@ -610,14 +610,14 @@ size_t gc_nbytes(const void *ptr) {
 
 void gc_rs_push_checked(void *ptr) {
     if (VERIFY_PTR(ptr)) {
-        assert(ATB_GET_KIND(BLOCK_FROM_PTR(ptr)) == AT_HEAD);
+        mp_assert(ATB_GET_KIND(BLOCK_FROM_PTR(ptr)) == AT_HEAD);
         gc_rs_push(0, ptr);
     }
 }
 
 void gc_rs_pop_checked(void *ptr) {
     if (VERIFY_PTR(ptr)) {
-        assert(ATB_GET_KIND(BLOCK_FROM_PTR(ptr)) == AT_HEAD);
+        mp_assert(ATB_GET_KIND(BLOCK_FROM_PTR(ptr)) == AT_HEAD);
         gc_rs_pop(0, ptr);
     }
 }
@@ -746,7 +746,7 @@ void *gc_realloc(void *ptr_in, size_t n_bytes, bool allow_move) {
     if (new_blocks <= n_blocks + n_free) {
         // mark few more blocks as used tail
         for (size_t bl = block + n_blocks; bl < block + new_blocks; bl++) {
-            assert(ATB_GET_KIND(bl) == AT_FREE);
+            mp_assert(ATB_GET_KIND(bl) == AT_FREE);
             ATB_FREE_TO_TAIL(bl);
         }
 

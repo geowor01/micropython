@@ -26,7 +26,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/mpstate.h"
 #include "py/reader.h"

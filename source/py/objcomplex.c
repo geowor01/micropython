@@ -26,7 +26,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/obj.h"
 #include "py/parsenum.h"
@@ -171,7 +171,7 @@ mp_obj_t mp_obj_new_complex(mp_float_t real, mp_float_t imag) {
 }
 
 void mp_obj_complex_get(mp_obj_t self_in, mp_float_t *real, mp_float_t *imag) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_complex));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_complex));
     mp_obj_complex_t *self = MP_OBJ_TO_PTR(self_in);
     *real = self->real;
     *imag = self->imag;

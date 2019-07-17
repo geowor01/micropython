@@ -26,7 +26,7 @@
 
 #include <string.h>
 #include <stdarg.h>
-#include <assert.h>
+#include "mp_assert.h"
 #include <stdio.h>
 
 #include "py/mpstate.h"
@@ -305,7 +305,7 @@ mp_obj_t mp_obj_new_exception_arg1(const mp_obj_type_t *exc_type, mp_obj_t arg) 
 }
 
 mp_obj_t mp_obj_new_exception_args(const mp_obj_type_t *exc_type, size_t n_args, const mp_obj_t *args) {
-    assert(exc_type->make_new == mp_obj_exception_make_new);
+    mp_assert(exc_type->make_new == mp_obj_exception_make_new);
     return exc_type->make_new(exc_type, n_args, 0, args);
 }
 
@@ -315,7 +315,7 @@ mp_obj_t mp_obj_new_exception_msg(const mp_obj_type_t *exc_type, const char *msg
 
 mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char *fmt, ...) {
     // check that the given type is an exception type
-    assert(exc_type->make_new == mp_obj_exception_make_new);
+    mp_assert(exc_type->make_new == mp_obj_exception_make_new);
 
     // make exception object
     mp_obj_exception_t *o = m_new_obj_var_maybe(mp_obj_exception_t, mp_obj_t, 0);
@@ -380,7 +380,7 @@ mp_obj_t mp_obj_new_exception_msg_varg(const mp_obj_type_t *exc_type, const char
         o->args = MP_OBJ_TO_PTR(mp_obj_new_tuple(1, NULL));
         RETURN_ON_EXCEPTION(MP_OBJ_NULL)
 
-        assert(fmt != NULL);
+        mp_assert(fmt != NULL);
         {
             if (strchr(fmt, '%') == NULL) {
                 // no formatting substitutions, avoid allocating vstr.
@@ -436,7 +436,7 @@ bool mp_obj_exception_match(mp_obj_t exc, mp_const_obj_t exc_type) {
 
 #define GET_NATIVE_EXCEPTION(self, self_in) \
     /* make sure self_in is an exception instance */ \
-    assert(mp_obj_is_exception_instance(self_in)); \
+    mp_assert(mp_obj_is_exception_instance(self_in)); \
     mp_obj_exception_t *self; \
     if (mp_obj_is_native_exception_instance(self_in)) { \
         self = MP_OBJ_TO_PTR(self_in); \

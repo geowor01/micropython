@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -202,7 +202,7 @@ qstr qstr_from_str(const char *str) {
 }
 
 qstr qstr_from_strn(const char *str, size_t len) {
-    assert(len < (1 << (8 * MICROPY_QSTR_BYTES_IN_LEN)));
+    mp_assert(len < (1 << (8 * MICROPY_QSTR_BYTES_IN_LEN)));
     QSTR_ENTER();
     qstr q = qstr_find_strn(str, len);
     if (q == 0) {
@@ -265,7 +265,7 @@ qstr qstr_from_strn(const char *str, size_t len) {
 }
 
 byte *qstr_build_start(size_t len, byte **q_ptr) {
-    assert(len < (1 << (8 * MICROPY_QSTR_BYTES_IN_LEN)));
+    mp_assert(len < (1 << (8 * MICROPY_QSTR_BYTES_IN_LEN)));
     *q_ptr = m_new(byte, MICROPY_QSTR_BYTES_IN_HASH + MICROPY_QSTR_BYTES_IN_LEN + len + 1);
     RETURN_ON_EXCEPTION(NULL)
     Q_SET_LENGTH(*q_ptr, len);

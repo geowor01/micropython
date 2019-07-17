@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/mpconfig.h"
 #include "py/mpstate.h"
@@ -189,7 +189,7 @@ void vstr_add_char(vstr_t *vstr, unichar c) {
         buf[1] = ((c >> 6) & 0x3F) | 0x80;
         buf[2] = (c & 0x3F) | 0x80;
     } else {
-        assert(c < 0x110000);
+        mp_assert(c < 0x110000);
         byte *buf = (byte*)vstr_add_len(vstr, 4);
         RETURN_ON_EXCEPTION()
         if (buf == NULL) {

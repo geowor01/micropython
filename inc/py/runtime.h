@@ -160,7 +160,7 @@ mp_obj_t mp_exc_recursion_depth(void);
 #else
 // A port may define to raise TypeError for example
 #ifndef mp_check_self
-#define mp_check_self(pred) assert(pred)
+#define mp_check_self(pred) mp_assert(pred)
 #endif
 #endif
 

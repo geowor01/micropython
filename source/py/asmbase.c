@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <string.h>
 
 #include "py/obj.h"
@@ -52,7 +52,7 @@ void mp_asm_base_start_pass(mp_asm_base_t *as, int pass) {
     } else if (pass == MP_ASM_PASS_EMIT) {
         // allocating executable RAM is platform specific
         MP_PLAT_ALLOC_EXEC(as->code_offset, (void**)&as->code_base, &as->code_size);
-        assert(as->code_base != NULL);
+        mp_assert(as->code_base != NULL);
     }
     as->pass = pass;
     as->code_offset = 0;
@@ -64,7 +64,7 @@ void mp_asm_base_start_pass(mp_asm_base_t *as, int pass) {
 uint8_t *mp_asm_base_get_cur_to_write_bytes(mp_asm_base_t *as, size_t num_bytes_to_write) {
     uint8_t *c = NULL;
     if (as->pass == MP_ASM_PASS_EMIT) {
-        assert(as->code_offset + num_bytes_to_write <= as->code_size);
+        mp_assert(as->code_offset + num_bytes_to_write <= as->code_size);
         c = as->code_base + as->code_offset;
     }
     as->code_offset += num_bytes_to_write;
@@ -72,14 +72,14 @@ uint8_t *mp_asm_base_get_cur_to_write_bytes(mp_asm_base_t *as, size_t num_bytes_
 }
 
 void mp_asm_base_label_assign(mp_asm_base_t *as, size_t label) {
-    assert(label < as->max_num_labels);
+    mp_assert(label < as->max_num_labels);
     if (as->pass < MP_ASM_PASS_EMIT) {
         // assign label offset
-        assert(as->label_offsets[label] == (size_t)-1);
+        mp_assert(as->label_offsets[label] == (size_t)-1);
         as->label_offsets[label] = as->code_offset;
     } else {
         // ensure label offset has not changed from PASS_COMPUTE to PASS_EMIT
-        assert(as->label_offsets[label] == as->code_offset);
+        mp_assert(as->label_offsets[label] == as->code_offset);
     }
 }
 

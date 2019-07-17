@@ -25,7 +25,7 @@
  */
 
 #include <stdio.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/bc0.h"
 #include "py/bc.h"
@@ -546,7 +546,7 @@ const byte *mp_bytecode_print_str(const byte *ip) {
                 printf("BINARY_OP " UINT_FMT " %s", op, qstr_str(mp_binary_op_method_name[op]));
             } else {
                 printf("code %p, byte code 0x%02x not implemented\n", ip, ip[-1]);
-                assert(0);
+                mp_assert(0);
                 return ip;
             }
             break;

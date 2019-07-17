@@ -25,7 +25,7 @@
  */
 
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/objtuple.h"
 #include "py/runtime0.h"
@@ -276,14 +276,14 @@ mp_obj_t mp_obj_new_tuple(size_t n, const mp_obj_t *items) {
 }
 
 void mp_obj_tuple_get(mp_obj_t self_in, size_t *len, mp_obj_t **items) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_tuple));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_tuple));
     mp_obj_tuple_t *self = MP_OBJ_TO_PTR(self_in);
     *len = self->len;
     *items = &self->items[0];
 }
 
 void mp_obj_tuple_del(mp_obj_t self_in) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_tuple));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_tuple));
     mp_obj_tuple_t *self = MP_OBJ_TO_PTR(self_in);
     m_del_var(mp_obj_tuple_t, mp_obj_t, self->len, self);
 }
@@ -310,7 +310,7 @@ STATIC mp_obj_t tuple_it_iternext(mp_obj_t self_in) {
 }
 
 mp_obj_t mp_obj_tuple_getiter(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(mp_obj_tuple_it_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(mp_obj_tuple_it_t) <= sizeof(mp_obj_iter_buf_t));
     mp_obj_tuple_it_t *o = (mp_obj_tuple_it_t*)iter_buf;
     o->base.type = &mp_type_polymorph_iter;
     o->iternext = tuple_it_iternext;

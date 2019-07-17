@@ -26,7 +26,7 @@
  */
 
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/objstr.h"
 #include "py/objlist.h"
@@ -182,7 +182,7 @@ const byte *str_index_to_ptr(const mp_obj_type_t *type, const byte *self_data, s
 
 STATIC mp_obj_t str_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
     mp_obj_type_t *type = mp_obj_get_type(self_in);
-    assert(type == &mp_type_str);
+    mp_assert(type == &mp_type_str);
     GET_STR_DATA_LEN(self_in, self_data, self_len);
     if (value == MP_OBJ_SENTINEL) {
         // load
@@ -310,7 +310,7 @@ STATIC mp_obj_t str_it_iternext(mp_obj_t self_in) {
 }
 
 STATIC mp_obj_t mp_obj_new_str_iterator(mp_obj_t str, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(mp_obj_str_it_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(mp_obj_str_it_t) <= sizeof(mp_obj_iter_buf_t));
     mp_obj_str_it_t *o = (mp_obj_str_it_t*)iter_buf;
     o->base.type = &mp_type_polymorph_iter;
     o->iternext = str_it_iternext;

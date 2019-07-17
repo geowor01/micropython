@@ -28,10 +28,10 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include <limits.h>
-#include <assert.h>
+#include "mp_assert.h"
 #include "py/mpconfig.h"
 #include "py/mphal.h"
 #include "py/mpstate.h"
@@ -81,7 +81,7 @@ STATIC int instance_count_native_bases(const mp_obj_type_t *type, const mp_obj_t
             const mp_obj_t *item = parent_tuple->items;
             const mp_obj_t *top = item + parent_tuple->len;
             for (; item < top; ++item) {
-                assert(MP_OBJ_IS_TYPE(*item, &mp_type_type));
+                mp_assert(MP_OBJ_IS_TYPE(*item, &mp_type_type));
                 const mp_obj_type_t *bt = (const mp_obj_type_t *)MP_OBJ_TO_PTR(*item);
                 count += instance_count_native_bases(bt, last_native_base);
             }
@@ -116,8 +116,8 @@ struct class_lookup_data {
 };
 
 STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_type_t *type) {
-    assert(lookup->dest[0] == MP_OBJ_NULL);
-    assert(lookup->dest[1] == MP_OBJ_NULL);
+    mp_assert(lookup->dest[0] == MP_OBJ_NULL);
+    mp_assert(lookup->dest[1] == MP_OBJ_NULL);
     for (;;) {
         // Optimize special method lookup for native types
         // This avoids extra method_name => slot lookup. On the other hand,
@@ -186,7 +186,7 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
             const mp_obj_t *item = parent_tuple->items;
             const mp_obj_t *top = item + parent_tuple->len - 1;
             for (; item < top; ++item) {
-                assert(MP_OBJ_IS_TYPE(*item, &mp_type_type));
+                mp_assert(MP_OBJ_IS_TYPE(*item, &mp_type_type));
                 mp_obj_type_t *bt = (mp_obj_type_t*)MP_OBJ_TO_PTR(*item);
                 if (bt == &mp_type_object) {
                     // Not a "real" type
@@ -200,7 +200,7 @@ STATIC void mp_obj_class_lookup(struct class_lookup_data  *lookup, const mp_obj_
             }
 
             // search last base (simple tail recursion elimination)
-            assert(MP_OBJ_IS_TYPE(*item, &mp_type_type));
+            mp_assert(MP_OBJ_IS_TYPE(*item, &mp_type_type));
             type = (mp_obj_type_t*)MP_OBJ_TO_PTR(*item);
         } else {
             type = type->parent;
@@ -258,11 +258,11 @@ STATIC void instance_print(const mp_print_t *print, mp_obj_t self_in, mp_print_k
 }
 
 mp_obj_t mp_obj_instance_make_new(const mp_obj_type_t *self, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    assert(mp_obj_is_instance_type(self));
+    mp_assert(mp_obj_is_instance_type(self));
 
     const mp_obj_type_t *native_base;
     size_t num_native_bases = instance_count_native_bases(self, &native_base);
-    assert(num_native_bases < 2);
+    mp_assert(num_native_bases < 2);
 
     mp_obj_instance_t *o = MP_OBJ_TO_PTR(mp_obj_new_instance(self, num_native_bases));
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
@@ -519,7 +519,7 @@ STATIC mp_obj_t instance_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_i
 
 STATIC void mp_obj_instance_load_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
     // logic: look in instance members then class locals
-    assert(mp_obj_is_instance_type(mp_obj_get_type(self_in)));
+    mp_assert(mp_obj_is_instance_type(mp_obj_get_type(self_in)));
     mp_obj_instance_t *self = MP_OBJ_TO_PTR(self_in);
 
     mp_map_elem_t *elem = mp_map_lookup(&self->members, MP_OBJ_NEW_QSTR(attr), MP_MAP_LOOKUP);
@@ -939,7 +939,7 @@ STATIC mp_obj_t type_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp
 }
 
 STATIC void type_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_type));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_type));
     mp_obj_type_t *self = MP_OBJ_TO_PTR(self_in);
 
     if (dest[0] == MP_OBJ_NULL) {
@@ -1122,10 +1122,10 @@ STATIC void super_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
         return;
     }
 
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_super));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_super));
     mp_obj_super_t *self = MP_OBJ_TO_PTR(self_in);
 
-    assert(MP_OBJ_IS_TYPE(self->type, &mp_type_type));
+    mp_assert(MP_OBJ_IS_TYPE(self->type, &mp_type_type));
 
     mp_obj_type_t *type = MP_OBJ_TO_PTR(self->type);
 
@@ -1144,7 +1144,7 @@ STATIC void super_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
         size_t len = parent_tuple->len;
         const mp_obj_t *items = parent_tuple->items;
         for (size_t i = 0; i < len; i++) {
-            assert(MP_OBJ_IS_TYPE(items[i], &mp_type_type));
+            mp_assert(MP_OBJ_IS_TYPE(items[i], &mp_type_type));
             mp_obj_class_lookup(&lookup, (mp_obj_type_t*)MP_OBJ_TO_PTR(items[i]));
             RETURN_ON_EXCEPTION()
             if (dest[0] != MP_OBJ_NULL) {
@@ -1270,7 +1270,7 @@ mp_obj_t mp_instance_cast_to_native_base(mp_const_obj_t self_in, mp_const_obj_t 
 // staticmethod and classmethod types (probably should go in a different file)
 
 STATIC mp_obj_t static_class_method_make_new(const mp_obj_type_t *self, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    assert(self == &mp_type_staticmethod || self == &mp_type_classmethod);
+    mp_assert(self == &mp_type_staticmethod || self == &mp_type_classmethod);
 
     mp_arg_check_num(n_args, n_kw, 1, 1, false);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)

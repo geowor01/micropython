@@ -26,7 +26,7 @@
  */
 
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/objtuple.h"
 #include "py/objfun.h"
@@ -51,7 +51,7 @@
 
 STATIC mp_obj_t fun_builtin_0_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)args;
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_0));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_0));
     mp_obj_fun_builtin_fixed0_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
@@ -66,7 +66,7 @@ const mp_obj_type_t mp_type_fun_builtin_0 = {
 };
 
 STATIC mp_obj_t fun_builtin_1_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_1));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_1));
     mp_obj_fun_builtin_fixed1_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 1, 1, false);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
@@ -81,7 +81,7 @@ const mp_obj_type_t mp_type_fun_builtin_1 = {
 };
 
 STATIC mp_obj_t fun_builtin_2_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_2));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_2));
     mp_obj_fun_builtin_fixed2_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 2, 2, false);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
@@ -96,7 +96,7 @@ const mp_obj_type_t mp_type_fun_builtin_2 = {
 };
 
 STATIC mp_obj_t fun_builtin_3_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_3));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_3));
     mp_obj_fun_builtin_fixed3_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 3, 3, false);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
@@ -111,7 +111,7 @@ const mp_obj_type_t mp_type_fun_builtin_3 = {
 };
 
 STATIC mp_obj_t fun_builtin_var_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_var));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_builtin_var));
     mp_obj_fun_builtin_var_t *self = MP_OBJ_TO_PTR(self_in);
 
     // check number of arguments
@@ -146,7 +146,7 @@ const mp_obj_type_t mp_type_fun_builtin_var = {
 
 STATIC mp_obj_t fun_js_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     (void)args;
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_js_call));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_fun_js_call));
     mp_obj_fun_js_call_t *self = MP_OBJ_TO_PTR(self_in);
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
     return self->fun(self->fun_call_name);
@@ -304,7 +304,7 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
     if (vm_return_kind == MP_VM_RETURN_NORMAL) {
         if (code_state->sp < code_state->state) {
             printf("VM stack underflow: " INT_FMT "\n", code_state->sp - code_state->state);
-            assert(0);
+            mp_assert(0);
         }
     }
     // We can't check the case when an exception is returned in state[n_state - 1]
@@ -321,7 +321,7 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
         }
         if (overflow) {
             printf("VM stack overflow state=%p n_state+1=" UINT_FMT "\n", code_state->state, n_state);
-            assert(0);
+            mp_assert(0);
         }
     }
 #endif
@@ -332,7 +332,7 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
         result = *code_state->sp;
     } else {
         // must be an exception because normal functions can't yield
-        assert(vm_return_kind == MP_VM_RETURN_EXCEPTION);
+        mp_assert(vm_return_kind == MP_VM_RETURN_EXCEPTION);
         // return value is in fastn[0]==state[n_state - 1]
         result = code_state->state[n_state - 1];
     }
@@ -380,7 +380,7 @@ mp_obj_t mp_obj_new_fun_bc(mp_obj_t def_args_in, mp_obj_t def_kw_args, const byt
     size_t n_extra_args = 0;
     mp_obj_tuple_t *def_args = MP_OBJ_TO_PTR(def_args_in);
     if (def_args_in != MP_OBJ_NULL) {
-        assert(MP_OBJ_IS_TYPE(def_args_in, &mp_type_tuple));
+        mp_assert(MP_OBJ_IS_TYPE(def_args_in, &mp_type_tuple));
         n_def_args = def_args->len;
         n_extra_args = def_args->len;
     }
@@ -468,7 +468,7 @@ STATIC mp_obj_t fun_viper_call(mp_obj_t self_in, size_t n_args, size_t n_kw, con
         ret = ((viper_fun_3_t)fun)(mp_convert_obj_to_native(args[0], self->type_sig >> 4), mp_convert_obj_to_native(args[1], self->type_sig >> 8), mp_convert_obj_to_native(args[2], self->type_sig >> 12));
     } else {
         // compiler allows at most 4 arguments
-        assert(n_args == 4);
+        mp_assert(n_args == 4);
         ret = ((viper_fun_4_t)fun)(
             mp_convert_obj_to_native(args[0], self->type_sig >> 4),
             mp_convert_obj_to_native(args[1], self->type_sig >> 8),
@@ -584,7 +584,7 @@ STATIC mp_obj_t fun_asm_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const
         ret = ((inline_asm_fun_3_t)fun)(convert_obj_for_inline_asm(args[0]), convert_obj_for_inline_asm(args[1]), convert_obj_for_inline_asm(args[2]));
     } else {
         // compiler allows at most 4 arguments
-        assert(n_args == 4);
+        mp_assert(n_args == 4);
         ret = ((inline_asm_fun_4_t)fun)(
             convert_obj_for_inline_asm(args[0]),
             convert_obj_for_inline_asm(args[1]),

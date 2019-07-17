@@ -26,7 +26,7 @@
  */
 
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 #include <stdint.h>
 
 #include "py/runtime0.h"
@@ -362,7 +362,7 @@ STATIC mp_obj_t array_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) 
 #if MICROPY_PY_BUILTINS_BYTEARRAY || MICROPY_PY_ARRAY
 STATIC mp_obj_t array_append(mp_obj_t self_in, mp_obj_t arg) {
     // self is not a memoryview, so we don't need to use (& TYPECODE_MASK)
-    assert((MICROPY_PY_BUILTINS_BYTEARRAY && MP_OBJ_IS_TYPE(self_in, &mp_type_bytearray))
+    mp_assert((MICROPY_PY_BUILTINS_BYTEARRAY && MP_OBJ_IS_TYPE(self_in, &mp_type_bytearray))
         || (MICROPY_PY_ARRAY && MP_OBJ_IS_TYPE(self_in, &mp_type_array)));
     mp_obj_array_t *self = MP_OBJ_TO_PTR(self_in);
 
@@ -386,7 +386,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(array_append_obj, array_append);
 
 STATIC mp_obj_t array_extend(mp_obj_t self_in, mp_obj_t arg_in) {
     // self is not a memoryview, so we don't need to use (& TYPECODE_MASK)
-    assert((MICROPY_PY_BUILTINS_BYTEARRAY && MP_OBJ_IS_TYPE(self_in, &mp_type_bytearray))
+    mp_assert((MICROPY_PY_BUILTINS_BYTEARRAY && MP_OBJ_IS_TYPE(self_in, &mp_type_bytearray))
         || (MICROPY_PY_ARRAY && MP_OBJ_IS_TYPE(self_in, &mp_type_array)));
     mp_obj_array_t *self = MP_OBJ_TO_PTR(self_in);
 
@@ -517,7 +517,7 @@ STATIC mp_obj_t array_subscr(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t value
             mp_obj_array_t *res;
             size_t sz = mp_binary_get_size('@', o->typecode & TYPECODE_MASK, NULL);
             RETURN_ON_EXCEPTION(MP_OBJ_NULL)
-            assert(sz > 0);
+            mp_assert(sz > 0);
             if (0) {
                 // dummy
             #if MICROPY_PY_BUILTINS_MEMORYVIEW
@@ -686,7 +686,7 @@ STATIC const mp_obj_type_t array_it_type = {
 };
 
 STATIC mp_obj_t array_iterator_new(mp_obj_t array_in, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(mp_obj_array_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(mp_obj_array_t) <= sizeof(mp_obj_iter_buf_t));
     mp_obj_array_t *array = MP_OBJ_TO_PTR(array_in);
     mp_obj_array_it_t *o = (mp_obj_array_it_t*)iter_buf;
     o->base.type = &array_it_type;

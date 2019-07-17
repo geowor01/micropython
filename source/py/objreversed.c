@@ -25,7 +25,7 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/runtime.h"
 

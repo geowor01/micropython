@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -205,7 +205,7 @@ int mp_print_mp_int(const mp_print_t *print, mp_obj_t x, int base, int base_char
     // These are the only values for "base" that are required to be supported by this
     // function, since Python only allows the user to format integers in these bases.
     // If needed this function could be generalised to handle other values.
-    assert(base == 2 || base == 8 || base == 10 || base == 16);
+    mp_assert(base == 2 || base == 8 || base == 10 || base == 16);
 
     if (!MP_OBJ_IS_INT(x)) {
         // This will convert booleans to int, or raise an error for
@@ -543,12 +543,12 @@ int mp_vprintf(const mp_print_t *print, const char *fmt, va_list args) {
                     chrs += mp_print_int(print, arg_value, *fmt == 'd', 10, 'a', flags, fill, width);
                     break;
                 }
-                assert(!"unsupported fmt char");
+                mp_assert(!"unsupported fmt char");
             }
             #endif
             default:
                 // if it's not %% then it's an unsupported format character
-                assert(*fmt == '%' || !"unsupported fmt char");
+                mp_assert(*fmt == '%' || !"unsupported fmt char");
                 print->print_strn(print->data, fmt, 1);
                 chrs += 1;
                 break;

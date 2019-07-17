@@ -25,7 +25,7 @@
  */
 
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/objlist.h"
 #include "py/runtime0.h"
@@ -184,7 +184,7 @@ STATIC mp_obj_t list_subscr(mp_obj_t self_in, mp_obj_t index, mp_obj_t value) {
 
             mp_int_t len_adj = slice.start - slice.stop;
             //printf("Len adj: %d\n", len_adj);
-            assert(len_adj <= 0);
+            mp_assert(len_adj <= 0);
             mp_seq_replace_slice_no_grow(self->items, self->len, slice.start, slice.stop, self->items/*NULL*/, 0, sizeof(*self->items));
             // Clear "freed" elements at the end of list
             mp_seq_clear(self->items, self->len + len_adj, self->len, sizeof(*self->items));
@@ -596,7 +596,7 @@ STATIC mp_obj_t list_it_iternext(mp_obj_t self_in) {
 }
 
 mp_obj_t mp_obj_new_list_iterator(mp_obj_t list, size_t cur, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(mp_obj_list_it_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(mp_obj_list_it_t) <= sizeof(mp_obj_iter_buf_t));
     mp_obj_list_it_t *o = (mp_obj_list_it_t*)iter_buf;
     o->base.type = &mp_type_polymorph_iter;
     o->iternext = list_it_iternext;

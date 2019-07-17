@@ -27,7 +27,7 @@
 
 #include <stdbool.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/objfun.h"
 #include "py/runtime0.h"

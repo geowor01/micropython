@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/mpconfig.h"
 #include "py/misc.h"

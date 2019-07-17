@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/emit.h"
 #include "py/mpstate.h"
@@ -62,7 +62,7 @@ void mp_emit_common_id_op(emit_t *emit, const mp_emit_method_table_id_ops_t *emi
     // assumes pass is greater than 1, ie that all identifiers are defined in the scope
 
     id_info_t *id = scope_find(scope, qst);
-    assert(id != NULL);
+    mp_assert(id != NULL);
 
     // call the emit backend with the correct code
     if (id->kind == ID_INFO_KIND_GLOBAL_IMPLICIT) {
@@ -72,7 +72,7 @@ void mp_emit_common_id_op(emit_t *emit, const mp_emit_method_table_id_ops_t *emi
     } else if (id->kind == ID_INFO_KIND_LOCAL) {
         emit_method_table->fast(emit, qst, id->local_num);
     } else {
-        assert(id->kind == ID_INFO_KIND_CELL || id->kind == ID_INFO_KIND_FREE);
+        mp_assert(id->kind == ID_INFO_KIND_CELL || id->kind == ID_INFO_KIND_FREE);
         emit_method_table->deref(emit, qst, id->local_num);
     }
 }

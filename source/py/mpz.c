@@ -25,7 +25,7 @@
  */
 
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/rootstack.h"
 #include "py/mpz.h"
@@ -313,7 +313,7 @@ STATIC size_t mpn_or_neg(mpz_dig_t *idig, const mpz_dig_t *jdig, size_t jlen, co
     // each time, ie carryi += 0xff..ff.  So carryj|carryk must be 0 in the
     // DIG_MASK bits on each iteration.  But considering all cases of signs of
     // j,k one sees that this is not possible.
-    assert(carryi == 0);
+    mp_assert(carryi == 0);
 
     return mpn_remove_trailing_zeros(oidig, idig);
 }
@@ -338,7 +338,7 @@ STATIC size_t mpn_or_neg(mpz_dig_t *idig, const mpz_dig_t *jdig, size_t jlen, co
     }
 
     // See comment in above mpn_or_neg for why carryi must be 0.
-    assert(carryi == 0);
+    mp_assert(carryi == 0);
 
     return mpn_remove_trailing_zeros(oidig, idig);
 }
@@ -613,7 +613,7 @@ STATIC void mpn_div(mpz_dig_t *num_dig, size_t *num_len, const mpz_dig_t *den_di
                 *num_dig = carry & DIG_MASK;
                 carry >>= DIG_SIZE;
 
-                //assert(borrow >= carry); // enable this to check the logic
+                //mp_assert(borrow >= carry); // enable this to check the logic
                 borrow -= carry;
             }
         }
@@ -690,7 +690,7 @@ STATIC void mpz_need_dig(mpz_t *z, size_t need) {
     if (z->dig == NULL || z->alloc < need) {
         // if z has fixed digit buffer there's not much we can do as the caller will
         // be expecting a buffer with at least "need" bytes (but it shouldn't happen)
-        assert(!z->fixed_dig);
+        mp_assert(!z->fixed_dig);
         z->dig = m_renew(mpz_dig_t, z->dig, z->alloc, need);
         RETURN_ON_EXCEPTION()
         z->alloc = need;
@@ -850,7 +850,7 @@ typedef uint32_t mp_float_int_t;
 
 // returns number of bytes from str that were processed
 size_t mpz_set_from_str(mpz_t *z, const char *str, size_t len, bool neg, unsigned int base) {
-    assert(base <= 36);
+    mp_assert(base <= 36);
 
     const char *cur = str;
     const char *top = str + len;
@@ -1348,7 +1348,7 @@ void mpz_pow3_inpl(mpz_t *dest, const mpz_t *lhs, const mpz_t *rhs, const mpz_t 
    assumes rhs != 0 (undefined behaviour if it is)
 */
 void mpz_divmod_inpl(mpz_t *dest_quo, mpz_t *dest_rem, const mpz_t *lhs, const mpz_t *rhs) {
-    assert(!mpz_is_zero(rhs));
+    mp_assert(!mpz_is_zero(rhs));
 
     mpz_need_dig(dest_quo, lhs->len + 1); // +1 necessary?
     RETURN_ON_EXCEPTION()

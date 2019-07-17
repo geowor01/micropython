@@ -25,7 +25,7 @@
  */
 
 #include <stdio.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/smallint.h"
 #include "py/objint.h"
@@ -48,7 +48,7 @@ extern struct _mp_dummy_t mp_sys_stdout_obj; // type is irrelevant, just need po
 // args[1] is class name
 // args[2:] are base objects
 STATIC mp_obj_t mp_builtin___build_class__(size_t n_args, const mp_obj_t *args) {
-    assert(2 <= n_args);
+    mp_assert(2 <= n_args);
 
     // set the new classes __locals__ object
     mp_obj_dict_t *old_locals = mp_locals_get();

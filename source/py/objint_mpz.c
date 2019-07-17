@@ -26,7 +26,7 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/parsenumbase.h"
 #include "py/smallint.h"
@@ -93,7 +93,7 @@ mp_obj_int_t *mp_obj_int_new_mpz(void) {
 // This particular routine should only be called for the mpz representation of the int.
 char *mp_obj_int_formatted_impl(char **buf, size_t *buf_size, size_t *fmt_size, mp_const_obj_t self_in,
                                 int base, const char *prefix, char base_char, char comma) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_int));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_int));
     const mp_obj_int_t *self = MP_OBJ_TO_PTR(self_in);
 
     size_t temp = mpz_max_num_bits(&self->mpz);
@@ -125,7 +125,7 @@ mp_obj_t mp_obj_int_from_bytes_impl(bool big_endian, size_t len, const byte *buf
 }
 
 void mp_obj_int_to_bytes_impl(mp_obj_t self_in, bool big_endian, size_t len, byte *buf) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_int));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_int));
     mp_obj_int_t *self = MP_OBJ_TO_PTR(self_in);
     memset(buf, 0, len);
     mpz_as_bytes(&self->mpz, big_endian, len, buf);
@@ -356,7 +356,7 @@ mp_obj_t mp_obj_int_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
                 break;
 
             default: {
-                assert(op == MP_BINARY_OP_DIVMOD);
+                mp_assert(op == MP_BINARY_OP_DIVMOD);
                 if (mpz_is_zero(zrhs)) {
                     m_rs_pop_ptr(res);
                     goto zero_division_error;
@@ -521,7 +521,7 @@ mp_int_t mp_obj_int_get_checked(mp_const_obj_t self_in) {
 
 #if MICROPY_PY_BUILTINS_FLOAT
 mp_float_t mp_obj_int_as_float_impl(mp_obj_t self_in) {
-    assert(MP_OBJ_IS_TYPE(self_in, &mp_type_int));
+    mp_assert(MP_OBJ_IS_TYPE(self_in, &mp_type_int));
     mp_obj_int_t *self = MP_OBJ_TO_PTR(self_in);
     return mpz_as_float(&self->mpz);
 }

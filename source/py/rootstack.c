@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <inttypes.h>
 #include <stdio.h>
 
@@ -136,7 +136,7 @@ void gc_rs_push(int kind, void *ptr) {
     if (kind != RS_KIND_BAR && ptr == NULL) {
         return;
     }
-    assert(MP_STATE_THREAD(root_stack_cur) < &root_stack[MP_ARRAY_SIZE(root_stack)]);
+    mp_assert(MP_STATE_THREAD(root_stack_cur) < &root_stack[MP_ARRAY_SIZE(root_stack)]);
     MP_STATE_THREAD(root_stack_cur)->kind = kind;
     MP_STATE_THREAD(root_stack_cur)->ptr = ptr;
     ++MP_STATE_THREAD(root_stack_cur);

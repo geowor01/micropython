@@ -27,7 +27,7 @@
 #include "py/mpconfig.h"
 #if MICROPY_FLOAT_IMPL != MICROPY_FLOAT_IMPL_NONE
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include "py/formatfloat.h"
@@ -396,7 +396,7 @@ int mp_format_float(FPTYPE f, char *buf, size_t buf_size, char fmt, int prec, ch
     }
 
     // verify that we did not overrun the input buffer so far
-    assert((size_t)(s + 1 - buf) <= buf_size);
+    mp_assert((size_t)(s + 1 - buf) <= buf_size);
 
     if (org_fmt == 'g' && prec > 0) {
         // Remove trailing zeros and a trailing decimal point
@@ -420,7 +420,7 @@ int mp_format_float(FPTYPE f, char *buf, size_t buf_size, char fmt, int prec, ch
     *s = '\0';
 
     // verify that we did not overrun the input buffer
-    assert((size_t)(s + 1 - buf) <= buf_size);
+    mp_assert((size_t)(s + 1 - buf) <= buf_size);
 
     return s - buf;
 }

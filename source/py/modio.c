@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "mp_assert.h"
 #include <string.h>
 
 #include "py/runtime.h"
@@ -89,7 +89,7 @@ STATIC mp_uint_t bufwriter_write(mp_obj_t self_in, const void *buf, mp_uint_t si
         }
         // TODO: try to recover from a case of non-blocking stream, e.g. move
         // remaining chunk to the beginning of buffer.
-        assert(out_sz == self->alloc);
+        mp_assert(out_sz == self->alloc);
         self->len = 0;
     }
 
@@ -104,7 +104,7 @@ STATIC mp_obj_t bufwriter_flush(mp_obj_t self_in) {
         mp_uint_t out_sz = mp_stream_write_exactly(self->stream, self->buf, self->len, &err);
         // TODO: try to recover from a case of non-blocking stream, e.g. move
         // remaining chunk to the beginning of buffer.
-        assert(out_sz == self->len);
+        mp_assert(out_sz == self->len);
         self->len = 0;
         if (err != 0) {
             return mp_raise_OSError_o(err);

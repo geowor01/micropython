@@ -27,7 +27,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <assert.h>
+#include "mp_assert.h"
 #include <string.h>
 
 #include "py/lexer.h"
@@ -196,13 +196,13 @@ STATIC void push_rule(parser_t *parser, size_t src_line, const rule_t *rule, siz
 }
 
 STATIC void push_rule_from_arg(parser_t *parser, size_t arg) {
-    assert((arg & RULE_ARG_KIND_MASK) == RULE_ARG_RULE || (arg & RULE_ARG_KIND_MASK) == RULE_ARG_OPT_RULE);
+    mp_assert((arg & RULE_ARG_KIND_MASK) == RULE_ARG_RULE || (arg & RULE_ARG_KIND_MASK) == RULE_ARG_OPT_RULE);
     size_t rule_id = arg & RULE_ARG_ARG_MASK;
     push_rule(parser, parser->lexer->tok_line, rules[rule_id], 0, 0);
 }
 
 STATIC void pop_rule(parser_t *parser, const rule_t **rule, size_t *arg_i, size_t *src_line, size_t *pt_off) {
-    assert(!parser->parse_error);
+    mp_assert(!parser->parse_error);
     parser->rule_stack_top -= 1;
     *rule = rules[parser->rule_stack[parser->rule_stack_top].rule_id];
     *arg_i = parser->rule_stack[parser->rule_stack_top].arg_i;
@@ -331,21 +331,21 @@ const byte *mp_parse_node_extract_list(const byte **p, size_t pn_kind) {
 
 /*
 const byte *pt_extract_id(const byte *p, qstr *qst) {
-    //assert(*p == MP_PT_ID_BASE);
+    //mp_assert(*p == MP_PT_ID_BASE);
     *qst = p[1] | ((p[0] - MP_PT_ID_BASE) << 8);
     return p + 2;
 }
 */
 
 const byte *pt_extract_const_obj(const byte *p, size_t *idx) {
-    assert(*p == MP_PT_CONST_OBJECT);
+    mp_assert(*p == MP_PT_CONST_OBJECT);
     p += 1;
     *idx = vuint_load(&p);
     return p;
 }
 
 const byte *pt_get_small_int(const byte *p, mp_int_t *val) {
-    assert(*p == MP_PT_SMALL_INT);
+    mp_assert(*p == MP_PT_SMALL_INT);
     *val = 0;
     for (size_t i = 0; i < BYTES_PER_WORD; i++) {
         *val |= (mp_int_t)*++p << (8 * i);
@@ -445,13 +445,13 @@ STATIC void pt_add_kind_byte(pt_t *pt, byte kind, byte b) {
 
 STATIC void pt_add_kind_qstr(pt_t *pt, byte kind, qstr qst) {
     if (kind == MP_PT_ID_BASE) {
-        assert((qst >> 12) == 0);
+        mp_assert((qst >> 12) == 0);
         byte *buf = pt_raw_add_blank(pt, 2);
         RETURN_ON_EXCEPTION()
         buf[0] = MP_PT_ID_BASE + (qst >> 8);
         buf[1] = qst;
     } else {
-        assert((qst >> 16) == 0);
+        mp_assert((qst >> 16) == 0);
         byte *buf = pt_raw_add_blank(pt, 3);
         RETURN_ON_EXCEPTION()
         buf[0] = kind;
@@ -585,7 +585,7 @@ STATIC bool fold_constants(parser_t *parser, pt_t *pt, size_t pt_off, const rule
                 }
                 arg0 = mp_small_int_modulo(arg0, arg1);
             } else {
-                assert(tok == MP_TOKEN_OP_DBL_SLASH); // should be
+                mp_assert(tok == MP_TOKEN_OP_DBL_SLASH); // should be
                 // int // int
                 if (arg1 == 0) {
                     return false;
@@ -614,7 +614,7 @@ STATIC bool fold_constants(parser_t *parser, pt_t *pt, size_t pt_off, const rule
                 return false;
             }
         } else {
-            assert(tok == MP_TOKEN_OP_TILDE); // should be
+            mp_assert(tok == MP_TOKEN_OP_TILDE); // should be
             // ~int
             arg0 = ~arg0;
         }
@@ -649,7 +649,7 @@ STATIC bool fold_constants(parser_t *parser, pt_t *pt, size_t pt_off, const rule
 
                 // store the value in the table of dynamic constants
                 mp_map_elem_t *elem = mp_map_lookup(&parser->consts, MP_OBJ_NEW_QSTR(id), MP_MAP_LOOKUP_ADD_IF_NOT_FOUND);
-                assert(elem->value == MP_OBJ_NULL);
+                mp_assert(elem->value == MP_OBJ_NULL);
                 elem->value = MP_OBJ_NEW_SMALL_INT(value);
 
                 // replace const(value) with value
@@ -676,7 +676,7 @@ STATIC bool fold_constants(parser_t *parser, pt_t *pt, size_t pt_off, const rule
         // id1.id2
         // look it up in constant table, see if it can be replaced with an integer
         mp_parse_node_struct_t *pns1 = (mp_parse_node_struct_t*)pn1;
-        assert(MP_PARSE_NODE_IS_ID(pns1->nodes[0]));
+        mp_assert(MP_PARSE_NODE_IS_ID(pns1->nodes[0]));
         qstr q_base = MP_PARSE_NODE_LEAF_ARG(pn0);
         qstr q_attr = MP_PARSE_NODE_LEAF_ARG(pns1->nodes[0]);
         mp_map_elem_t *elem = mp_map_lookup((mp_map_t*)&mp_constants_map, MP_OBJ_NEW_QSTR(q_base), MP_MAP_LOOKUP);
@@ -820,7 +820,7 @@ STATIC void pt_ins_rule(parser_t *parser, pt_t *pt, size_t pt_off, size_t src_li
                 }
                 arg0 = mp_small_int_modulo(arg0, arg1);
             } else {
-                assert(tok == MP_TOKEN_OP_DBL_SLASH); // should be
+                mp_assert(tok == MP_TOKEN_OP_DBL_SLASH); // should be
                 // int // int
                 if (arg1 == 0) {
                     goto folding_fail;
@@ -848,7 +848,7 @@ STATIC void pt_ins_rule(parser_t *parser, pt_t *pt, size_t pt_off, size_t src_li
                 goto folding_fail;
             }
         } else {
-            assert(tok == MP_TOKEN_OP_TILDE); // should be
+            mp_assert(tok == MP_TOKEN_OP_TILDE); // should be
             // ~int
             arg0 = ~arg0;
         }
@@ -999,7 +999,7 @@ STATIC bool pt_add_token(parser_t *parser, pt_t *pt) {
 }
 
 const byte *pt_rule_extract_top(const byte *p, const byte **ptop) {
-    assert(*p >= MP_PT_RULE_BASE);
+    mp_assert(*p >= MP_PT_RULE_BASE);
     p++;
     vuint_load(&p);
     size_t nbytes = vuint_load(&p);
@@ -1008,7 +1008,7 @@ const byte *pt_rule_extract_top(const byte *p, const byte **ptop) {
 }
 
 const byte *pt_rule_extract(const byte *p, size_t *rule_id, size_t *src_line, const byte **ptop) {
-    assert(*p >= MP_PT_RULE_BASE);
+    mp_assert(*p >= MP_PT_RULE_BASE);
     *rule_id = *p++ - MP_PT_RULE_BASE;
     *src_line = vuint_load(&p);
     size_t nbytes = vuint_load(&p);
@@ -1117,7 +1117,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                             goto next_rule;
                         }
                     } else {
-                        assert(kind == RULE_ARG_RULE);
+                        mp_assert(kind == RULE_ARG_RULE);
                         if (i + 1 < n) {
                             push_rule(&parser, rule_src_line, rule, i + 1, pt_off); // save this or-rule
                         }
@@ -1132,7 +1132,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
 
                 // failed, backtrack if we can, else syntax error
                 if (backtrack) {
-                    assert(i > 0);
+                    mp_assert(i > 0);
                     if ((rule->arg[i - 1] & RULE_ARG_KIND_MASK) == RULE_ARG_OPT_RULE) {
                         // an optional rule that failed, so continue with next arg
                         pt_add_null(pt);
@@ -1191,7 +1191,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                     }
                 }
 
-                assert(i == n);
+                mp_assert(i == n);
 
                 // matched the rule, so now build the corresponding parse_node
 
@@ -1364,12 +1364,12 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
                                 push_rule_from_arg(&parser, arg); // push child of list-rule
                                 goto next_rule;
                             default:
-                                assert(0);
+                                mp_assert(0);
                                 goto rule_list_no_other_choice; // to help flow control analysis
                         }
                     }
                 }
-                assert(i >= 1);
+                mp_assert(i >= 1);
 
                 // compute number of elements in list, result in i
                 i -= 1;
@@ -1427,7 +1427,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
         } else
         #endif
         {
-            assert(parser.parse_error == PARSE_ERROR_MEMORY);
+            mp_assert(parser.parse_error == PARSE_ERROR_MEMORY);
         memory_error:
             exc = mp_obj_new_exception_msg(&mp_type_MemoryError,
                 "parser could not allocate enough memory");
@@ -1465,7 +1465,7 @@ mp_parse_tree_t mp_parse(mp_lexer_t *lex, mp_parse_input_kind_t input_kind) {
         RETURN_ON_EXCEPTION(parser.tree)
 
         // get the root parse node that we created
-        //assert(parser.result_stack_top == 1);
+        //mp_assert(parser.result_stack_top == 1);
         exc = MP_OBJ_NULL;
         parser.tree.root = (byte*)pt->vv.buf;
         parser.tree.co_data = parser.co_data;

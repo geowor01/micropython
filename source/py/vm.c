@@ -27,7 +27,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/mpstate.h"
 #include "py/mphal.h"
@@ -663,7 +663,7 @@ dispatch_loop:
                             sp[-3] = ret_val;
                             sp[-2] = MP_OBJ_NEW_SMALL_INT(UNWIND_RETURN);
                         } else {
-                            assert(cause_val == UNWIND_JUMP);
+                            mp_assert(cause_val == UNWIND_JUMP);
                             // stack: (..., __exit__, ctx_mgr, dest_ip, num_exc, UNWIND_JUMP)
                             mp_obj_t dest_ip = sp[-2];
                             mp_obj_t num_exc = sp[-1];
@@ -678,7 +678,7 @@ dispatch_loop:
                         }
                         sp -= 2; // we removed (__exit__, ctx_mgr)
                     } else {
-                        assert(mp_obj_is_exception_instance(TOP()));
+                        mp_assert(mp_obj_is_exception_instance(TOP()));
                         // stack: (..., __exit__, ctx_mgr, exc_instance)
                         // Need to pass (exc_type, exc_instance, None) as arguments to __exit__.
                         sp[1] = sp[0];
@@ -693,7 +693,7 @@ dispatch_loop:
                             // replacing it with None, which signals END_FINALLY to just
                             // execute the finally handler normally.
                             SET_TOP(mp_const_none);
-                            assert(exc_sp >= exc_stack);
+                            mp_assert(exc_sp >= exc_stack);
                             POP_EXC_BLOCK();
                         } else {
                             // We need to re-raise the exception.  We pop __exit__ handler
@@ -767,11 +767,11 @@ unwind_jump:;
                         if (reason == UNWIND_RETURN) {
                             goto unwind_return;
                         } else {
-                            assert(reason == UNWIND_JUMP);
+                            mp_assert(reason == UNWIND_JUMP);
                             goto unwind_jump;
                         }
                     } else {
-                        assert(mp_obj_is_exception_instance(TOP()));
+                        mp_assert(mp_obj_is_exception_instance(TOP()));
                         RAISE(TOP());
                     }
                     DISPATCH();
@@ -826,14 +826,14 @@ unwind_jump:;
                 // matched against: SETUP_EXCEPT, SETUP_FINALLY, SETUP_WITH
                 ENTRY(MP_BC_POP_BLOCK):
                     // we are exiting an exception handler, so pop the last one of the exception-stack
-                    assert(exc_sp >= exc_stack);
+                    mp_assert(exc_sp >= exc_stack);
                     POP_EXC_BLOCK();
                     DISPATCH();
 
                 // matched against: SETUP_EXCEPT
                 ENTRY(MP_BC_POP_EXCEPT):
-                    assert(exc_sp >= exc_stack);
-                    assert(currently_in_except_block);
+                    mp_assert(exc_sp >= exc_stack);
+                    mp_assert(currently_in_except_block);
                     POP_EXC_BLOCK();
                     DISPATCH();
 
@@ -1149,7 +1149,7 @@ unwind_return:
                         exc_sp--;
                     }
                     code_state->sp = sp;
-                    assert(exc_sp == exc_stack - 1);
+                    mp_assert(exc_sp == exc_stack - 1);
                     MICROPY_VM_HOOK_RETURN
                     #if MICROPY_STACKLESS
                     if (code_state->prev != NULL) {
@@ -1239,7 +1239,7 @@ yield:
                         GENERATOR_EXIT_IF_NEEDED(t_exc);
                         DISPATCH();
                     } else {
-                        assert(ret_kind == MP_VM_RETURN_EXCEPTION);
+                        mp_assert(ret_kind == MP_VM_RETURN_EXCEPTION);
                         // Pop exhausted gen
                         sp--;
                         if (EXC_MATCH(ret_value, MP_OBJ_FROM_PTR(&mp_type_StopIteration))) {
@@ -1394,7 +1394,7 @@ pending_exception_check:
         {
 exception_handler:
             // exception occurred
-            assert(MP_STATE_THREAD(cur_exc) != NULL);
+            mp_assert(MP_STATE_THREAD(cur_exc) != NULL);
 
             // clear exception because we caught it
             mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
@@ -1491,7 +1491,7 @@ unwind_loop:
             while (currently_in_except_block) {
                 // nested exception
 
-                assert(exc_sp >= exc_stack);
+                mp_assert(exc_sp >= exc_stack);
 
                 // TODO make a proper message for nested exception
                 // at the moment we are just raising the very last exception (the one that caused the nested exception)

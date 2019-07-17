@@ -26,7 +26,7 @@
 
 #include <stdbool.h>
 #include <string.h>
-#include <assert.h>
+#include "mp_assert.h"
 
 #include "py/runtime.h"
 #include "py/runtime0.h"
@@ -169,7 +169,7 @@ STATIC mp_obj_t set_it_iternext(mp_obj_t self_in) {
 }
 
 STATIC mp_obj_t set_getiter(mp_obj_t set_in, mp_obj_iter_buf_t *iter_buf) {
-    assert(sizeof(mp_obj_set_it_t) <= sizeof(mp_obj_iter_buf_t));
+    mp_assert(sizeof(mp_obj_set_it_t) <= sizeof(mp_obj_iter_buf_t));
     mp_obj_set_it_t *o = (mp_obj_set_it_t*)iter_buf;
     o->base.type = &mp_type_polymorph_iter;
     o->iternext = set_it_iternext;

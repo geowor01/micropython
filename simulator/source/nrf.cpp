@@ -43,23 +43,28 @@ NRF_TIMER_Type nrf_timer0;
 
 void __NOP() {}
 
-void ticker_handler(const ticker_data_t *data) {
-    static uint32_t last_slow_tick = 0;
+// The number of milliseconds that have passed since the ticker was initialised
+volatile uint32_t us_tick_delta = 6000;
+
+void update_tick_delta() {
+    static uint32_t last_tick = 0;
     uint32_t time = us_ticker_read();
-    uint32_t delta = time - last_slow_tick;
+    us_tick_delta = last_tick == 0 ? 6000 : time - last_tick;
+    last_tick = time;
+}
+
+void ticker_handler(const ticker_data_t *data) {
+    update_tick_delta();
     TIMER0_IRQHandler();
-    if (delta > 4000) {
-        last_slow_tick = time;
-        SWI3_IRQHandler();
-        SWI4_IRQHandler();
-        MicroBitAccelerometer::autoDetect().update();
-        if (NRF_TEMP->TASKS_START && NRF_TEMP->EVENTS_DATARDY == 0) {
-            NRF_TEMP->TEMP = EM_ASM_INT({ return MbedJSUI.TemperatureSensor.read(); }) * 4;
-            NRF_TEMP->EVENTS_DATARDY = 1;
-            NRF_TEMP->TASKS_START = 0;
-        }
+    SWI3_IRQHandler();
+    SWI4_IRQHandler();
+    MicroBitAccelerometer::autoDetect().update();
+    if (NRF_TEMP->TASKS_START && NRF_TEMP->EVENTS_DATARDY == 0) {
+        NRF_TEMP->TEMP = EM_ASM_INT({ return MbedJSUI.TemperatureSensor.read(); }) * 4;
+        NRF_TEMP->EVENTS_DATARDY = 1;
+        NRF_TEMP->TASKS_START = 0;
     }
-    us_ticker_set_interrupt(time + 1000);
+    us_ticker_set_interrupt(0);
 }
 
 void NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority) {}
@@ -70,7 +75,7 @@ void NVIC_EnableIRQ(IRQn_Type IRQn)
 {
     if (IRQn == TIMER0_IRQn) {
         set_us_ticker_irq_handler(ticker_handler);
-        us_ticker_set_interrupt(us_ticker_read() + 1000);
+        us_ticker_set_interrupt(0);
     }
 }
 

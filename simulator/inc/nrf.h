@@ -107,6 +107,8 @@ void TIMER0_IRQHandler(void);
 void SWI3_IRQHandler(void);
 void SWI4_IRQHandler(void);
 
+extern volatile uint32_t us_tick_delta;
+
 void ticker_handler(const ticker_data_t *data);
 
 void NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority);

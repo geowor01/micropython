@@ -30,8 +30,8 @@ int set_low_priority_callback(callback_ptr callback, int id);
 #define MICROSECONDS_PER_TICK 16
 #define CYCLES_PER_TICK (CYCLES_PER_MICROSECONDS*MICROSECONDS_PER_TICK)
 // This must be an integer multiple of MICROSECONDS_PER_TICK
-#define MICROSECONDS_PER_MACRO_TICK 6000
-#define MILLISECONDS_PER_MACRO_TICK 6
+#define MICROSECONDS_PER_MACRO_TICK us_tick_delta
+#define MILLISECONDS_PER_MACRO_TICK (MICROSECONDS_PER_MACRO_TICK / 1000)
 
 #ifdef __cplusplus
 }

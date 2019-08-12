@@ -216,7 +216,7 @@ dispatch_loop:
                 counter++;
                 if (counter == 100) {
                     counter = 0;
-                    if (mp_hal_ticks_ms() - timer > 25)
+                    if (mp_hal_ticks_ms() - timer > 6)
                     {
                         timer = mp_hal_ticks_ms();
                         emscripten_sleep(1);

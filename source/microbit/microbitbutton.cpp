@@ -26,6 +26,7 @@
 
 extern "C" {
 
+#include "lib/ticker.h"
 #include "nrf_gpio.h"
 #include "py/runtime.h"
 #include "microbit/modmicrobit.h"
@@ -115,17 +116,19 @@ enum PinTransition
 };
 
 static PinTransition update(const microbit_pin_obj_t *pin) {
+    int32_t sigma_delta = 1 + (MILLISECONDS_PER_MACRO_TICK / 6);
+
     int32_t sigma = sigmas[pin->number&7];
     PinTransition result;
     if (nrf_gpio_pin_read(pin->name))
-        sigma++;
+        sigma += sigma_delta;
     else
-        sigma--;
+        sigma -= sigma_delta;
     if (sigma < 3) {
         if (sigma < 0) {
             sigma = 0;
-            result = LOW_LOW;
-        } else if (debounced_high[pin->number&7]) {
+        }
+        if (debounced_high[pin->number&7]) {
             result = HIGH_LOW;
             debounced_high[pin->number&7] = false;
         } else {
@@ -134,8 +137,8 @@ static PinTransition update(const microbit_pin_obj_t *pin) {
     } else if (sigma > 7) {
         if (sigma > 12) {
             sigma = 12;
-            result = HIGH_HIGH;
-        } else if (debounced_high[pin->number&7]) {
+        }
+        if (debounced_high[pin->number&7]) {
             result = HIGH_HIGH;
         } else {
             result = LOW_HIGH;

@@ -276,14 +276,16 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
     // allocate state for locals and stack
     size_t state_size = n_state * sizeof(mp_obj_t) + n_exc_stack * sizeof(mp_exc_stack_t);
     mp_code_state_t *code_state = NULL;
-    code_state = m_new_obj_var_maybe(mp_code_state_t, byte, state_size);
-    if (code_state != NULL) {
-        m_rs_push_ptr(code_state);
+    if (state_size > VM_MAX_STATE_ON_STACK) {
+        code_state = m_new_obj_var_maybe(mp_code_state_t, byte, state_size);
     }
     if (code_state == NULL) {
         code_state = alloca(sizeof(mp_code_state_t) + state_size);
         RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         state_size = 0; // indicate that we allocated using alloca
+    }
+    else {
+        m_rs_push_ptr(code_state);
     }
 
     code_state->fun_bc = self;

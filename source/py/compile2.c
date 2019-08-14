@@ -3702,7 +3702,6 @@ mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, uint emit_opt
     m_rs_push_ptr(rc);
     mp_obj_t f = mp_make_function_from_raw_code(rc, MP_OBJ_NULL, MP_OBJ_NULL);
     m_rs_pop_ptr(rc);
-    m_del_obj(mp_raw_code_t, rc);
     return f;
 }
 

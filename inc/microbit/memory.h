@@ -42,7 +42,7 @@ char rom[0x40000];
 
 /** The end of the code area in flash ROM (text plus read-only copy of data area) */
 static inline char *microbit_end_of_code() {
-    return  &rom[0];
+    return  &rom[0x398b4];
 }
 
 static inline char *microbit_end_of_rom() {

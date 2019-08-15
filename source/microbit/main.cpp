@@ -165,6 +165,8 @@ static volatile bool script_set = false;
 EMSCRIPTEN_KEEPALIVE
 extern void set_script(char *str)
 {
+    APPENDED_SCRIPT->header[0] = 'M';
+    APPENDED_SCRIPT->header[1] = 'P';
     strcpy(APPENDED_SCRIPT->str, str);
     APPENDED_SCRIPT->len = strlen(str);
     script_set = true;
@@ -289,9 +291,6 @@ static void log_test_result() {
 #endif
 
 int main(void) {
-
-    APPENDED_SCRIPT->header[0] = 'M';
-    APPENDED_SCRIPT->header[1] = 'P';
 #ifdef MBED_CONF_APP_TEST
     setup_tests();
 #if MBED_CONF_APP_TEST > 1

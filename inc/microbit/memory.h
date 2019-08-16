@@ -38,19 +38,19 @@ static inline char *roundup(char *addr, uint32_t align) {
     return (char *)((((uint32_t)addr)+align-1)&(-align));
 }
 
-char rom[0x40000] __attribute__((aligned(MBED_CONF_APP_MICROBIT_PAGE_SIZE)));
+char rom[0x6400] __attribute__((aligned(MBED_CONF_APP_MICROBIT_PAGE_SIZE)));
 
 /** The end of the code area in flash ROM (text plus read-only copy of data area) */
 static inline char *microbit_end_of_code() {
-    return  &rom[0x398b4];
+    return  &rom[0x0]; // 0x39C00 - 0x39C00
 }
 
 static inline char *microbit_end_of_rom() {
-    return &rom[0x40000];
+    return &rom[0x6400]; // 0x40000 - 0x39C00
 }
 
 static inline char *microbit_mp_appended_script() {
-    return  &rom[0x3e000];
+    return  &rom[0x4400]; // 0x3e000 - 0x39C00
 }
 
 static inline void *microbit_compass_calibration_page(void) {

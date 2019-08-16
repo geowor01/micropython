@@ -56,7 +56,7 @@ def test_interleaved_small_files():
         write_data_to_file(name, i*3, 16, 6)
     for i in range(0, NUM, 2):
         os.remove("%d.dat" % i)
-    for i in range(NUM, 120):
+    for i in range(NUM, NUM*1.5):
         name = "%d.dat" % i
         write_data_to_file(name, i*3, 16, 6)
         verify_file(name, data_stream(i*3), 16, 6, 'b')

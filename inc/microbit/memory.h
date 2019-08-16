@@ -38,7 +38,7 @@ static inline char *roundup(char *addr, uint32_t align) {
     return (char *)((((uint32_t)addr)+align-1)&(-align));
 }
 
-char rom[0x40000];
+char rom[0x40000] __attribute__((aligned(MBED_CONF_APP_MICROBIT_PAGE_SIZE)));
 
 /** The end of the code area in flash ROM (text plus read-only copy of data area) */
 static inline char *microbit_end_of_code() {

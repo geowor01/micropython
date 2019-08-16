@@ -141,13 +141,13 @@ mp_obj_t mp_seq_extract_slice(size_t len, const mp_obj_t *seq, mp_bound_slice_t 
 
     if (step < 0) {
         while (start >= stop) {
-            mp_obj_list_append(res, seq[start]);
+            mp_obj_list_append_rs(res, seq[start]);
             RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             start += step;
         }
     } else {
         while (start < stop) {
-            mp_obj_list_append(res, seq[start]);
+            mp_obj_list_append_rs(res, seq[start]);
             RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             start += step;
         }

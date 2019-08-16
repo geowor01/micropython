@@ -899,7 +899,7 @@ unwind_jump:;
                     DECODE_UINT;
                     mp_obj_t obj = sp[-(unum >> 2)];
                     if ((unum & 3) == 0) {
-                        mp_obj_list_append(obj, sp[0]);
+                        mp_obj_list_append_rs(obj, sp[0]);
                         RAISE_ON_EXCEPTION()
                         sp--;
                     } else if (!MICROPY_PY_BUILTINS_SET || (unum & 3) == 1) {

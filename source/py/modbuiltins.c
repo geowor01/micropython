@@ -251,7 +251,7 @@ STATIC mp_obj_t mp_builtin_dir(size_t n_args, const mp_obj_t *args) {
     if (dict != NULL) {
         for (size_t i = 0; i < dict->map.alloc; i++) {
             if (MP_MAP_SLOT_IS_FILLED(&dict->map, i)) {
-                mp_obj_list_append(dir, dict->map.table[i].key);
+                mp_obj_list_append_rs(dir, dict->map.table[i].key);
                 RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             }
         }
@@ -259,7 +259,7 @@ STATIC mp_obj_t mp_builtin_dir(size_t n_args, const mp_obj_t *args) {
     if (members != NULL) {
         for (size_t i = 0; i < members->alloc; i++) {
             if (MP_MAP_SLOT_IS_FILLED(members, i)) {
-                mp_obj_list_append(dir, members->table[i].key);
+                mp_obj_list_append_rs(dir, members->table[i].key);
                 RETURN_ON_EXCEPTION(MP_OBJ_NULL)
             }
         }

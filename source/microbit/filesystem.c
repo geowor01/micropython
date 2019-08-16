@@ -415,7 +415,7 @@ mp_obj_t microbit_file_list(void) {
         if (file_system_chunks[index].marker == FILE_START) {
             mp_obj_t name = mp_obj_new_str(&file_system_chunks[index].header.filename[0], file_system_chunks[index].header.name_len, false);
             RETURN_ON_EXCEPTION(MP_OBJ_NULL)
-            mp_obj_list_append(res, name);
+            mp_obj_list_append_rs(res, name);
             RETURN_ON_EXCEPTION(MP_OBJ_NULL)
         }
     }

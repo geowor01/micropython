@@ -463,6 +463,7 @@ mp_lexer_t *microbit_file_lexer(qstr src_name, file_descriptor_obj *fd) {
 
 mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
     file_descriptor_obj *fd = microbit_file_open(filename, strlen(filename), false, false);
+    RETURN_ON_EXCEPTION(NULL)
     if (fd == NULL)
         return NULL;
     qstr string = qstr_from_str(filename);

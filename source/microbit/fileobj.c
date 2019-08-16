@@ -137,6 +137,7 @@ static mp_obj_t mp_builtin_open(size_t n_args, const mp_obj_t *args) {
     const char *filename = mp_obj_str_get_data(args[0], &name_len);
     RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     file_descriptor_obj *res = microbit_file_open(filename, name_len, read == 0, text == 0);
+    RETURN_ON_EXCEPTION(MP_OBJ_NULL)
     if (res == NULL) {
         return mp_raise_msg_o(&mp_type_OSError, "file not found");
     }

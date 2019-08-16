@@ -165,12 +165,15 @@ static volatile bool script_set = false;
 EMSCRIPTEN_KEEPALIVE
 extern void set_script(char *str)
 {
-    APPENDED_SCRIPT->header[0] = 'M';
-    APPENDED_SCRIPT->header[1] = 'P';
     size_t length = strlen(str);
+    if (length == 0) {
+        return;
+    }
     if (length >= (char *)microbit_end_of_rom() - (char *)APPENDED_SCRIPT) {
         return;
     }
+    APPENDED_SCRIPT->header[0] = 'M';
+    APPENDED_SCRIPT->header[1] = 'P';
     strcpy(APPENDED_SCRIPT->str, str);
     APPENDED_SCRIPT->len = length;
     script_set = true;

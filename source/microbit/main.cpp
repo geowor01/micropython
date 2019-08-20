@@ -335,7 +335,7 @@ reset:
             });
         }
 
-        static uint32_t mp_heap[10240 / sizeof(uint32_t)];
+        static uint32_t mp_heap[10240 / sizeof(uint32_t)] __attribute__((aligned(MBED_CONF_APP_MICROBIT_PAGE_SIZE)));
 
         // Initialise memory regions: stack and MicroPython heap
         mp_stack_ctrl_init();

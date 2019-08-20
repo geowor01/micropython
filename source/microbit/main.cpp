@@ -161,21 +161,19 @@ typedef struct _appended_script_t {
 #define APPENDED_SCRIPT ((appended_script_t*)microbit_mp_appended_script())
 
 static volatile bool script_set = false;
+const char *script_file_name = "main.py";
 
 EMSCRIPTEN_KEEPALIVE
-extern void set_script(char *str)
+extern void set_script(char *script)
 {
-    size_t length = strlen(str);
-    if (length == 0) {
+    size_t script_length = strlen(script);
+    if (script_length == 0) {
         return;
     }
-    if (length >= (char *)microbit_end_of_rom() - (char *)APPENDED_SCRIPT) {
-        return;
-    }
-    APPENDED_SCRIPT->header[0] = 'M';
-    APPENDED_SCRIPT->header[1] = 'P';
-    strcpy(APPENDED_SCRIPT->str, str);
-    APPENDED_SCRIPT->len = length;
+    file_descriptor_obj *main_fd = microbit_file_open(script_file_name, 7, true, false);
+    int mp_stream_errno;
+    microbit_file_write(main_fd, script, script_length, &mp_stream_errno);
+    microbit_file_close(main_fd);
     script_set = true;
 }
 
@@ -303,8 +301,8 @@ int main(void) {
 #if MBED_CONF_APP_TEST > 1
     set_run_all_tests();
 #endif
-reset:
 #endif
+
     // // Configure the soft reset button
     gpio_init_in(&reset_button_gpio, MICROBIT_PIN_BUTTON_RESET);
     gpio_mode(&reset_button_gpio, PullUp);
@@ -372,7 +370,7 @@ reset:
             file_descriptor_obj *main_module;
             if ((main_module = microbit_file_open("main.py", 7, false, false))) {
                 do_file(main_module);
-            } else if (APPENDED_SCRIPT->header[0] == 'M' && APPENDED_SCRIPT->header[1] == 'P' && APPENDED_SCRIPT->len > 0) {
+            } else if (APPENDED_SCRIPT->header[0] == 'M' && APPENDED_SCRIPT->header[1] == 'P') {
                 // run appended script
                 do_strn(APPENDED_SCRIPT->str, APPENDED_SCRIPT->len);
             } else {
@@ -414,9 +412,6 @@ reset:
         memset(&MP_STATE_PORT(async_data)[0], 0, sizeof(MP_STATE_PORT(async_data)));
         MP_STATE_PORT(audio_buffer) = NULL;
         MP_STATE_PORT(music_data) = NULL;
-#ifdef MBED_CONF_APP_TEST
-        goto reset;
-#endif
     }
 }
 

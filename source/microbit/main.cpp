@@ -164,16 +164,22 @@ static volatile bool script_set = false;
 const char *script_file_name = "main.py";
 
 EMSCRIPTEN_KEEPALIVE
+extern void write_file(const char *file_name, void *buf, mp_uint_t buf_len)
+{
+    file_descriptor_obj *fd = microbit_file_open(file_name, strlen(file_name), true, false);
+    int mp_stream_errno;
+    microbit_file_write(fd, buf, buf_len, &mp_stream_errno);
+    microbit_file_close(fd);
+}
+
+EMSCRIPTEN_KEEPALIVE
 extern void set_script(char *script)
 {
     size_t script_length = strlen(script);
     if (script_length == 0) {
         return;
     }
-    file_descriptor_obj *main_fd = microbit_file_open(script_file_name, 7, true, false);
-    int mp_stream_errno;
-    microbit_file_write(main_fd, script, script_length, &mp_stream_errno);
-    microbit_file_close(main_fd);
+    write_file(script_file_name, script, script_length);
     script_set = true;
 }
 
@@ -314,6 +320,11 @@ int main(void) {
     // ubit_compass = &MicroBitCompass::autoDetect(ubit_i2c);
     // ubit_compass_calibrator = new MicroBitCompassCalibrator(*ubit_compass, *ubit_accelerometer, ubit_display);
 
+    if (!running_test)
+    {
+        EM_ASM({ ccall('set_script', 'null',['string'], [window.document.getElementById("script").value]) });
+    }
+
     for (;;) {
 
 #ifdef MBED_CONF_APP_TEST
@@ -328,7 +339,6 @@ int main(void) {
 #endif
         {
             EM_ASM({
-                ccall('set_script', 'null',['string'], [window.document.getElementById("script").value]);
                 window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode();
             });
         }

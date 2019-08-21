@@ -368,6 +368,7 @@ int main(void) {
         {
             if (!initialised) {
                 EM_ASM({ window.MbedJSUI.initialise() });
+                gc_collect();
                 initialised = true;
             }
         }

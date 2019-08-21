@@ -320,28 +320,9 @@ int main(void) {
     // ubit_compass = &MicroBitCompass::autoDetect(ubit_i2c);
     // ubit_compass_calibrator = new MicroBitCompassCalibrator(*ubit_compass, *ubit_accelerometer, ubit_display);
 
-    if (!running_test)
-    {
-        EM_ASM({ ccall('set_script', 'null',['string'], [window.document.getElementById("script").value]) });
-    }
+    bool loaded_script = false;
 
     for (;;) {
-
-#ifdef MBED_CONF_APP_TEST
-        if (run_all_tests) {
-            set_test(test_counter);
-            test_counter++;
-            if (test_counter >= NUMBER_OF_TESTS) {
-                run_all_tests = false;
-            }
-        }
-        else if (!running_test)
-#endif
-        {
-            EM_ASM({
-                window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode();
-            });
-        }
 
         static uint32_t mp_heap[10240 / sizeof(uint32_t)] __attribute__((aligned(MBED_CONF_APP_MICROBIT_PAGE_SIZE)));
 
@@ -373,6 +354,26 @@ int main(void) {
         ticker_init(microbit_ticker);
         ticker_start();
         pwm_start();
+
+#ifdef MBED_CONF_APP_TEST
+        if (run_all_tests) {
+            set_test(test_counter);
+            test_counter++;
+            if (test_counter >= NUMBER_OF_TESTS) {
+                run_all_tests = false;
+            }
+        }
+        else if (!running_test)
+#endif
+        {
+            if (!loaded_script) {
+                EM_ASM({
+                    ccall('set_script', 'null',['string'], [window.MbedJSUI.getScript()]);
+                    window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode();
+                });
+                loaded_script = true;
+            }
+        }
 
         // Only run initial script (or import from microbit) if we are in "friendly REPL"
         // mode.  If we are in "raw REPL" mode then this will be skipped.

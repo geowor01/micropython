@@ -123,6 +123,7 @@ void mp_hal_display_string(const char *str) {
 }
 
 void mp_hal_delay_us(mp_uint_t us) {
+    wait_us(1);
     mp_uint_t start = mp_hal_ticks_us();
     while (mp_hal_ticks_us() - start < us) {
         wait_us(1);
@@ -130,6 +131,7 @@ void mp_hal_delay_us(mp_uint_t us) {
 }
 
 void mp_hal_delay_ms(mp_uint_t ms) {
+    wait_ms(1);
     mp_uint_t start = mp_hal_ticks_ms();
     while (mp_hal_ticks_ms() - start < ms) {
         wait_ms(1);

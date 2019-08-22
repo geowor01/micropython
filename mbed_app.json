@@ -3,7 +3,7 @@
         "SIMULATOR": {
             "MICROBIT_STARTING_STACK_USAGE": 44,
             "MICROBIT_PAGE_SIZE": 1024,
-            "TEST": 1
+            "TEST_": 1
         }
     }
 }

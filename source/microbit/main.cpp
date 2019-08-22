@@ -190,6 +190,9 @@ static volatile bool run_all_tests = false;
 static volatile bool running_test = false;
 static int test_counter = 0;
 
+static char test_script[8 * MBED_CONF_APP_MICROBIT_PAGE_SIZE];
+static int test_script_len = 0;
+
 EMSCRIPTEN_KEEPALIVE
 extern void set_run_all_tests()
 {
@@ -199,9 +202,12 @@ extern void set_run_all_tests()
 }
 
 EMSCRIPTEN_KEEPALIVE
-extern void set_running_test()
+extern void set_running_test(const char *script)
 {
+    strcpy(test_script, script);
+    test_script_len = strlen(script);
     running_test = true;
+    script_set = true;
 }
 
 static void setup_tests()
@@ -221,8 +227,7 @@ static void setup_tests()
             var request = new XMLHttpRequest();
             request.onreadystatechange = function() {
                 if (request.readyState == 4 && request.status == 200) {
-                    ccall('set_script', 'null',['string'], [request.responseText]);
-                    ccall('set_running_test', 'null');
+                    ccall('set_running_test', 'null', ['string'], [request.responseText]);
                     console.log("Test: " + test);
                 }
             };
@@ -377,6 +382,12 @@ int main(void) {
         // mode.  If we are in "raw REPL" mode then this will be skipped.
         if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
             file_descriptor_obj *main_module;
+#ifdef MBED_CONF_APP_TEST
+            if (running_test) {
+                do_strn(test_script, test_script_len);
+            }
+            else
+#endif
             if ((main_module = microbit_file_open("main.py", 7, false, false))) {
                 do_file(main_module);
             } else if (APPENDED_SCRIPT->header[0] == 'M' && APPENDED_SCRIPT->header[1] == 'P') {

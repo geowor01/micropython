@@ -216,6 +216,8 @@ typedef struct _mp_state_thread_t {
 
     mp_obj_base_t *cur_exc;
 
+    long int time_of_last_yield;
+
     // Stack top at the start of program
     char *stack_top;
 
@@ -248,5 +250,8 @@ extern mp_state_thread_t *mp_thread_get_state(void);
 
 #define RETURN_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { return x; }
 #define RETURN_AND_CLEAR_BARRIER_ON_EXCEPTION(x) if (MP_STATE_THREAD(cur_exc) != NULL) { m_rs_clear_to_barrier(); return x; }
+
+#define YIELD_PERIOD 6
+#define YIELD_IF_NEEDED() if (mp_hal_ticks_ms() - MP_STATE_THREAD(time_of_last_yield) >= YIELD_PERIOD) { emscripten_sleep(1); MP_STATE_THREAD(time_of_last_yield) = mp_hal_ticks_ms(); }
 
 #endif // MICROPY_INCLUDED_PY_MPSTATE_H

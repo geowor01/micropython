@@ -219,15 +219,18 @@ static void setup_tests()
 
         MicroPythonTests.run_all = function() {
             ccall('set_run_all_tests', 'null');
-            console.log("Reset MicroPython to start run.")
+            ccall('reset_device', 'null');
         };
 
-        MicroPythonTests.run = function(test) {
+        MicroPythonTests.run = function(test, reset = true) {
             MicroPythonTests.currently_running = test;
             var request = new XMLHttpRequest();
             request.onreadystatechange = function() {
                 if (request.readyState == 4 && request.status == 200) {
                     ccall('set_running_test', 'null', ['string'], [request.responseText]);
+                    if (reset) {
+                        ccall('reset_device', 'null');
+                    }
                     console.log("Test: " + test);
                 }
             };
@@ -236,8 +239,8 @@ static void setup_tests()
             window.MbedJSHal.serial.write("\\r\\n\\nRunning Test <" + test + "> on reboot\\r\\n\\n");
         };
 
-        MicroPythonTests.run_by_index = function(index) {
-            MicroPythonTests.run(window.MbedJSUI.MicroPythonTestList[index]);
+        MicroPythonTests.run_by_index = function(index, reset = true) {
+            MicroPythonTests.run(window.MbedJSUI.MicroPythonTestList[index], reset);
         };
 
         MicroPythonTests.log_result = function() {
@@ -285,7 +288,7 @@ static void set_test(uint32_t test_index)
 {
     mp_hal_stdout_tx_str("\r\n");
     EM_ASM_({
-        MicroPythonTests.run_by_index($0);
+        MicroPythonTests.run_by_index($0, false);
     }, test_index);
     mp_hal_stdout_tx_str("\r\n");
     script_set = false;

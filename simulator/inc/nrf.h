@@ -108,6 +108,7 @@ void SWI3_IRQHandler(void);
 void SWI4_IRQHandler(void);
 
 extern volatile uint32_t us_tick_delta;
+extern volatile bool perform_reset;
 
 void ticker_handler(const ticker_data_t *data);
 

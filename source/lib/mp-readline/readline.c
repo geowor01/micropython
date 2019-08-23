@@ -432,6 +432,7 @@ int readline(vstr_t *line, const char *prompt) {
     RETURN_ON_EXCEPTION(-1);
     for (;;) {
         int c = mp_hal_stdin_rx_chr();
+        RETURN_ON_EXCEPTION(-1);
         int r = readline_process_char(c);
         RETURN_ON_EXCEPTION(-1);
         if (r >= 0) {

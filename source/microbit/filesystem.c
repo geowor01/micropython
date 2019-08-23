@@ -192,6 +192,12 @@ uint8_t microbit_find_file(const char *name, int name_len) {
     return FILE_NOT_FOUND;
 }
 
+void microbit_clear_files() {
+    for (uint8_t index = 1; index <= chunks_in_file_system; index++) {
+        persistent_write_byte_unchecked(&(file_system_chunks[index].marker), FREED_CHUNK);
+    }
+}
+
 /** Return a free, erased chunk.
  * Search the chunks:
  * 1  If an UNUSED chunk is found, then return that.

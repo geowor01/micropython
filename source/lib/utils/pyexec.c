@@ -340,6 +340,7 @@ raw_repl_reset:
         mp_hal_stdout_tx_str(">");
         for (;;) {
             int c = mp_hal_stdin_rx_chr();
+            RETURN_ON_EXCEPTION(-1)
             if (c == CHAR_CTRL_A) {
                 // reset raw REPL
                 goto raw_repl_reset;
@@ -456,6 +457,7 @@ friendly_repl_reset:
             vstr_reset(&line);
             for (;;) {
                 char c = mp_hal_stdin_rx_chr();
+                RETURN_ON_EXCEPTION(-1)
                 if (c == CHAR_CTRL_C) {
                     // cancel everything
                     mp_hal_stdout_tx_str("\r\n");

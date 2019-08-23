@@ -32,6 +32,7 @@ extern "C" {
 #include "py/obj.h"
 #include "py/mpstate.h"
 #include "py/mphal.h"
+#include "py/runtime.h"
 #include "microbit/modmicrobit.h"
 #include "lib/ticker.h"
 #ifdef TARGET_SIMULATOR
@@ -39,7 +40,8 @@ extern "C" {
 #endif
 
 STATIC mp_obj_t microbit_reset_(void) {
-    microbit_reset();
+    perform_reset = true;
+    mp_raise_ResetDevice();
     return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_0(microbit_reset_obj, microbit_reset_);
@@ -67,6 +69,7 @@ MP_DEFINE_CONST_FUN_OBJ_0(microbit_running_time_obj, microbit_running_time);
 STATIC mp_obj_t microbit_panic(mp_uint_t n_args, const mp_obj_t *args) {
 #ifdef TARGET_SIMULATOR
     EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.panic_mode(); });
+    emscripten_sleep(1);
 #endif // TARGET_SIMULATOR
     if (n_args == 0) {
         // TODO the docs don't mention this, so maybe remove it?
@@ -75,7 +78,9 @@ STATIC mp_obj_t microbit_panic(mp_uint_t n_args, const mp_obj_t *args) {
         microbit_panic(mp_obj_get_int(args[0]));
     }
 #ifdef TARGET_SIMULATOR
-    EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.normal_mode(); });
+    EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode(); });
+    emscripten_sleep(1);
+    microbit_reset_();
 #endif // TARGET_SIMULATOR
     return mp_const_none;
 }

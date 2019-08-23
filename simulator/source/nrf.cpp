@@ -45,6 +45,13 @@ void __NOP() {}
 
 // The number of milliseconds that have passed since the ticker was initialised
 volatile uint32_t us_tick_delta = 6000;
+volatile bool perform_reset = false;
+
+EMSCRIPTEN_KEEPALIVE
+extern void reset_device()
+{
+    perform_reset = true;
+}
 
 void update_tick_delta() {
     static uint32_t last_tick = 0;
@@ -54,6 +61,9 @@ void update_tick_delta() {
 }
 
 void ticker_handler(const ticker_data_t *data) {
+    if (perform_reset) {
+        return;
+    }
     update_tick_delta();
     TIMER0_IRQHandler();
     SWI3_IRQHandler();

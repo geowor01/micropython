@@ -183,6 +183,9 @@ STATIC void wait_for_event() {
             async_stop();
             return;
         }
+        if (perform_reset) {
+            return;
+        }
         emscripten_sleep(10);
     }
     wakeup_event = false;
@@ -333,6 +336,9 @@ static int light_sensor_read(void) {
     for (int i = 0; i < n; ++i) {
         light_sensor_state = LIGHT_SENSOR_REQUEST_SAMPLE;
         while (light_sensor_state != LIGHT_SENSOR_HAVE_SAMPLE) {
+            if (perform_reset) {
+                return 0;
+            }
             emscripten_sleep(10);
         }
     }

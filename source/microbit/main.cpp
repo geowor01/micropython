@@ -117,7 +117,7 @@ static void do_lexer(mp_lexer_t *lex) {
             }
         }
         m_rs_clear_to_barrier();
-        if (MP_STATE_THREAD(cur_exc) != NULL) {
+        if (MP_STATE_THREAD(cur_exc) != NULL && !perform_reset) {
             mp_obj_base_t *the_exc = MP_STATE_THREAD(cur_exc);
             MP_STATE_THREAD(cur_exc) = NULL;
             m_rs_push_barrier();
@@ -372,7 +372,10 @@ int main(void) {
 #endif
         {
             if (!initialised) {
+                microbit_clear_files();
+                microbit_display_clear();
                 EM_ASM({ window.MbedJSUI.initialise() });
+                emscripten_sleep(1);
                 gc_collect();
                 initialised = true;
             }
@@ -409,6 +412,9 @@ int main(void) {
         {
             // Run the REPL until the user wants to exit
             for (;;) {
+                if (perform_reset) {
+                    break;
+                }
                 if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
                     if (pyexec_raw_repl() != 0) {
                         break;
@@ -432,6 +438,12 @@ int main(void) {
         memset(&MP_STATE_PORT(async_data)[0], 0, sizeof(MP_STATE_PORT(async_data)));
         MP_STATE_PORT(audio_buffer) = NULL;
         MP_STATE_PORT(music_data) = NULL;
+
+        if (perform_reset) {
+            MP_STATE_THREAD(cur_exc) = NULL;
+            perform_reset = false;
+            initialised = false;
+        }
     }
 }
 

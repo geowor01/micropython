@@ -72,6 +72,10 @@ int mp_hal_stdin_rx_any(void) {
 
 int mp_hal_stdin_rx_chr(void) {
     while (uart_rx_buf_tail == uart_rx_buf_head) {
+        if (perform_reset) {
+            mp_raise_ResetDevice();
+            return 0;
+        }
         wait_ms(READ_CHAR_PERIOD);
     }
     int c = uart_rx_buf[uart_rx_buf_tail];
@@ -126,6 +130,9 @@ void mp_hal_delay_us(mp_uint_t us) {
     wait_us(1);
     mp_uint_t start = mp_hal_ticks_us();
     while (mp_hal_ticks_us() - start < us) {
+        if (perform_reset) {
+            return;
+        }
         wait_us(1);
     }
 }
@@ -134,6 +141,9 @@ void mp_hal_delay_ms(mp_uint_t ms) {
     wait_ms(1);
     mp_uint_t start = mp_hal_ticks_ms();
     while (mp_hal_ticks_ms() - start < ms) {
+        if (perform_reset) {
+            return;
+        }
         wait_ms(1);
     }
 }

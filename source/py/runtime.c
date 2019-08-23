@@ -1590,3 +1590,7 @@ mp_obj_t mp_raise_OSError_o(int errno_) {
 mp_obj_t mp_raise_NotImplementedError_o(const char *msg) {
     return mp_raise_msg_o(&mp_type_NotImplementedError, msg);
 }
+
+mp_obj_t mp_raise_ResetDevice() {
+    return mp_raise_msg_o(&mp_type_SystemExit, "Device Reset");
+}

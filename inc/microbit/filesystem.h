@@ -106,6 +106,7 @@ typedef struct _persistent_config_t {
 #define STATIC_ASSERT(e) extern char static_assert_failed[(e) ? 1 : -1]
 
 uint8_t microbit_find_file(const char *name, int name_len);
+void microbit_clear_files(void);
 file_descriptor_obj *microbit_file_open(const char *name, uint32_t name_len, bool write, bool binary);
 void microbit_file_close(file_descriptor_obj *fd);
 mp_uint_t microbit_file_read(mp_obj_t obj, void *buf, mp_uint_t size, int *errcode);

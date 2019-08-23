@@ -152,6 +152,7 @@ mp_obj_t mp_raise_ValueError_o(const char *msg);
 mp_obj_t mp_raise_TypeError_o(const char *msg);
 mp_obj_t mp_raise_NotImplementedError_o(const char *msg);
 mp_obj_t mp_raise_OSError_o(int errno_);
+mp_obj_t mp_raise_ResetDevice(void);
 mp_obj_t mp_exc_recursion_depth(void);
 
 #if MICROPY_BUILTIN_METHOD_CHECK_SELF_ARG

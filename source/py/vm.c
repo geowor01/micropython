@@ -37,6 +37,7 @@
 #include "py/bc0.h"
 #include "py/bc.h"
 #include "py/gc.h"
+#include "interrupt_char.h"
 
 #if 0 // MICROPY_DEBUG_PRINTERS
 #define TRACE(ip) printf("sp=%d ", (int)(sp - &code_state->state[0] + 1)); mp_bytecode_print2(ip, 1, code_state->fun_bc->const_table);
@@ -216,6 +217,10 @@ dispatch_loop:
                 counter++;
                 if (counter == 100) {
                     counter = 0;
+                    if (perform_reset) {
+                        mp_keyboard_interrupt();
+                        return MP_VM_RETURN_EXCEPTION;
+                    }
                     YIELD_IF_NEEDED()
                 }
 #if MICROPY_OPT_COMPUTED_GOTO

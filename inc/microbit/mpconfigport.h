@@ -112,6 +112,7 @@ extern const struct _mp_obj_module_t love_module;
 extern const struct _mp_obj_module_t javascript_module;
 extern const struct _mp_obj_module_t random_module;
 extern const struct _mp_obj_module_t os_module;
+extern const struct _mp_obj_module_t radio_module;
 extern const struct _mp_obj_module_t utime_module;
 
 #define MICROPY_PORT_BUILTIN_MODULES \
@@ -122,6 +123,7 @@ extern const struct _mp_obj_module_t utime_module;
     { MP_ROM_QSTR(MP_QSTR_love), MP_ROM_PTR(&love_module) }, \
     { MP_ROM_QSTR(MP_QSTR_random), MP_ROM_PTR(&random_module) }, \
     { MP_ROM_QSTR(MP_QSTR_os), MP_ROM_PTR(&os_module) }, \
+    { MP_ROM_QSTR(MP_QSTR_radio), MP_ROM_PTR(&radio_module) }, \
     { MP_ROM_QSTR(MP_QSTR_utime), MP_ROM_PTR(&utime_module) }, \
     \
     /* the following provide aliases for existing modules */ \

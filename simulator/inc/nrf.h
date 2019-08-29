@@ -43,21 +43,66 @@ extern "C" {
 
 #include "us_ticker_api.h"
 
-typedef struct {                                    /*!< TEMP Structure                                                        */
+typedef struct {                               /*!< RADIO Structure                                                       */
+  uint32_t  TASKS_TXEN;                        /*!< Enable radio in TX mode.                                              */
+  uint32_t  TASKS_RXEN;                        /*!< Enable radio in RX mode.                                              */
+  uint32_t  TASKS_START;                       /*!< Start radio.                                                          */
+  uint32_t  TASKS_DISABLE;                     /*!< Disable radio.                                                        */
+  uint32_t  EVENTS_READY;                      /*!< Ready event.                                                          */
+  uint32_t  EVENTS_END;                        /*!< End event.                                                            */
+  uint32_t  EVENTS_DISABLED;                   /*!< Disable event.                                                        */
+  uint32_t  SHORTS;                            /*!< Shortcuts for the radio.                                              */
+  uint32_t  INTENSET;                          /*!< Interrupt enable set register.                                        */
+  uint32_t  CRCSTATUS;                         /*!< CRC status of received packet.                                        */
+  uint32_t  PACKETPTR;                         /*!< Packet pointer. Decision point: START task.                           */
+  uint32_t  FREQUENCY;                         /*!< Frequency.                                                            */
+  uint32_t  TXPOWER;                           /*!< Output power.                                                         */
+  uint32_t  MODE;                              /*!< Data rate and modulation.                                             */
+  uint32_t  PCNF0;                             /*!< Packet configuration 0.                                               */
+  uint32_t  PCNF1;                             /*!< Packet configuration 1.                                               */
+  uint32_t  BASE0;                             /*!< Radio base address 0. Decision point: START task.                     */
+  uint32_t  PREFIX0;                           /*!< Prefixes bytes for logical addresses 0 to 3.                          */
+  uint32_t  TXADDRESS;                         /*!< Transmit address select.                                              */
+  uint32_t  RXADDRESSES;                       /*!< Receive address select.                                               */
+  uint32_t  CRCCNF;                            /*!< CRC configuration.                                                    */
+  uint32_t  CRCPOLY;                           /*!< CRC polynomial.                                                       */
+  uint32_t  CRCINIT;                           /*!< CRC initial value.                                                    */
+  uint32_t  RSSISAMPLE;                        /*!< RSSI sample.                                                          */
+  uint32_t  DATAWHITEIV;                       /*!< Data whitening initial value.                                         */
+} NRF_RADIO_Type;
+
+typedef struct {                               /*!< CLOCK Structure                                                       */
+  uint32_t  TASKS_HFCLKSTART;                  /*!< Start HFCLK clock source.                                             */
+  uint32_t  EVENTS_HFCLKSTARTED;               /*!< HFCLK oscillator started.                                             */
+} NRF_CLOCK_Type;
+
+typedef struct {                               /*!< TEMP Structure                                                        */
   uint32_t  TASKS_START;                       /*!< Start temperature measurement.                                        */
   uint32_t  TASKS_STOP;                        /*!< Stop temperature measurement.                                         */
   uint32_t  EVENTS_DATARDY;                    /*!< Temperature measurement complete, data ready event.                   */
   int32_t   TEMP;                              /*!< Die temperature in degC, 2's complement format, 0.25 degC pecision.   */
 } NRF_TEMP_Type;
 
+extern NRF_RADIO_Type nrf_radio;
+extern NRF_CLOCK_Type nrf_clock;
 extern NRF_TEMP_Type nrf_temp;
 
+#define NRF_RADIO (&nrf_radio)
+#define NRF_CLOCK (&nrf_clock)
 #define NRF_TEMP (&nrf_temp)
 
 void __NOP();
 
-#define SWI3_IRQn TIMER2_IRQn
-#define SWI4_IRQn TIMER3_IRQn
+#define SWI3_IRQn TIMER1_IRQn
+#define SWI4_IRQn TIMER2_IRQn
+#define RADIO_IRQn TIMER3_IRQn
+
+#define RADIO_CRCCNF_LEN_Two (2UL) /*!< Two bytes long CRC. */
+#define RADIO_SHORTS_ADDRESS_RSSISTART_Pos (4UL) /*!< Position of ADDRESS_RSSISTART field. */
+#define RADIO_SHORTS_ADDRESS_RSSISTART_Msk (0x1UL << RADIO_SHORTS_ADDRESS_RSSISTART_Pos) /*!< Bit mask of ADDRESS_RSSISTART field. */
+#define RADIO_MODE_MODE_Nrf_1Mbit (0x00UL) /*!< 1Mbit/s Nordic propietary radio mode. */
+#define RADIO_MODE_MODE_Nrf_2Mbit (0x01UL) /*!< 2Mbit/s Nordic propietary radio mode. */
+#define RADIO_MODE_MODE_Nrf_250Kbit (0x02UL) /*!< 250kbit/s Nordic propietary radio mode. */
 
 #define TIMER_INTENSET_COMPARE3_Pos (19UL)
 #define TIMER_INTENSET_COMPARE3_Msk (0x1UL << TIMER_INTENSET_COMPARE3_Pos)
@@ -106,6 +151,7 @@ extern NRF_TIMER_Type nrf_timer0;
 void TIMER0_IRQHandler(void);
 void SWI3_IRQHandler(void);
 void SWI4_IRQHandler(void);
+extern void RADIO_IRQHandler(void);
 
 extern volatile uint32_t us_tick_delta;
 extern volatile bool perform_reset;
@@ -115,6 +161,8 @@ void ticker_handler(const ticker_data_t *data);
 void NVIC_SetPriority(IRQn_Type IRQn, uint32_t priority);
 
 void NVIC_SetPendingIRQ(IRQn_Type IRQn);
+
+void NVIC_ClearPendingIRQ(IRQn_Type IRQn);
 
 void NVIC_EnableIRQ(IRQn_Type IRQn);
 

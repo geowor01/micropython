@@ -355,7 +355,7 @@ int main(void) {
         microbit_pin_init();
         // microbit_compass_init();
         pwm_init();
-        // MP_STATE_PORT(radio_buf) = NULL;
+        MP_STATE_PORT(radio_buf) = NULL;
 
         // Start our ticker
         // Note that the DAL has a separate ticker which is also running

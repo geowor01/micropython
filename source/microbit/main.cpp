@@ -219,7 +219,7 @@ static void setup_tests()
 
         MicroPythonTests.run_all = function() {
             ccall('set_run_all_tests', 'null');
-            ccall('reset_device', 'null');
+            window.MbedJSUI.reset();
         };
 
         MicroPythonTests.run = function(test, reset = true) {
@@ -229,7 +229,7 @@ static void setup_tests()
                 if (request.readyState == 4 && request.status == 200) {
                     ccall('set_running_test', 'null', ['string'], [request.responseText]);
                     if (reset) {
-                        ccall('reset_device', 'null');
+                        window.MbedJSUI.reset();
                     }
                     console.log("Test: " + test);
                 }

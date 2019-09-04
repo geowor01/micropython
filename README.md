@@ -90,19 +90,10 @@ Major Modifications
 Building
 ========
 
-- Clone https://github.com/geowor01/mbed-simulator-microbit and follow README instructions up to running `npm install .`.
-- In the root directory of this project, clone https://github.com/geowor01/microbit-dal.
-- Then run
-```
-make
-rm -rf build/
-./tools/makeqstrhdr.sh
-```
-- Finally run `mbed-simulator .` to build and deploy the simulator using node.
+- Clone https://github.com/geowor01/mbed-simulator-microbit and follow the build instructions in the README.
 
-Alternatively, to simply run the simulator locally you can either:
+Alternatively, to simply run the simulator locally you can:
 - Run a local copy of the [MicroPython editor](https://github.com/bbcmicrobit/PythonEditor).
-- Clone the [mbed-simulator project](https://github.com/geowor01/mbed-simulator-microbit) and run `node server.js` in `/precompiled`.
 
 Testing
 =======

@@ -57,8 +57,8 @@ Other Modules:
 - [x] sys
 - [x] gc
 - [x] this
+- [x] radio
 - [ ] machine
-- [ ] radio
 - [ ] audio
 - [ ] speech
 - [ ] music

@@ -265,6 +265,8 @@ void microbit_display_obj_t::advanceRow() {
     // Reset the row counts and bit mask when we have hit the max.
     if (strobe_row == ROW_COUNT) {
         strobe_row = 0;
+        EM_ASM_({ window.MbedJSUI.MicrobitDisplay.prototype.set_image(new Uint8Array(Module.HEAPU8.subarray($0, $0 + 25))); }, microbit_display_obj.image_buffer);
+        emscripten_sleep(1);
     }
 
     // Set pin for this row.
@@ -279,7 +281,6 @@ void microbit_display_obj_t::advanceRow() {
         if (brightness) {
             pins_for_brightness[MAX_BRIGHTNESS] |= (1<<(i+MIN_COLUMN_PIN));
         }
-        EM_ASM_({ MbedJSUI.MicrobitDisplay.prototype.set_brightness($0, $1, $2); }, x, y, 100.0 * brightness / MAX_BRIGHTNESS);
     }
     /* Enable the strobe bit for this row */
     nrf_gpio_pin_set(strobe_row+MIN_ROW_PIN);

@@ -278,8 +278,8 @@ void microbit_display_obj_t::advanceRow() {
         uint8_t brightness = microbit_display_obj.image_buffer[x][y];
         if (brightness) {
             pins_for_brightness[MAX_BRIGHTNESS] |= (1<<(i+MIN_COLUMN_PIN));
-            EM_ASM_({ MbedJSUI.MicrobitDisplay.prototype.set_brightness($0, $1, $2); }, x, y, 100.0 * brightness / MAX_BRIGHTNESS);
         }
+        EM_ASM_({ MbedJSUI.MicrobitDisplay.prototype.set_brightness($0, $1, $2); }, x, y, 100.0 * brightness / MAX_BRIGHTNESS);
     }
     /* Enable the strobe bit for this row */
     nrf_gpio_pin_set(strobe_row+MIN_ROW_PIN);

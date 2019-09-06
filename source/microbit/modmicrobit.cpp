@@ -68,7 +68,8 @@ MP_DEFINE_CONST_FUN_OBJ_0(microbit_running_time_obj, microbit_running_time);
 
 STATIC mp_obj_t microbit_panic(mp_uint_t n_args, const mp_obj_t *args) {
 #ifdef TARGET_SIMULATOR
-    EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.panic_mode(); });
+    ticker_stop();
+    EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode(false); });
     emscripten_sleep(1);
 #endif // TARGET_SIMULATOR
     if (n_args == 0) {
@@ -78,8 +79,9 @@ STATIC mp_obj_t microbit_panic(mp_uint_t n_args, const mp_obj_t *args) {
         microbit_panic(mp_obj_get_int(args[0]));
     }
 #ifdef TARGET_SIMULATOR
-    EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode(); });
+    EM_ASM({ window.MbedJSUI.MicrobitDisplay.prototype.micropython_mode(true); });
     emscripten_sleep(1);
+    ticker_start();
     microbit_reset_();
 #endif // TARGET_SIMULATOR
     return mp_const_none;

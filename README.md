@@ -16,7 +16,7 @@ Introduction
 
 This project is a fork of the https://github.com/bbcmicrobit/micropython project, with the oldest common ancestor being https://github.com/bbcmicrobit/micropython/commit/a92ca9b1f907c07a01116b0eb464ca4743a28bf1.
 
-The code for MicroPython has been adapted to run on an in-browser simulation of the BBC micro:bit built using https://github.com/geowor01/mbed-simulator-microbit. The result of this is used in the online MicroPython editor https://github.com/bbcmicrobit/PythonEditor to allow users to run their MicroPython scripts within the browser without having to flash their script to a physical board.
+The code for MicroPython has been adapted to run on an in-browser simulation of the BBC micro:bit built using https://github.com/microbit-foundation/microbit-simulator. The result of this is used in the online MicroPython editor https://github.com/bbcmicrobit/PythonEditor to allow users to run their MicroPython scripts within the browser without having to flash their script to a physical board.
 
 [Emscripten](https://emscripten.org/) is used to compile MicroPython to WebAssembly and Javascript, with the [Asyncify](https://emscripten.org/docs/porting/asyncify.html) option used to simulate multithreading.
 
@@ -90,7 +90,7 @@ Major Modifications
 Building
 ========
 
-- Clone https://github.com/geowor01/mbed-simulator-microbit and follow the build instructions in the README.
+- Clone https://github.com/microbit-foundation/microbit-simulator and follow the build instructions in the README.
 
 Alternatively, to simply run the simulator locally you can:
 - Run a local copy of the [MicroPython editor](https://github.com/bbcmicrobit/PythonEditor).
